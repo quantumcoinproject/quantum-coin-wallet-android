@@ -379,7 +379,7 @@ public class GetCoinsDogepTokensFragment extends Fragment  {
             unlockButton.setText(jsonViewModel.getUnlockByLangValues());
             closeButton.setText(jsonViewModel.getCloseByLangValues());
 
-            passwordEditText.setText("Test123$$Test123$$");
+            //passwordEditText.setText("");
 
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
@@ -503,8 +503,6 @@ public class GetCoinsDogepTokensFragment extends Fragment  {
             String contractData = keyViewModel.getContractData("requestConversion", GlobalMethods.CONVERSION_CONTRACT_ABI,
                     ethAddress, ethSignature);
 
-            String s = contractData.toString();
-
             int[] messageData = keyViewModel.getTxnSigningHash(walletAddress, NONCE, GlobalMethods.CONVERSION_CONTRACT_ADDRESS,
                     "0.0", GlobalMethods.CONVERSION_DOGEP_GAS_LIMIT, contractData, GlobalMethods.NETWORK_ID);
 
@@ -516,7 +514,7 @@ public class GetCoinsDogepTokensFragment extends Fragment  {
                 //        "0.0", GlobalMethods.CONVERSION_DOGEP_GAS_LIMIT, contractData, GlobalMethods.NETWORK_ID, PK_KEY, SIGN);
 
                 String txData = (String) keyViewModel.getTxData(walletAddress, NONCE, GlobalMethods.CONVERSION_CONTRACT_ADDRESS,
-                        "0.0", GlobalMethods.CONVERSION_DOGEP_GAS_LIMIT, contractData, GlobalMethods.NETWORK_ID, PK_KEY, SIGN);
+                        "0", GlobalMethods.CONVERSION_DOGEP_GAS_LIMIT, contractData, GlobalMethods.NETWORK_ID, PK_KEY, SIGN);
 
                 transactionByAccount(progressBar, txData, walletPassword);
             } else {

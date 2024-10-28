@@ -283,6 +283,22 @@ public class GlobalMethods {
         }
         return number;
     }
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                    + Character.digit(s.charAt(i+1), 16));
+        }
+        return data;
+    }
 
+    public static byte[] HexStringToByteArray(String s) {
+        byte data[] = new byte[s.length()/2];
+        for(int i=0;i < s.length();i+=2) {
+            data[i/2] = (Integer.decode("0x"+s.charAt(i)+s.charAt(i+1))).byteValue();
+        }
+        return data;
+    }
 }
 

@@ -66,7 +66,7 @@ public class SettingsFragment extends Fragment  {
         buttonGetCoins.setText(jsonViewModel.getGetCoinsForDogePTokensByLangValues());
         buttonNetworks.setText(jsonViewModel.getNetworksByLangValues());
 
-        buttonGetCoins.setVisibility(View.GONE);
+        //buttonGetCoins.setVisibility(View.GONE);
 
         linerLayoutOffline = (LinearLayout) getView().findViewById(R.id.linerLayout_setting_offline);
         imageViewRetry = (ImageView) getView().findViewById(R.id.image_retry);
