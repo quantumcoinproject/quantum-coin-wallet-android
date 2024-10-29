@@ -78,7 +78,7 @@ echo "0f17b2e2168a4e70f5f4dbe7388052bef4099b4b2dfe7ebe1670308e24be2173 $PWD/temp
 
 curl -Lo $PWD/templibs/mobile-go/android-armeabi-v7a.tar.gz https://github.com/quantumcoinproject/quantum-coin-go/releases/download/v2.0.51/android-armeabi-v7a.tar.gz
 tar -zxf $PWD/templibs/mobile-go/android-armeabi-v7a.tar.gz --directory $PWD/templibs/mobile-go/android-armeabi-v7a
-echo "0f17b2e2168a4e70f5f4dbe7388052bef4099b4b2dfe7ebe1670308e24be2173 $PWD/templibs/mobile-go/android-armeabi-v7a.tar.gz" | sha256sum --check  - || exit 1
+echo "85b4142668a38266299824e857c3ec4be92895904e86eae830f110e3a0c63c27 $PWD/templibs/mobile-go/android-armeabi-v7a.tar.gz" | sha256sum --check  - || exit 1
 
 curl -Lo $PWD/templibs/mobile-go/android-x86.tar.gz https://github.com/quantumcoinproject/quantum-coin-go/releases/download/v2.0.51/android-x86.tar.gz
 tar -zxf $PWD/templibs/mobile-go/android-x86.tar.gz --directory $PWD/templibs/mobile-go/android-x86
