@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.dpwallet.app'
+    namespace 'com.quantumcoinwallet.app'
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.dpwallet.app"
+        applicationId "com.quantumcoinwallet.app"
         minSdk 21
         targetSdk 33
         versionCode 1

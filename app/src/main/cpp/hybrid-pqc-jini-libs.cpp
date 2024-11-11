@@ -6,7 +6,7 @@
 #include "hybrid.h"
 #include "randombytes.h"
 #include "shake_prng.h"
-#include "libgodp.h"
+#include "libquantumcoin.h"
 #define JNICALL
 
 const int CRYPTO_SEED_BYTES = 96;
@@ -18,7 +18,7 @@ const int CRYPTO_PUBLICKEY_BYTES = 32 + 1312 + 64; //1408
 const int CRYPTO_COMPACT_SIGNATURE_BYTES = 2 + 64 + 2420 + 40 + CRYPTO_MESSAGE_LEN; //2558
 
 extern "C" JNIEXPORT jobjectArray   JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_KeypairSeed(JNIEnv* env, jobject, jintArray  expandedSeedArray)
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_KeypairSeed(JNIEnv* env, jobject, jintArray  expandedSeedArray)
 {
     jint expandedSeedArraylen = env->GetArrayLength(expandedSeedArray);
 
@@ -90,7 +90,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_KeypairSeed(JNIEnv* env, jobject, 
 }
 
 extern "C" JNIEXPORT jobjectArray   JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_Keypair(JNIEnv* env, jobject )
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_Keypair(JNIEnv* env, jobject )
 {
     unsigned char *sk = (unsigned char*) malloc(CRYPTO_SECRETKEY_BYTES * sizeof(1));
     unsigned char *pk = (unsigned char*) malloc(CRYPTO_PUBLICKEY_BYTES * sizeof(1));
@@ -136,7 +136,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_Keypair(JNIEnv* env, jobject )
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_Sign(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_Sign(JNIEnv* env, jobject ,
                                                    jintArray  message, jintArray skKey)
 {
     jint msglen = env->GetArrayLength(message);
@@ -184,7 +184,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_Sign(JNIEnv* env, jobject ,
 }
 
 extern "C" JNIEXPORT jint  JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_SignVerify(JNIEnv* env, jobject,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_SignVerify(JNIEnv* env, jobject,
                                                          jintArray message, jintArray sign, jintArray pkKey)
 {
     jint msglen = env->GetArrayLength(message);
@@ -233,7 +233,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_SignVerify(JNIEnv* env, jobject,
 
 
 extern "C" JNIEXPORT jstring   JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_SeedExpander(JNIEnv* env, jobject, jintArray  seedArray)
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_SeedExpander(JNIEnv* env, jobject, jintArray  seedArray)
 {
     jint seedArraylen = env->GetArrayLength(seedArray);
 
@@ -275,7 +275,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_SeedExpander(JNIEnv* env, jobject,
 
 
 extern "C" JNIEXPORT jstring   JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_Random(JNIEnv* env, jobject)
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_Random(JNIEnv* env, jobject)
 {
     unsigned char *rand = (unsigned char*) malloc(CRYPTO_SEED_BYTES * sizeof(1));
 
@@ -297,7 +297,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_Random(JNIEnv* env, jobject)
 
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_PublicKeyFromPrivateKey(JNIEnv* env, jobject , jintArray skKey)
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_PublicKeyFromPrivateKey(JNIEnv* env, jobject , jintArray skKey)
 {
     unsigned char *sk = (unsigned char*) malloc(CRYPTO_SECRETKEY_BYTES * sizeof(1));
     unsigned char *pk = (unsigned char*) malloc(CRYPTO_PUBLICKEY_BYTES * sizeof(1));
@@ -346,7 +346,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_PublicKeyFromPrivateKey(JNIEnv* en
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_Scrypt(JNIEnv* env,jobject,jintArray skKey,jintArray salt)
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_Scrypt(JNIEnv* env,jobject,jintArray skKey,jintArray salt)
 {
     jint saltlen = env->GetArrayLength(salt);
 
@@ -405,7 +405,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_Scrypt(JNIEnv* env,jobject,jintArr
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_AddressFromPublicKey(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_AddressFromPublicKey(JNIEnv* env, jobject ,
                                                                    jintArray pkKey)
 {
     jint *pKey = env->GetIntArrayElements(pkKey, NULL);
@@ -450,7 +450,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_AddressFromPublicKey(JNIEnv* env, 
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_IsValidAddress(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_IsValidAddress(JNIEnv* env, jobject ,
                                                            jstring address)
 {
     jint addresslen = env->GetStringLength(address);
@@ -493,7 +493,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_IsValidAddress(JNIEnv* env, jobjec
 
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_TxnSigningHash(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_TxnSigningHash(JNIEnv* env, jobject ,
                         jstring from, jstring nonce, jstring to, jstring value,
                         jstring gasLimit, jstring data, jstring chainId)
 {
@@ -545,7 +545,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_TxnSigningHash(JNIEnv* env, jobjec
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_TxHash(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_TxHash(JNIEnv* env, jobject ,
                                                     jstring from, jstring nonce, jstring to, jstring value,
                                                     jstring gasLimit, jstring data, jstring chainId,
                                                     jintArray pkKey, jintArray sign)
@@ -622,7 +622,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_TxHash(JNIEnv* env, jobject ,
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_TxData(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_TxData(JNIEnv* env, jobject ,
                                                      jstring from, jstring nonce, jstring to, jstring value,
                                                      jstring gasLimit, jstring data, jstring chainId,
                                                      jintArray pkKey, jintArray sign)
@@ -730,7 +730,7 @@ static jobjectArray make_row(JNIEnv *env, jsize count, const char* elements[])
 
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_ContractData(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_ContractData(JNIEnv* env, jobject ,
                                                          jstring method, jstring abidata, jstring argument1, jstring argument2)
 {
     const jsize NumRows = 4;
@@ -783,7 +783,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_ContractData(JNIEnv* env, jobject 
 
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_ParseBigFloat(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_ParseBigFloat(JNIEnv* env, jobject ,
                                                           jstring quantity)
 {
     jboolean isCopy;
@@ -819,7 +819,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_ParseBigFloat(JNIEnv* env, jobject
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_ParseBigFloatInner(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_ParseBigFloatInner(JNIEnv* env, jobject ,
                                                           jstring quantity)
 {
     jboolean isCopy;
@@ -855,7 +855,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_ParseBigFloatInner(JNIEnv* env, jo
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_WeiToDogeProtocol(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_WeiToDogeProtocol(JNIEnv* env, jobject ,
                                                               jstring quantity)
 {
     jboolean isCopy;
@@ -891,7 +891,7 @@ Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_WeiToDogeProtocol(JNIEnv* env, job
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_dpwallet_app_hybrid_HybridPqcJNIImpl_DogeProtocolToWei(JNIEnv* env, jobject ,
+Java_com_quantumcoinwallet_app_hybrid_HybridPqcJNIImpl_DogeProtocolToWei(JNIEnv* env, jobject ,
                                                                 jstring quantity)
 {
     jboolean isCopy;

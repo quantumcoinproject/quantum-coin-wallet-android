@@ -7,15 +7,15 @@ cmake_minimum_required(VERSION 3.18.1)
 
 # Declares and names the project.
 
-project("dpwallet")
+project("QuantumCoinWallet")
 
 add_library(lib_hybridpqc SHARED IMPORTED)
 set_property(TARGET lib_hybridpqc PROPERTY IMPORTED_NO_SONAME 1)
 set_target_properties(lib_hybridpqc PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libhybridpqc.so)
 
-add_library(lib_godp SHARED IMPORTED)
-set_property(TARGET lib_godp PROPERTY IMPORTED_NO_SONAME 1)
-set_target_properties(lib_godp PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libgodp.so)
+add_library(lib_quantumcoin SHARED IMPORTED)
+set_property(TARGET lib_quantumcoin PROPERTY IMPORTED_NO_SONAME 1)
+set_target_properties(lib_quantumcoin PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libquantumcoin.so)
 
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${CMAKE_ANDROID_ARCH_ABI}/
@@ -26,7 +26,7 @@ include_directories(
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
 add_library( # Sets the name of the library.
-        dpwallet
+        quantumcoinwallet
 
         # Sets the library as a shared library.
         SHARED
@@ -53,9 +53,9 @@ find_library( # Sets the name of the path variable.
 # build script, prebuilt third-party libraries, or system libraries.
 
 target_link_libraries( # Specifies the target library.
-        dpwallet
+        quantumcoinwallet
         lib_hybridpqc
-        lib_godp
+        lib_quantumcoin
         # Links the target library to the log library
         # included in the NDK.
         ${log-lib})
