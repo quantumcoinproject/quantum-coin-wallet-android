@@ -30,7 +30,7 @@ jobs:
       - name: Upload Quantum Coin Wallet APK
         uses: actions/upload-artifact@v3
         with:
-          name: dp-wallet-debug
+          name: quantum-coin-wallet-debug
           path: ${{ env.main_project_module }}/build/outputs/apk/debug/
   Release:
     name: Release APK
@@ -49,7 +49,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
-          artifacts: "dp-wallet-debug/*.apk"
+          artifacts: "quantum-coin-wallet-debug/*.apk"
           name: Release ${{ steps.version-string.outputs.VERSION_STR }}
           prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') }}
           tag: ${{ steps.version-string.outputs.VERSION_STR }}
