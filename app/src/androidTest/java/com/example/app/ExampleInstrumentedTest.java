@@ -1,4 +1,4 @@
-package com.dpwallet.app;
+package com.quantumcoinwallet.app;
 
 import android.content.Context;
 

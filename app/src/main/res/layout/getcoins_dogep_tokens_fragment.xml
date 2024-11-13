@@ -200,7 +200,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="burden"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_2"
@@ -216,7 +216,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="junk"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_3"
@@ -232,7 +232,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="improve"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_4"
@@ -248,7 +248,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="topic"/>
+                                android:text=""/>
 
                         </LinearLayout>
 
@@ -322,7 +322,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="recycle"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_6"
@@ -338,7 +338,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="pistol"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_7"
@@ -354,7 +354,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="daring"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_8"
@@ -370,7 +370,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="tag"/>
+                                android:text=""/>
 
                         </LinearLayout>
 
@@ -444,7 +444,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="already"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_10"
@@ -460,7 +460,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="frozen"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_11"
@@ -476,7 +476,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="disease"/>
+                                android:text=""/>
 
                             <EditText
                                 android:id="@+id/editText_getCoins_text_12"
@@ -492,7 +492,7 @@
                                 android:textColor="@color/colorCommon6"
                                 android:textAlignment="center"
                                 android:textSize="14dp"
-                                android:text="poet"/>
+                                android:text=""/>
 
                         </LinearLayout>
 
