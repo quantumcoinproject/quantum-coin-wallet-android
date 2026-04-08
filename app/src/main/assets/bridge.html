@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Bridge</title></head>
+<body>
+<script>
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('UNCAUGHT JS ERROR: ' + message + ' at ' + source + ':' + lineno + ':' + colno);
+    if (error && error.stack) console.error('Stack: ' + error.stack);
+    return true;
+};
+</script>
+<script src="quantumcoin-bundle.js" onerror="console.error('FATAL: Failed to load quantumcoin-bundle.js script tag')"></script>
+<script>
+console.log('Bridge: bundle loaded, QuantumCoinSDK defined = ' + (typeof QuantumCoinSDK !== 'undefined'));
+if (typeof QuantumCoinSDK !== 'undefined') {
+    console.log('Bridge: SDK keys = ' + Object.keys(QuantumCoinSDK).slice(0, 20).join(', '));
+} else {
+    console.error('Bridge: QuantumCoinSDK is UNDEFINED after bundle script tag');
+}
+
+var _sdkInitialized = false;
+
+function bytesToBase64(bytes) {
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+function base64ToBytes(b64) {
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+function extractWalletInfo(wallet) {
+    return {
+        address: wallet.address,
+        privateKey: bytesToBase64(wallet.signingKey.privateKeyBytes),
+        publicKey: bytesToBase64(wallet.signingKey.publicKeyBytes)
+    };
+}
+
+function sendResult(requestId, data) {
+    AndroidBridge.onResult(requestId, JSON.stringify({ success: true, data: data }));
+}
+
+function sendError(requestId, error) {
+    var message = (error && error.message) ? error.message : String(error);
+    console.error('Bridge error [' + requestId + ']: ' + message);
+    AndroidBridge.onResult(requestId, JSON.stringify({ success: false, error: message }));
+}
+
+function requireSDK(requestId) {
+    if (typeof QuantumCoinSDK === 'undefined') {
+        sendError(requestId, 'QuantumCoinSDK bundle failed to load. Check logcat for JS errors.');
+        return false;
+    }
+    return true;
+}
+
+async function ensureInitialized(requestId) {
+    if (!requireSDK(requestId)) return false;
+    if (!_sdkInitialized) {
+        var result = await QuantumCoinSDK.Initialize(null);
+        _sdkInitialized = true;
+        console.log('Bridge: SDK auto-initialized, result = ' + result);
+    }
+    return true;
+}
+
+var bridge = {
+    initialize: async function(requestId, chainId, rpcEndpoint) {
+        try {
+            if (!requireSDK(requestId)) return;
+            await QuantumCoinSDK.Initialize(new QuantumCoinSDK.Config(chainId, rpcEndpoint));
+            _sdkInitialized = true;
+            sendResult(requestId, {});
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    initializeOffline: async function(requestId) {
+        try {
+            if (!requireSDK(requestId)) return;
+            var result = await QuantumCoinSDK.Initialize(null);
+            _sdkInitialized = true;
+            console.log('Bridge: initializeOffline result = ' + result);
+            sendResult(requestId, {});
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    createRandomSeed: async function(requestId, keyType) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var words = await QuantumCoinSDK.Wallet.createRandomSeed(keyType);
+            sendResult(requestId, words);
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    walletFromSeed: async function(requestId, seedArrayJson) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var seedArray = JSON.parse(seedArrayJson);
+            var wallet = await QuantumCoinSDK.Wallet.fromSeed(seedArray);
+            sendResult(requestId, extractWalletInfo(wallet));
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    walletFromPhrase: async function(requestId, wordsJson) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var words = JSON.parse(wordsJson);
+            var wallet = await QuantumCoinSDK.Wallet.fromPhrase(words);
+            sendResult(requestId, extractWalletInfo(wallet));
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    walletFromKeys: async function(requestId, privKeyBase64, pubKeyBase64) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var privBytes = base64ToBytes(privKeyBase64);
+            var pubBytes = base64ToBytes(pubKeyBase64);
+            var wallet = await QuantumCoinSDK.Wallet.fromKeys(privBytes, pubBytes);
+            sendResult(requestId, extractWalletInfo(wallet));
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    sendTransaction: async function(requestId, privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId) {
+        try {
+            if (!requireSDK(requestId)) return;
+            await QuantumCoinSDK.Initialize(new QuantumCoinSDK.Config(chainId, rpcEndpoint));
+            _sdkInitialized = true;
+            var provider = new QuantumCoinSDK.JsonRpcProvider(rpcEndpoint, chainId);
+            var privBytes = base64ToBytes(privKeyBase64);
+            var pubBytes = base64ToBytes(pubKeyBase64);
+            var wallet = await QuantumCoinSDK.Wallet.fromKeys(privBytes, pubBytes, provider);
+            var tx = await wallet.sendTransaction({
+                to: toAddress,
+                value: BigInt(valueWei),
+                gasLimit: Number(gasLimit)
+            });
+            sendResult(requestId, { txHash: tx.hash });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    isValidAddress: async function(requestId, address) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var valid = QuantumCoinSDK.isAddress(address);
+            sendResult(requestId, { valid: valid });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    computeAddress: async function(requestId, pubKeyBase64) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var pubBytes = base64ToBytes(pubKeyBase64);
+            var address = QuantumCoinSDK.computeAddress(pubBytes);
+            sendResult(requestId, { address: address });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    formatEther: async function(requestId, weiValue) {
+        try {
+            if (!requireSDK(requestId)) return;
+            var result = QuantumCoinSDK.formatEther(BigInt(weiValue));
+            sendResult(requestId, { value: result });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    parseEther: async function(requestId, etherValue) {
+        try {
+            if (!requireSDK(requestId)) return;
+            var result = QuantumCoinSDK.parseEther(etherValue);
+            sendResult(requestId, { value: result.toString() });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    }
+};
+</script>
+</body>
+</html>

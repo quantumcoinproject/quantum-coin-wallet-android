@@ -4,26 +4,13 @@ import android.content.Context;
 
 import androidx.lifecycle.ViewModel;
 
-import com.quantumcoinwallet.app.entity.KeyServiceException;
-import com.quantumcoinwallet.app.entity.ServiceException;
-import com.quantumcoinwallet.app.hybrid.HybridPqcJNIImpl;
-import com.quantumcoinwallet.app.hybrid.IHybridPqcJNIImpl;
 import com.quantumcoinwallet.app.interact.JsonInteract;
-import com.quantumcoinwallet.app.interact.KeyInteract;
-import com.quantumcoinwallet.app.keystorage.IKeyStore;
-import com.quantumcoinwallet.app.keystorage.KeyStore;
-import com.quantumcoinwallet.app.services.IKeyService;
-import com.quantumcoinwallet.app.services.KeyService;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
-import java.security.InvalidKeyException;
 import java.util.ArrayList;
 
 //@HiltViewModel
@@ -267,14 +254,6 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
-    public String getBackupByLangValues() {
-        try {
-            return _jsonInteract.getBackupByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
     public String getRestoreByLangValues() {
         try {
             return _jsonInteract.getRestoreByLangValues();
@@ -469,14 +448,6 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
-    public String getRestoreWalletFromBackupFileByLangValues() {
-        try {
-            return _jsonInteract.getRestoreWalletFromBackupFileByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
     public String getSeedWordsByLangValues() {
         try {
             return _jsonInteract.getSeedWordsByLangValues();
@@ -567,62 +538,6 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
-    public String getBackupWalletByLangValues() {
-        try {
-            return _jsonInteract.getBackupWalletByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    public String getBackupWalletInfo1ByLangValues() {
-        try {
-            return _jsonInteract.getBackupWalletInfo1ByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    public String getBackupWalletInfo2ByLangValues() {
-        try {
-            return _jsonInteract.getBackupWalletInfo2ByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    public String getBackupWalletSkipByLangValues() {
-        try {
-            return _jsonInteract.getBackupWalletSkipByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    public String getBackupWaitByLangValues() {
-        try {
-            return _jsonInteract.getBackupWaitByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    public String getWalletBackedUpByLangValues() {
-        try {
-            return _jsonInteract.getWalletBackedUpByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    public String getRestoreWalletFromBackupByLangValues() {
-        try {
-            return _jsonInteract.getRestoreWalletFromBackupByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
     public String getEnterAboveWalletPasswordByLangValues() {
         try {
             return _jsonInteract.getEnterAboveWalletPasswordByLangValues();
@@ -631,15 +546,6 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
-    public String getWalletFileRestoreWaitByLangValues() {
-        try {
-            return _jsonInteract.getWalletFileRestoreWaitByLangValues();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
     public String getWaitRevealSeedByLangValues() {
         try {
             return _jsonInteract.getWaitRevealSeedByLangValues();
@@ -769,9 +675,9 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
-    public String getTxnApiUrlByLangValues() {
+    public String getRpcEndpointByLangValues() {
         try {
-            return _jsonInteract.getTxnApiUrlByLangValues();
+            return _jsonInteract.getRpcEndpointByLangValues();
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -1140,6 +1046,102 @@ public class JsonViewModel extends ViewModel{
     public String getSendConfirmByLangValues() {
         try {
             return _jsonInteract.getSendConfirmByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getSelectWalletTypeByLangValues() {
+        try {
+            return _jsonInteract.getSelectWalletTypeByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getWalletTypeDefaultByLangValues() {
+        try {
+            return _jsonInteract.getWalletTypeDefaultByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getWalletTypeAdvancedByLangValues() {
+        try {
+            return _jsonInteract.getWalletTypeAdvancedByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getSelectSeedWordLengthByLangValues() {
+        try {
+            return _jsonInteract.getSelectSeedWordLengthByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getSeedLength32ByLangValues() {
+        try {
+            return _jsonInteract.getSeedLength32ByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getSeedLength36ByLangValues() {
+        try {
+            return _jsonInteract.getSeedLength36ByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getSeedLength48ByLangValues() {
+        try {
+            return _jsonInteract.getSeedLength48ByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getCopiedByLangValues() {
+        try {
+            return _jsonInteract.getCopiedByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getSkipByLangValues() {
+        try {
+            return _jsonInteract.getSkipByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getSkipVerifyConfirmByLangValues() {
+        try {
+            return _jsonInteract.getSkipVerifyConfirmByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getYesByLangValues() {
+        try {
+            return _jsonInteract.getYesByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getNoByLangValues() {
+        try {
+            return _jsonInteract.getNoByLangValues();
         } catch (JSONException e) {
             e.printStackTrace();
         }

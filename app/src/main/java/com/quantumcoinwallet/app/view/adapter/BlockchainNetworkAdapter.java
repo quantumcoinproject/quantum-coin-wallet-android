@@ -30,7 +30,7 @@ public class BlockchainNetworkAdapter extends
         TextView textViewId;
         TextView textViewName;
         TextView textViewScanApiUrl;
-        TextView textViewTxnApiUrl;
+        TextView textViewRpcEndpoint;
         TextView textViewBlockExplore;
 
         public DataObjectHolder(View itemView) {
@@ -39,7 +39,7 @@ public class BlockchainNetworkAdapter extends
                 this.textViewId = (TextView) itemView.findViewById(R.id.textView_blockchain_network_adapter_langValues_id);
                 this.textViewName = (TextView) itemView.findViewById(R.id.textView_blockchain_network_adapter_langValues_name);
                 this.textViewScanApiUrl = (TextView) itemView.findViewById(R.id.textView_blockchain_network_adapter_langValues_scanApiUrl);
-                this.textViewTxnApiUrl = (TextView) itemView.findViewById(R.id.textView_blockchain_network_adapter_langValues_txnApiUrl);
+                this.textViewRpcEndpoint = (TextView) itemView.findViewById(R.id.textView_blockchain_network_adapter_langValues_rpcEndpoint);
                 this.textViewBlockExplore = (TextView) itemView.findViewById(R.id.textView_blockchain_network_adapter_langValues_blockExplorerUrl);
             } catch(Exception ex){
                 GlobalMethods.ExceptionError(context, TAG, ex);
@@ -64,7 +64,7 @@ public class BlockchainNetworkAdapter extends
             holder.textViewId.setText(blockchainNetworks.get(position).getNetworkId());
             holder.textViewName.setText(blockchainNetworks.get(position).getBlockchainName());
             holder.textViewScanApiUrl.setText(blockchainNetworks.get(position).getScanApiDomain());
-            holder.textViewTxnApiUrl.setText(blockchainNetworks.get(position).getTxnApiDomain());
+            holder.textViewRpcEndpoint.setText(blockchainNetworks.get(position).getRpcEndpoint());
             holder.textViewBlockExplore.setText(blockchainNetworks.get(position).getBlockExplorerDomain());
         }catch(Exception ex){
             GlobalMethods.ExceptionError(context, TAG, ex);

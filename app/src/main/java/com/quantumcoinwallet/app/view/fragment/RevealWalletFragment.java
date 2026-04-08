@@ -4,6 +4,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.Editable;
 import android.text.SpannableString;
 import android.text.TextWatcher;
@@ -88,6 +89,11 @@ public class RevealWalletFragment extends Fragment {
         ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_reveal_seed_wallet);
 
         ImageButton revealSeedWordsViewCopyClipboardImageButton = (ImageButton) getView().findViewById(R.id.imageButton_reveal_seed_words_view_copy_clipboard);
+        TextView revealSeedWordsViewCopyLink = (TextView) getView().findViewById(R.id.textView_reveal_seed_words_view_copy_link);
+        TextView revealSeedWordsViewCopied = (TextView) getView().findViewById(R.id.textView_reveal_seed_words_view_copied);
+
+        revealSeedWordsViewCopyLink.setText(jsonViewModel.getCopyByLangValues());
+        revealSeedWordsViewCopied.setText(jsonViewModel.getCopiedByLangValues());
 
         try {
             ShowRevealSeedScreen(jsonViewModel,
@@ -95,10 +101,10 @@ public class RevealWalletFragment extends Fragment {
 
         } catch (KeyServiceException e) {
             progressBar.setVisibility(View.GONE);
-            GlobalMethods.ExceptionError(getContext(), TAG, e);
+            GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
         } catch (InvalidKeyException e) {
             progressBar.setVisibility(View.GONE);
-            GlobalMethods.ExceptionError(getContext(), TAG, e);
+            GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
         }
         homeWalletBackArrowImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -112,7 +118,7 @@ public class RevealWalletFragment extends Fragment {
             }
         });
 
-        revealSeedWordsViewCopyClipboardImageButton.setOnClickListener(new View.OnClickListener() {
+        View.OnClickListener revealCopyClickListener = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 progressBar.setVisibility(View.VISIBLE);
@@ -121,8 +127,17 @@ public class RevealWalletFragment extends Fragment {
                 ClipData clipData = ClipData.newPlainText("walletrevealSeed", clipboardCopyData);
                 clipBoard.setPrimaryClip(clipData);
                 progressBar.setVisibility(View.GONE);
+                revealSeedWordsViewCopied.setVisibility(View.VISIBLE);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        revealSeedWordsViewCopied.setVisibility(View.GONE);
+                    }
+                }, 600);
             }
-        });
+        };
+        revealSeedWordsViewCopyClipboardImageButton.setOnClickListener(revealCopyClickListener);
+        revealSeedWordsViewCopyLink.setOnClickListener(revealCopyClickListener);
 
     }
 
@@ -159,46 +174,23 @@ public class RevealWalletFragment extends Fragment {
         KeyViewModel keyViewModel = new KeyViewModel();
         String[] wallet = keyViewModel.decryptDataByAccount(getContext(),walletAddress, walletPassword);
 
-        String[] stringArray = Arrays.toString(GlobalMethods.GetIntDataArrayByString(wallet[2])).split("[\\[\\]]")[1].split(", ");
-        loadRevealSeedsThread(stringArray, textViews, progressBar);
+        String[] seedWordsList = wallet[2].split(",");
+        loadRevealSeedWords(seedWordsList, textViews, progressBar);
     }
 
-    private void loadRevealSeedsThread(String[] stringArray, TextView[] textViews, ProgressBar progressBar) {
-            progressBar.setVisibility(View.VISIBLE);
-            new Thread(new Runnable() {
-                public void run() {
-                    while (true) {
-                        getActivity().runOnUiThread(new Runnable() {
-                            public void run() {
-                                if (GlobalMethods.seedLoaded) {
-                                    try {
-                                        String[] wordList = GlobalMethods.seedWords.getWordListFromSeedArray(stringArray);
-                                        for (int i = 0; i < wordList.length; i++) {
-                                            textViews[i].setText(wordList[i].toUpperCase());
-                                        }
-                                        progressBar.setVisibility(View.GONE);
-                                    } catch (Exception e) {
-                                        progressBar.setVisibility(View.GONE);
-                                        GlobalMethods.ExceptionError(getContext(), TAG, e);
-                                    }
-                                }
-                            }
-                        });
-                        try {
-                            if(progressBar.getVisibility() == View.GONE){
-                                return;
-                            }
-                            if(ThreadStop){
-                                return;
-                            }
-                            Thread.sleep(1000);
-                        } catch (Exception e) {
-                            progressBar.setVisibility(View.GONE);
-                            GlobalMethods.ExceptionError(getContext(), TAG, e);
-                        }
-                    }
-                }
-            }).start();
+    private void loadRevealSeedWords(String[] wordList, TextView[] textViews, ProgressBar progressBar) {
+        progressBar.setVisibility(View.VISIBLE);
+        try {
+            for (int i = 0; i < wordList.length && i < textViews.length; i++) {
+                textViews[i].setText(wordList[i].trim().toUpperCase());
+            }
+            for (int i = wordList.length; i < textViews.length; i++) {
+                textViews[i].setText("");
+            }
+        } catch (Exception e) {
+            GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
+        }
+        progressBar.setVisibility(View.GONE);
     }
 
     private TextView[] RevealSeedWordsViewCaptionTextViews() {

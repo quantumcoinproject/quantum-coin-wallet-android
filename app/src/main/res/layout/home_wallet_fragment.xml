@@ -241,10 +241,168 @@
                     </LinearLayout>
 
                     <LinearLayout
-                        android:id="@+id/linear_layout_home_seed_words"
+                        android:id="@+id/linear_layout_home_wallet_type"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_below="@+id/linear_layout_home_create_restore_wallet"
+                        android:gravity="center_horizontal|center_vertical"
+                        android:visibility="gone"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textView_home_wallet_type_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="20dp"
+                            android:textStyle="bold"
+                            android:textColor="@color/colorCommon6"/>
+
+                        <View
+                            android:layout_width="wrap_content"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="20dp"
+                            android:layout_marginBottom="10dp"
+                            android:alpha="0.2"
+                            android:background="@drawable/line_2_shape" />
+
+                        <TextView
+                            android:id="@+id/textView_home_wallet_type_description"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="20dp"
+                            android:textSize="16dp" />
+
+                        <RadioGroup
+                            android:id="@+id/radioGroup_home_wallet_type"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <RadioButton
+                                android:id="@+id/radioButton_home_wallet_type_default"
+                                android:layout_width="match_parent"
+                                android:layout_height="30dp"
+                                android:layout_marginBottom="2dp"
+                                android:alpha="0.6"
+                                android:textAppearance="@style/regular_text" />
+
+                            <RadioButton
+                                android:id="@+id/radioButton_home_wallet_type_advanced"
+                                android:layout_width="match_parent"
+                                android:layout_height="30dp"
+                                android:layout_marginBottom="2dp"
+                                android:alpha="0.6"
+                                android:textAppearance="@style/regular_text" />
+
+                        </RadioGroup>
+
+                        <View
+                            android:layout_width="wrap_content"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="10dp"
+                            android:layout_marginBottom="10dp"
+                            android:alpha="0.2"
+                            android:background="@drawable/line_2_shape" />
+
+                        <Button
+                            android:id="@+id/button_home_wallet_type_next"
+                            android:background="@drawable/button_green_selector"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|right"
+                            android:padding="5dp"
+                            android:textAllCaps="false"
+                            android:textColor="@color/colorCommon7" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/linear_layout_home_seed_word_length"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@+id/linear_layout_home_wallet_type"
+                        android:gravity="center_horizontal|center_vertical"
+                        android:visibility="gone"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textView_home_seed_word_length_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="20dp"
+                            android:textStyle="bold"
+                            android:textColor="@color/colorCommon6"/>
+
+                        <View
+                            android:layout_width="wrap_content"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="20dp"
+                            android:layout_marginBottom="10dp"
+                            android:alpha="0.2"
+                            android:background="@drawable/line_2_shape" />
+
+                        <TextView
+                            android:id="@+id/textView_home_seed_word_length_description"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="20dp"
+                            android:textSize="16dp" />
+
+                        <RadioGroup
+                            android:id="@+id/radioGroup_home_seed_word_length"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <RadioButton
+                                android:id="@+id/radioButton_home_seed_word_length_32"
+                                android:layout_width="match_parent"
+                                android:layout_height="30dp"
+                                android:layout_marginBottom="2dp"
+                                android:alpha="0.6"
+                                android:textAppearance="@style/regular_text" />
+
+                            <RadioButton
+                                android:id="@+id/radioButton_home_seed_word_length_36"
+                                android:layout_width="match_parent"
+                                android:layout_height="30dp"
+                                android:layout_marginBottom="2dp"
+                                android:alpha="0.6"
+                                android:textAppearance="@style/regular_text" />
+
+                            <RadioButton
+                                android:id="@+id/radioButton_home_seed_word_length_48"
+                                android:layout_width="match_parent"
+                                android:layout_height="30dp"
+                                android:layout_marginBottom="2dp"
+                                android:alpha="0.6"
+                                android:textAppearance="@style/regular_text" />
+
+                        </RadioGroup>
+
+                        <View
+                            android:layout_width="wrap_content"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="10dp"
+                            android:layout_marginBottom="10dp"
+                            android:alpha="0.2"
+                            android:background="@drawable/line_2_shape" />
+
+                        <Button
+                            android:id="@+id/button_home_seed_word_length_next"
+                            android:background="@drawable/button_green_selector"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|right"
+                            android:padding="5dp"
+                            android:textAllCaps="false"
+                            android:textColor="@color/colorCommon7" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/linear_layout_home_seed_words"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@+id/linear_layout_home_seed_word_length"
                         android:gravity="center_horizontal|center_vertical"
                         android:visibility="gone"
                         android:orientation="vertical">
@@ -1740,16 +1898,42 @@
                             android:layout_height="wrap_content"
                             android:orientation="vertical">
 
-                            <ImageButton
-                                android:id="@+id/imageButton_home_seed_words_view_copy_clipboard"
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:padding="5dp"
-                                android:scaleType="fitCenter"
-                                android:layout_gravity="center_vertical|left"
-                                android:background="@drawable/image_selector"
-                                android:src="@drawable/copy_outline"
-                                app:tint="@color/colorCommon6" />
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <ImageButton
+                                    android:id="@+id/imageButton_home_seed_words_view_copy_clipboard"
+                                    android:layout_width="40dp"
+                                    android:layout_height="40dp"
+                                    android:padding="5dp"
+                                    android:scaleType="fitCenter"
+                                    android:background="@drawable/image_selector"
+                                    android:src="@drawable/copy_outline"
+                                    app:tint="@color/colorCommon6" />
+
+                                <TextView
+                                    android:id="@+id/textView_home_seed_words_view_copy_link"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:textColor="#2196F3"
+                                    android:textSize="16dp"
+                                    android:clickable="true"
+                                    android:focusable="true"
+                                    android:layout_marginStart="4dp" />
+
+                                <TextView
+                                    android:id="@+id/textView_home_seed_words_view_copied"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:textColor="#2196F3"
+                                    android:textSize="14dp"
+                                    android:visibility="gone"
+                                    android:layout_marginStart="8dp" />
+
+                            </LinearLayout>
 
                             <Button
                                 android:id="@+id/button_home_seed_words_view_next"
@@ -1794,6 +1978,19 @@
                                 android:alpha="0.2"
                                 android:background="@drawable/line_2_shape" />
                         </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/textView_home_seed_words_edit_skip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#2196F3"
+                            android:textSize="16dp"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:layout_gravity="end"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
+                            android:visibility="gone" />
 
                         <LinearLayout
                             android:layout_width="match_parent"

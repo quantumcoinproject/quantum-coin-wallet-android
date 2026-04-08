@@ -15,7 +15,6 @@ import androidx.fragment.app.Fragment;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
-import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
 
 public class SettingsFragment extends Fragment  {
 
@@ -59,14 +58,10 @@ public class SettingsFragment extends Fragment  {
 
         ImageButton backArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_setting_back_arrow);
         TextView settings = (TextView) getView().findViewById(R.id.textview_settings_langValues_settings);
-        Button buttonGetCoins = (Button) getView().findViewById(R.id.button_settings_langValues_get_coins_for_dogep_tokens);
         Button buttonNetworks = (Button) getView().findViewById(R.id.button_settings_langValues_networks);
 
         settings.setText(jsonViewModel.getSettingsByLangValues());
-        buttonGetCoins.setText(jsonViewModel.getGetCoinsForDogePTokensByLangValues());
         buttonNetworks.setText(jsonViewModel.getNetworksByLangValues());
-
-        //buttonGetCoins.setVisibility(View.GONE);
 
         linerLayoutOffline = (LinearLayout) getView().findViewById(R.id.linerLayout_setting_offline);
         imageViewRetry = (ImageView) getView().findViewById(R.id.image_retry);
@@ -77,12 +72,6 @@ public class SettingsFragment extends Fragment  {
         backArrowImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mSettingsListener.onSettingsCompleteCompleteByBackArrow();
-            }
-        });
-
-        buttonGetCoins.setOnClickListener(new View.OnClickListener(){
-            public void onClick(View v) {
-                mSettingsListener.onSettingsCompleteByGetCoin();
             }
         });
 
@@ -112,7 +101,6 @@ public class SettingsFragment extends Fragment  {
     public static interface OnSettingsCompleteListener {
         public abstract void onSettingsCompleteCompleteByBackArrow();
         public abstract void onSettingsCompleteByNetwork();
-        public abstract void onSettingsCompleteByGetCoin();
     }
 
     public void onAttach(Context context) {

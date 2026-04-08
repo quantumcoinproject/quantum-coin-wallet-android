@@ -15,8 +15,8 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummary;
+import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
-import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
 
 import org.threeten.bp.OffsetDateTime;
 import org.threeten.bp.format.DateTimeFormatter;
@@ -109,8 +109,7 @@ public class AccountPendingTransactionAdapter extends
 
             BigInteger valueBigInteger = new BigInteger(value.replace("0x",""), 16);
             String wei = valueBigInteger.toString(10);
-            KeyViewModel keyViewModel = new KeyViewModel();
-            String quantity = (String) keyViewModel.getWeiToDogeProtocol(wei);
+            String quantity = CoinUtils.formatWei(wei);
 
             holder.textViewTransHash.setText(hash.substring(0,7));
             holder.textViewDate.setText(formattedDateString + " GMT");

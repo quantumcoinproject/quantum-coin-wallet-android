@@ -52,7 +52,6 @@ public class JsonInteract {
     private static final String data_lang_key_refresh = "refresh";
     private static final String data_lang_key_completed_transactions = "completed-transactions";
     private static final String data_lang_key_pending_transactions = "pending-transactions";
-    private static final String data_lang_key_backup = "backup";
     private static final String data_lang_key_restore = "restore";
     private static final String data_lang_key_wallets = "wallets";
     private static final String data_lang_key_settings = "settings";
@@ -78,7 +77,6 @@ public class JsonInteract {
     private static final String data_lang_key_select_an_option = "select-an-option";
     private static final String data_lang_key_create_new_wallet = "create-new-wallet";
     private static final String data_lang_key_restore_wallet_from_seed = "restore-wallet-from-seed";
-    private static final String data_lang_key_restore_wallet_from_backup_file = "restore-wallet-from-backup-file";
     private static final String data_lang_key_seed_words = "seed-words";
     private static final String data_lang_key_seed_words_info_1 = "seed-words-info-1";
     private static final String data_lang_key_seed_words_info_2 = "seed-words-info-2";
@@ -90,15 +88,7 @@ public class JsonInteract {
     private static final String data_lang_key_verify_wallet_password_info = "verify-wallet-password-info";
     private static final String data_lang_key_waitWalletSave = "waitWalletSave";
     private static final String data_lang_key_walletSaved = "walletSaved";
-    private static final String data_lang_key_backup_wallet = "backup-wallet";
-    private static final String data_lang_key_backup_wallet_info_1 = "backup-wallet-info-1";
-    private static final String data_lang_key_backup_wallet_info_2 = "backup-wallet-info-2";
-    private static final String data_lang_key_backup_wallet_skip = "backup-wallet-skip";
-    private static final String data_lang_key_backupWait = "backupWait";
-    private static final String data_lang_key_walletBackedUp = "walletBackedUp";
-    private static final String data_lang_key_restore_wallet_from_backup = "restore-wallet-from-backup";
     private static final String data_lang_key_enter_above_wallet_password = "enter-above-wallet-password";
-    private static final String data_lang_key_walletFileRestoreWait = "walletFileRestoreWait";
     private static final String data_lang_key_waitRevealSeed = "waitRevealSeed";
     private static final String data_lang_key_waitWalletOpen = "waitWalletOpen";
     private static final String data_lang_key_open = "open";
@@ -115,7 +105,7 @@ public class JsonInteract {
     private static final String data_lang_key_id = "id";
     private static final String data_lang_key_name = "name";
     private static final String data_lang_key_scan_api_url = "scan-api-url";
-    private static final String data_lang_key_txn_api_url = "txn-api-url";
+    private static final String data_lang_key_rpc_endpoint = "rpc-endpoint";
     private static final String data_lang_key_block_explorer_url = "block-explorer-url";
     private static final String data_lang_key_add_network = "add-network";
     private static final String data_lang_key_add = "add";
@@ -162,6 +152,18 @@ public class JsonInteract {
     private static final String data_lang_key_hash = "hash";
     private static final String data_lang_key_block = "block";
     private static final String data_lang_key_sendConfirm = "sendConfirm";
+    private static final String data_lang_key_select_wallet_type = "select-wallet-type";
+    private static final String data_lang_key_wallet_type_default = "wallet-type-default";
+    private static final String data_lang_key_wallet_type_advanced = "wallet-type-advanced";
+    private static final String data_lang_key_select_seed_word_length = "select-seed-word-length";
+    private static final String data_lang_key_seed_length_32 = "seed-length-32";
+    private static final String data_lang_key_seed_length_36 = "seed-length-36";
+    private static final String data_lang_key_seed_length_48 = "seed-length-48";
+    private static final String data_lang_key_copied = "copied";
+    private static final String data_lang_key_skip = "skip";
+    private static final String data_lang_key_skip_verify_confirm = "skip-verify-confirm";
+    private static final String data_lang_key_yes = "yes";
+    private static final String data_lang_key_no = "no";
 
 
     private static final String data_lang_key_errors = "errors";
@@ -320,9 +322,6 @@ public class JsonInteract {
     public String getPendingTransactionsByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_pending_transactions);
     }
-    public String getBackupByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backup);
-    }
     public String getRestoreByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_restore);
     }
@@ -397,9 +396,6 @@ public class JsonInteract {
     public String getRestoreWalletFromSeedByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_restore_wallet_from_seed);
     }
-    public String getRestoreWalletFromBackupFileByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_restore_wallet_from_backup_file);
-    }
     public String getSeedWordsByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_seed_words);
     }
@@ -433,32 +429,8 @@ public class JsonInteract {
     public String getWalletSavedByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_walletSaved);
     }
-    public String getBackupWalletByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backup_wallet);
-    }
-    public String getBackupWalletInfo1ByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backup_wallet_info_1);
-    }
-    public String getBackupWalletInfo2ByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backup_wallet_info_2);
-    }
-    public String getBackupWalletSkipByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backup_wallet_skip);
-    }
-    public String getBackupWaitByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backupWait);
-    }
-    public String getWalletBackedUpByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_walletBackedUp);
-    }
-    public String getRestoreWalletFromBackupByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_restore_wallet_from_backup);
-    }
     public String getEnterAboveWalletPasswordByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_enter_above_wallet_password);
-    }
-    public String getWalletFileRestoreWaitByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_walletFileRestoreWait);
     }
     public String getWaitRevealSeedByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_waitRevealSeed);
@@ -510,8 +482,8 @@ public class JsonInteract {
     public String getScanApiUrlByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_scan_api_url);
     }
-    public String getTxnApiUrlByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_txn_api_url);
+    public String getRpcEndpointByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_rpc_endpoint);
     }
     public String getBlockExplorerUrlByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_block_explorer_url);
@@ -650,6 +622,42 @@ public class JsonInteract {
     }
     public String getSendConfirmByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_sendConfirm);
+    }
+    public String getSelectWalletTypeByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_select_wallet_type);
+    }
+    public String getWalletTypeDefaultByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_wallet_type_default);
+    }
+    public String getWalletTypeAdvancedByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_wallet_type_advanced);
+    }
+    public String getSelectSeedWordLengthByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_select_seed_word_length);
+    }
+    public String getSeedLength32ByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_seed_length_32);
+    }
+    public String getSeedLength36ByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_seed_length_36);
+    }
+    public String getSeedLength48ByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_seed_length_48);
+    }
+    public String getCopiedByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_copied);
+    }
+    public String getSkipByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_skip);
+    }
+    public String getSkipVerifyConfirmByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_skip_verify_confirm);
+    }
+    public String getYesByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_yes);
+    }
+    public String getNoByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_no);
     }
 
     public String getErrorByErrors() throws JSONException{

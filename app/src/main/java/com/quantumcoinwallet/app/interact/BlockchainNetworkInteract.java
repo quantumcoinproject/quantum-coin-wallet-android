@@ -9,7 +9,7 @@ public class BlockchainNetworkInteract {
 
     private static final String data_networks = "networks";
     private static final String data_scanApiDomain = "scanApiDomain";
-    private static final String data_txnApiDomain = "txnApiDomain";
+    private static final String data_rpcEndpoint = "rpcEndpoint";
     private static final String data_blockExplorerDomain = "blockExplorerDomain";
     private static final String data_blockchainName = "blockchainName";
     private static final String data_networkId = "networkId";
@@ -23,8 +23,8 @@ public class BlockchainNetworkInteract {
     public String getScanApiDomain() throws JSONException{
         return data_scanApiDomain;
     }
-    public String getTxnApiDomain() throws JSONException{
-        return data_txnApiDomain;
+    public String getRpcEndpoint() throws JSONException{
+        return data_rpcEndpoint;
     }
     public String getBlockExplorerDomain() throws JSONException{
         return data_blockExplorerDomain;

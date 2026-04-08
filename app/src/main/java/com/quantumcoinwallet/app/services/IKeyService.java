@@ -1,46 +1,26 @@
 package com.quantumcoinwallet.app.services;
 
-import com.quantumcoinwallet.app.entity.Result;
+import com.quantumcoinwallet.app.bridge.BridgeCallback;
 
 public interface IKeyService {
+    void createRandomSeed(int keyType, BridgeCallback callback);
+    void walletFromPhrase(String[] words, BridgeCallback callback);
+    void walletFromSeed(int[] seedArray, BridgeCallback callback);
+    void walletFromKeys(String privKeyBase64, String pubKeyBase64, BridgeCallback callback);
+    void sendTransaction(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, BridgeCallback callback);
+    void isValidAddress(String address, BridgeCallback callback);
+    void computeAddress(String pubKeyBase64, BridgeCallback callback);
+    void initializeOffline(BridgeCallback callback);
+    void initialize(int chainId, String rpcEndpoint, BridgeCallback callback);
 
-    Result<Object> newAccountFromSeed(int[] expandedSeedArray);
-
-    Result<Object> newAccount();
-
-    Result<Object> signAccount(int[] message, int[] skKey);
-
-    Result<Object> verifyAccount(int[] message, int[] sign, int[] pkKey);
-
-    Result<Object> seedExpander(int[] seed);
-
-    Result<Object> random();
-
-    Result<Object> publicKeyFromPrivateKey(int[] skKey);
-
-    Result<Object> scrypt(int[] skKey, int[] salt);
-
-    Result<Object> getAccountAddress(int[] pkKey);
-
-    Result<Object> isValidAddress(String address);
-
-    Result<Object> getTxnSigningHash(String fromAddress, String nonce, String toAddress,
-                     String amount, String gasLimit,  String data, String chainId);
-
-    Result<Object> getTxHash(String fromAddress, String nonce, String toAddress,
-                             String amount, String gasLimit, String data, String chainId,
-                             int[] pkKey, int[] sig);
-
-    Result<Object> getTxData(String fromAddress, String nonce, String toAddress,
-                             String amount, String gasLimit, String data, String chainId,
-                             int[] pkKey, int[] sig);
-
-    Result<Object> getContractData(String method, String abiData, String argument1, String argument2);
-
-
-    Result<Object> getParseBigFloat(String value);
-    Result<Object> getParseBigFloatInner(String value);
-    Result<Object> getDogeProtocolToWei(String value);
-    Result<Object> getWeiToDogeProtocol(String value);
-    
+    // Blocking variants for background thread use
+    String createRandomSeedBlocking(int keyType);
+    String walletFromPhraseBlocking(String[] words);
+    String walletFromSeedBlocking(int[] seedArray);
+    String walletFromKeysBlocking(String privKeyBase64, String pubKeyBase64);
+    String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId);
+    String isValidAddressBlocking(String address);
+    String computeAddressBlocking(String pubKeyBase64);
+    String initializeOfflineBlocking();
+    String initializeBlocking(int chainId, String rpcEndpoint);
 }

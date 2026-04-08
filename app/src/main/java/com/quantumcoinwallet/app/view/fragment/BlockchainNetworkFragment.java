@@ -22,18 +22,12 @@ import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 
 import java.util.List;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
-import butterknife.Unbinder;
-
 public class BlockchainNetworkFragment extends Fragment  {
 
     private static final String TAG = "BlockchainNetworkFragment";
 
     private BlockchainNetworkAdapter blockchainNetworkAdapter;
-    Unbinder unbinder;
 
-    @BindView(R.id.recycler_blockchain_network)
     RecyclerView recycler;
 
     private OnBlockchainNetworkCompleteListener mBlockchainNetworkListener;
@@ -61,7 +55,7 @@ public class BlockchainNetworkFragment extends Fragment  {
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        this.unbinder = ButterKnife.bind((Object) this, view);
+        this.recycler = view.findViewById(R.id.recycler_blockchain_network);
         try {
             assert getArguments() != null;
 
@@ -75,7 +69,7 @@ public class BlockchainNetworkFragment extends Fragment  {
             TextView blockchainNetworkIdTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_id);
             TextView blockchainNetworkNameTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_name);
             TextView blockchainNetworkScanApiUrlTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_scanApiUrl);
-            TextView blockchainNetworkTxnApiUrlTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_txnApiUrl);
+            TextView blockchainNetworkRpcEndpointTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_rpcEndpoint);
             TextView blockchainNetworkBlockExplorerUrlTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_blockExplorerUrl);
 
             TextView blockchainNetworkAddNetworkTextView = (TextView) getView().findViewById(R.id.textview_blockchain_network_langValues_add_network);
@@ -87,7 +81,7 @@ public class BlockchainNetworkFragment extends Fragment  {
             blockchainNetworkNameTextView.setText(jsonViewModel.getNameByLangValues());
 
             blockchainNetworkScanApiUrlTextView.setText(jsonViewModel.getScanApiUrlByLangValues());
-            blockchainNetworkTxnApiUrlTextView.setText(jsonViewModel.getTxnApiUrlByLangValues());
+            blockchainNetworkRpcEndpointTextView.setText(jsonViewModel.getRpcEndpointByLangValues());
             blockchainNetworkBlockExplorerUrlTextView.setText(jsonViewModel.getBlockExplorerUrlByLangValues());
 
             blockchainNetworkAddNetworkTextView.setText(jsonViewModel.getAddNetworkByLangValues());

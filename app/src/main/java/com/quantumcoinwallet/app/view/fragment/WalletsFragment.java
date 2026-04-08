@@ -50,15 +50,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
-import butterknife.Unbinder;
-
 public class WalletsFragment extends Fragment  {
     private static final String TAG = "WalletsFragment";
     private WalletAdapter walletAdapter;
-    Unbinder unbinder;
-    @BindView(R.id.recycler_wallets)  RecyclerView recycler;
+    RecyclerView recycler;
     private JsonViewModel jsonViewModel;
     private KeyViewModel keyViewModel;
     private OnWalletsCompleteListener mWalletsListener;
@@ -86,7 +81,7 @@ public class WalletsFragment extends Fragment  {
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        this.unbinder = ButterKnife.bind((Object) this, view);
+        this.recycler = view.findViewById(R.id.recycler_wallets);
 
         String languageKey = getArguments().getString("languageKey");
         String walletPassword = getArguments().getString("walletPassword");

@@ -10,6 +10,4 @@ public interface IAccountService {
 
     Result<Object> listPendingTxnByAccount(String address, int pageIndex);
 
-    Result<Object> sendTransactionByAccount(String txData);
-
 }

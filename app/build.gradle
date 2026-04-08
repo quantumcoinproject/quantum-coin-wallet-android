@@ -4,20 +4,16 @@ plugins {
 
 android {
     namespace 'com.quantumcoinwallet.app'
-    compileSdk 33
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.quantumcoinwallet.app"
-        minSdk 21
-        targetSdk 33
+        minSdk 23
+        targetSdk 35
         versionCode 1
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
-        ndk {
-            abiFilters "armeabi-v7a" , "arm64-v8a", "x86", "x86_64"
-        }
     }
     buildTypes {
         release {
@@ -45,17 +41,14 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-    externalNativeBuild {
-        cmake {
-            path file('src/main/cpp/CMakeLists.txt')
-            version '3.18.1'
-        }
-    }
     buildFeatures {
         viewBinding true
     }
-    lintOptions {
+    lint {
         abortOnError false
+    }
+    aaptOptions {
+        noCompress 'js'
     }
 }
 
@@ -92,8 +85,8 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.8.5'
 
     //noinspection OutdatedLibrary
-    implementation 'com.google.android.gms:play-services-maps:15.0.1'
-    implementation 'com.google.android.gms:play-services-location:15.0.1'
+    implementation 'com.google.android.gms:play-services-maps:19.2.0'
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
 
 
     //Lifecycle components
@@ -123,5 +116,5 @@ dependencies {
 
     implementation 'com.opencsv:opencsv:4.6'
 
-    implementation ('org.web3j:core:4.8.9-android')
+    implementation 'androidx.webkit:webkit:1.8.0'
 }

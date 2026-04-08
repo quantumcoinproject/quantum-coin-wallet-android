@@ -49,7 +49,6 @@ import com.quantumcoinwallet.app.utils.Utility;
 import com.quantumcoinwallet.app.view.fragment.BlockchainNetworkAddFragment;
 import com.quantumcoinwallet.app.view.fragment.BlockchainNetworkDialogFragment;
 import com.quantumcoinwallet.app.view.fragment.BlockchainNetworkFragment;
-import com.quantumcoinwallet.app.view.fragment.GetCoinsDogepTokensFragment;
 import com.quantumcoinwallet.app.view.fragment.HomeMainFragment;
 import com.quantumcoinwallet.app.view.fragment.HomeStartFragment;
 import com.quantumcoinwallet.app.view.fragment.HomeWalletFragment;
@@ -60,6 +59,7 @@ import com.quantumcoinwallet.app.view.fragment.RevealWalletFragment;
 import com.quantumcoinwallet.app.view.fragment.AccountTransactionsFragment;
 
 import com.quantumcoinwallet.app.view.fragment.WalletsFragment;
+import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
 
@@ -77,7 +77,7 @@ public class HomeActivity extends FragmentActivity implements
         BlockchainNetworkAddFragment.OnBlockchainNetworkAddCompleteListener,
         SendFragment.OnSendCompleteListener, ReceiveFragment.OnReceiveCompleteListener,
         AccountTransactionsFragment.OnAccountTransactionsCompleteListener, WalletsFragment.OnWalletsCompleteListener,
-        SettingsFragment.OnSettingsCompleteListener,  GetCoinsDogepTokensFragment.OnGetCoinsCompleteListener,
+        SettingsFragment.OnSettingsCompleteListener,
         RevealWalletFragment.OnRevealWalletCompleteListener {
 
     private static final String TAG = "HomeActivity";
@@ -133,6 +133,25 @@ public class HomeActivity extends FragmentActivity implements
                     PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_KEY, "0");
 
             setContentView(R.layout.home_activity);
+
+            KeyViewModel.initBridge(getApplicationContext());
+
+            new Thread(new Runnable() {
+                public void run() {
+                    try {
+                        android.util.Log.i("QuantumCoinWallet", "Startup: waiting for bridge...");
+                        KeyViewModel.getBridge().initializeOffline();
+                        android.util.Log.i("QuantumCoinWallet", "Startup: SDK initialized successfully");
+                    } catch (Exception e) {
+                        android.util.Log.e("QuantumCoinWallet", "Startup: SDK init FAILED: " + e.getMessage(), e);
+                        runOnUiThread(new Runnable() {
+                            public void run() {
+                                GlobalMethods.ShowErrorDialog(HomeActivity.this, "SDK Init Failed", e.getMessage());
+                            }
+                        });
+                    }
+                }
+            }).start();
 
             //Linear top layout
             topLinearLayout = (LinearLayout) findViewById(R.id.top_linear_layout_home_id);
@@ -194,7 +213,7 @@ public class HomeActivity extends FragmentActivity implements
             List<BlockchainNetwork> blockchainNetworkList = GlobalMethods.BlockChainNetworkRead(getApplicationContext());
             BlockchainNetwork blockchainNetwork = blockchainNetworkList.get(blockchainNetworkIdIndex);
             GlobalMethods.SCAN_API_URL = GlobalMethods.HTTPS + blockchainNetwork.getScanApiDomain();
-            GlobalMethods.TXN_API_URL = GlobalMethods.HTTPS + blockchainNetwork.getTxnApiDomain();
+            GlobalMethods.RPC_ENDPOINT_URL = blockchainNetwork.getRpcEndpoint();
             GlobalMethods.BLOCK_EXPLORER_URL = GlobalMethods.HTTPS + blockchainNetwork.getBlockExplorerDomain();
             GlobalMethods.BLOCKCHAIN_NAME = blockchainNetwork.getBlockchainName();
             GlobalMethods.NETWORK_ID = blockchainNetwork.getNetworkId();
@@ -267,29 +286,29 @@ public class HomeActivity extends FragmentActivity implements
             bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
                 @Override
                 public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-                    switch (item.getItemId()) {
-                        case R.id.nav_wallets:
-                            if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
-                                if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
-                                    screenViewType(1);
-                                    beginTransaction(WalletsFragment.newInstance(), bundle);
-                                }
+                    int id = item.getItemId();
+                    if (id == R.id.nav_wallets) {
+                        if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
+                            if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
+                                screenViewType(1);
+                                beginTransaction(WalletsFragment.newInstance(), bundle);
                             }
-                            return true;
-                        case R.id.nav_help:
-                            startActivity(new Intent(Intent.ACTION_VIEW,
-                                    Uri.parse(GlobalMethods.DP_DOCS_URL))
-                            );
-                            return true;
-                        case R.id.nav_block_explorer:
-                            startActivity(new Intent(Intent.ACTION_VIEW,
-                                    Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL))
-                            );
-                            return true;
-                        case R.id.nav_settings:
-                            screenViewType(1);
-                            beginTransaction(SettingsFragment.newInstance(), bundle);
-                            return true;
+                        }
+                        return true;
+                    } else if (id == R.id.nav_help) {
+                        startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(GlobalMethods.DP_DOCS_URL))
+                        );
+                        return true;
+                    } else if (id == R.id.nav_block_explorer) {
+                        startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL))
+                        );
+                        return true;
+                    } else if (id == R.id.nav_settings) {
+                        screenViewType(1);
+                        beginTransaction(SettingsFragment.newInstance(), bundle);
+                        return true;
                     }
                     return false;
                 }
@@ -500,37 +519,6 @@ public class HomeActivity extends FragmentActivity implements
     }
 
     @Override
-    public void onSettingsCompleteByGetCoin() {
-        try {
-            screenViewType(1);
-            beginTransaction(GetCoinsDogepTokensFragment.newInstance(), bundle);
-        } catch (Exception e) {
-            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
-        }
-    }
-
-    @Override
-    public void onGetCoinsCompleteByBackArrow() {
-        try {
-            screenViewType(1);
-            beginTransaction(SettingsFragment.newInstance(), bundle);
-        } catch (Exception e) {
-            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
-        }
-    }
-
-    @Override
-    public void onGetCoinsCompleteBySendData(String walletPassword) {
-        try {
-            screenViewType(0);
-            bundle.putString("walletPassword", walletPassword);
-            beginTransaction(HomeMainFragment.newInstance(), bundle);
-        } catch (Exception e) {
-            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
-        }
-    }
-
-    @Override
     public void onRevealWalletComplete() {
         try {
             screenViewType(1);
@@ -622,9 +610,7 @@ public class HomeActivity extends FragmentActivity implements
                     public void onFinished(BalanceResponse balanceResponse) throws ServiceException {
                         if (balanceResponse.getResult().getBalance() != null) {
                             String value = balanceResponse.getResult().getBalance().toString();
-
-                            KeyViewModel keyViewModel = new KeyViewModel();
-                            String quantity = (String) keyViewModel.getWeiToDogeProtocol(value);
+                            String quantity = CoinUtils.formatWei(value);
 
                             balanceValueTextView.setText(quantity);
                         }
@@ -690,8 +676,7 @@ public class HomeActivity extends FragmentActivity implements
                                 public void onFinished(BalanceResponse balanceResponse) throws ServiceException {
                                     if (balanceResponse.getResult().getBalance() != null) {
                                         String value = balanceResponse.getResult().getBalance().toString();
-                                        KeyViewModel keyViewModel = new KeyViewModel();
-                                        currentQuantity[0] = (String) keyViewModel.getWeiToDogeProtocol(value);
+                                        currentQuantity[0] = CoinUtils.formatWei(value);
                                         if (previewsQuantity[0] != null) {
                                             if (!previewsQuantity[0].equals(currentQuantity[0])) {
                                                 balanceValueTextView.setText(currentQuantity[0]);
