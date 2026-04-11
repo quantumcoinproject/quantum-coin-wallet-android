@@ -1163,6 +1163,46 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
+    public String getSigningByLangValues() {
+        try {
+            return _jsonInteract.getSigningByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getAdvancedSigningOptionByLangValues() {
+        try {
+            return _jsonInteract.getAdvancedSigningOptionByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getAdvancedSigningDescriptionByLangValues() {
+        try {
+            return _jsonInteract.getAdvancedSigningDescriptionByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getEnabledByLangValues() {
+        try {
+            return _jsonInteract.getEnabledByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getDisabledByLangValues() {
+        try {
+            return _jsonInteract.getDisabledByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     public String getErrorByErrors() {
         try {

@@ -22,9 +22,7 @@ import org.threeten.bp.OffsetDateTime;
 import org.threeten.bp.format.DateTimeFormatter;
 
 import java.math.BigInteger;
-import java.text.SimpleDateFormat;
 import java.util.List;
-import java.util.TimeZone;
 
 public class AccountTransactionAdapter extends
         Adapter<AccountTransactionAdapter.DataObjectHolder> {
@@ -81,70 +79,80 @@ public class AccountTransactionAdapter extends
     @Override
     public void onBindViewHolder(DataObjectHolder holder, @SuppressLint("RecyclerView") final int position) {
         try {
+            AccountTransactionSummary txn = accountTransactionSummaries.get(position);
 
-            String value = ((AccountTransactionSummary) accountTransactionSummaries.get(position)).getValue().toString();
-            String createDate = ((AccountTransactionSummary) accountTransactionSummaries.get(position)).getCreatedAt().toString();
-            String from =  ((AccountTransactionSummary) accountTransactionSummaries.get(position)).getFrom().toString();
-            String to = ((AccountTransactionSummary) accountTransactionSummaries.get(position)).getTo().toString();
-            String hash = ((AccountTransactionSummary) accountTransactionSummaries.get(position)).getHash().toString();
+            String hash = txn.getHash() != null ? txn.getHash().toString() : "";
+            String from = txn.getFrom() != null ? txn.getFrom().toString() : "";
+            String to = txn.getTo() != null ? txn.getTo().toString() : "";
+            String rawValue = txn.getValue() != null ? txn.getValue().toString() : null;
+            String rawDate = txn.getCreatedAt() != null ? txn.getCreatedAt().toString() : null;
 
-            int inOut = 1;
-
-            if(walletAddress.toLowerCase().equals(from.toLowerCase())){
-                inOut = 2;
+            if (walletAddress != null && from.length() > 0
+                    && walletAddress.toLowerCase().equals(from.toLowerCase())) {
+                holder.imageViewInOut.setImageResource(R.drawable.arrow_up_circle_outline);
+            } else {
+                holder.imageViewInOut.setImageResource(R.drawable.arrow_down_circle_outline);
             }
 
-            switch (inOut) {
-                case 1:
-                    holder.imageViewInOut.setImageResource(R.drawable.arrow_down_circle_outline);
-                    break;
-                case 2:
-                    holder.imageViewInOut.setImageResource(R.drawable.arrow_up_circle_outline);
-                    break;
+            try {
+                if (rawDate != null && rawDate.length() > 0) {
+                    String formattedDateString = OffsetDateTime.parse(rawDate)
+                            .format(DateTimeFormatter.ofPattern("E, dd MMM yyyy HH:mm:ss"));
+                    holder.textViewDate.setText(formattedDateString + " GMT");
+                } else {
+                    holder.textViewDate.setText("");
+                }
+            } catch (Exception e) {
+                holder.textViewDate.setText("");
             }
 
-            SimpleDateFormat sd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-            sd.setTimeZone(TimeZone.getTimeZone("GMT"));
-            String formattedDateString = OffsetDateTime.parse(createDate).format(DateTimeFormatter.ofPattern("E, dd MMM yyyy HH:mm:ss"));
-
-            BigInteger valueBigInteger = new BigInteger(value.replace("0x",""), 16);
-            String wei = valueBigInteger.toString(10);
-            String quantity = CoinUtils.formatWei(wei);
-
-            holder.textViewTransHash.setText(hash.substring(0,7));
-            holder.textViewDate.setText(formattedDateString + " GMT");
-            holder.textViewFrom.setText(from.substring(0,7));
-            holder.textViewTo.setText(to.substring(0,7));
-            holder.textViewQuantity.setText(quantity);
-
-            holder.textViewTransHash.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    context.startActivity(new Intent(Intent.ACTION_VIEW,
-                            Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_TX_HASH_URL.replace("{txhash}", hash)))
-                    );
+            try {
+                if (rawValue != null && rawValue.length() > 0) {
+                    BigInteger valueBigInteger = new BigInteger(rawValue.replace("0x", ""), 16);
+                    String wei = valueBigInteger.toString(10);
+                    holder.textViewQuantity.setText(CoinUtils.formatWei(wei));
+                } else {
+                    holder.textViewQuantity.setText("0");
                 }
-            });
+            } catch (Exception e) {
+                holder.textViewQuantity.setText("0");
+            }
 
-            holder.textViewFrom.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    context.startActivity(new Intent(Intent.ACTION_VIEW,
-                            Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", from)))
-                    );
-                }
-            });
+            holder.textViewTransHash.setText(hash.length() >= 7 ? hash.substring(0, 7) : hash);
+            holder.textViewFrom.setText(from.length() >= 7 ? from.substring(0, 7) : from);
+            holder.textViewTo.setText(to.length() >= 7 ? to.substring(0, 7) : to);
 
-            holder.textViewTo.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    context.startActivity(new Intent(Intent.ACTION_VIEW,
-                            Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", to)))
-                    );
-                }
-            });
+            if (hash.length() > 0) {
+                holder.textViewTransHash.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        context.startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_TX_HASH_URL.replace("{txhash}", hash))));
+                    }
+                });
+            }
 
-        }catch(Exception ex){
+            if (from.length() > 0) {
+                holder.textViewFrom.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        context.startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", from))));
+                    }
+                });
+            }
+
+            if (to.length() > 0) {
+                holder.textViewTo.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        context.startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", to))));
+                    }
+                });
+            }
+
+        } catch (Exception ex) {
             GlobalMethods.ExceptionError(context, TAG, ex);
         }
     }

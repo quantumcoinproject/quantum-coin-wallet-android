@@ -203,7 +203,12 @@
       "yes": "Yes",
       "no": "No",
       "errorOccurred": "An error occurred: ",
-      "errorTitle": "Error"
+      "errorTitle": "Error",
+      "signing": "Advanced Signing",
+      "advanced-signing-option": "Enable advanced signing",
+      "advanced-signing-description": "Applicable wallets will incur 30 times higher gas price if this setting is enabled",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
     },
     "errors": {
       "error": "An unexpected error occurred. [ERROR]",

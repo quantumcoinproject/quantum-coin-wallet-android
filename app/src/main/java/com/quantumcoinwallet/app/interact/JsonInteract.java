@@ -166,6 +166,11 @@ public class JsonInteract {
     private static final String data_lang_key_no = "no";
     private static final String data_lang_key_errorOccurred = "errorOccurred";
     private static final String data_lang_key_errorTitle = "errorTitle";
+    private static final String data_lang_key_signing = "signing";
+    private static final String data_lang_key_advanced_signing_option = "advanced-signing-option";
+    private static final String data_lang_key_advanced_signing_description = "advanced-signing-description";
+    private static final String data_lang_key_enabled = "enabled";
+    private static final String data_lang_key_disabled = "disabled";
 
 
     private static final String data_lang_key_errors = "errors";
@@ -666,6 +671,21 @@ public class JsonInteract {
     }
     public String getErrorTitleByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_errorTitle);
+    }
+    public String getSigningByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_signing);
+    }
+    public String getAdvancedSigningOptionByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_advanced_signing_option);
+    }
+    public String getAdvancedSigningDescriptionByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_advanced_signing_description);
+    }
+    public String getEnabledByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_enabled);
+    }
+    public String getDisabledByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_disabled);
     }
 
     public String getErrorByErrors() throws JSONException{

@@ -9,11 +9,15 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
 import com.quantumcoinwallet.app.R;
+import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 
 public class SettingsFragment extends Fragment  {
@@ -59,9 +63,11 @@ public class SettingsFragment extends Fragment  {
         ImageButton backArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_setting_back_arrow);
         TextView settings = (TextView) getView().findViewById(R.id.textview_settings_langValues_settings);
         Button buttonNetworks = (Button) getView().findViewById(R.id.button_settings_langValues_networks);
+        Button buttonSigning = (Button) getView().findViewById(R.id.button_settings_langValues_signing);
 
         settings.setText(jsonViewModel.getSettingsByLangValues());
         buttonNetworks.setText(jsonViewModel.getNetworksByLangValues());
+        buttonSigning.setText(jsonViewModel.getSigningByLangValues());
 
         linerLayoutOffline = (LinearLayout) getView().findViewById(R.id.linerLayout_setting_offline);
         imageViewRetry = (ImageView) getView().findViewById(R.id.image_retry);
@@ -81,6 +87,12 @@ public class SettingsFragment extends Fragment  {
             }
         });
 
+        buttonSigning.setOnClickListener(new View.OnClickListener(){
+            public void onClick(View v) {
+                showAdvancedSigningDialog(jsonViewModel);
+            }
+        });
+
         buttonRetry.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v) {
                 mSettingsListener.onSettingsCompleteCompleteByBackArrow();
@@ -96,6 +108,53 @@ public class SettingsFragment extends Fragment  {
     @Override
     public void onStop(){
         super.onStop();
+    }
+
+    private void showAdvancedSigningDialog(JsonViewModel jsonViewModel) {
+        boolean currentValue = PrefConnect.readBoolean(getContext(), PrefConnect.ADVANCED_SIGNING_ENABLED_KEY, false);
+
+        LinearLayout layout = new LinearLayout(getContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(48, 24, 48, 0);
+
+        TextView description = new TextView(getContext());
+        description.setText(jsonViewModel.getAdvancedSigningDescriptionByLangValues());
+        description.setPadding(0, 0, 0, 24);
+        layout.addView(description);
+
+        RadioGroup radioGroup = new RadioGroup(getContext());
+        radioGroup.setOrientation(RadioGroup.VERTICAL);
+
+        RadioButton radioEnabled = new RadioButton(getContext());
+        radioEnabled.setId(View.generateViewId());
+        radioEnabled.setText(jsonViewModel.getAdvancedSigningOptionByLangValues());
+        radioGroup.addView(radioEnabled);
+
+        RadioButton radioDisabled = new RadioButton(getContext());
+        radioDisabled.setId(View.generateViewId());
+        radioDisabled.setText(jsonViewModel.getDisabledByLangValues());
+        radioGroup.addView(radioDisabled);
+
+        if (currentValue) {
+            radioEnabled.setChecked(true);
+        } else {
+            radioDisabled.setChecked(true);
+        }
+
+        layout.addView(radioGroup);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle(jsonViewModel.getSigningByLangValues());
+        builder.setView(layout);
+        builder.setPositiveButton(jsonViewModel.getOkByLangValues(), (dialog, which) -> {
+            boolean enabled = radioEnabled.isChecked();
+            PrefConnect.writeBoolean(getContext(), PrefConnect.ADVANCED_SIGNING_ENABLED_KEY, enabled);
+            dialog.dismiss();
+        });
+        builder.setNegativeButton(jsonViewModel.getCancelByLangValues(), (dialog, which) -> {
+            dialog.dismiss();
+        });
+        builder.show();
     }
 
     public static interface OnSettingsCompleteListener {

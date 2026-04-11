@@ -103,8 +103,6 @@ public class SendFragment extends Fragment  {
         try {
             String languageKey = getArguments().getString("languageKey");
             String walletAddress = getArguments().getString("walletAddress");
-            String sendPassword = getArguments().getString("sendPassword");
-            ////String sendPassword = "Test123$$Test123$$"; //getArguments().getString("sendPassword");
 
             jsonViewModel = new JsonViewModel(getContext(), languageKey);
 
@@ -164,7 +162,7 @@ public class SendFragment extends Fragment  {
 
             backArrowImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    mSendListener.onSendComplete(sendPassword);
+                    mSendListener.onSendComplete(null);
                 }
             });
 
@@ -188,17 +186,12 @@ public class SendFragment extends Fragment  {
                                     String toAddress = addressToSendEditText.getText().toString();
                                     String quantity = quantityToSendEditText.getText().toString();
 
-                                    if (sendPassword == null || sendPassword.isEmpty()) {
-                                        if (progressBarSendCoins.getVisibility() == View.VISIBLE) {
-                                            message = getResources().getString(R.string.send_transaction_message_exits);
-                                            GlobalMethods.ShowToast(getContext(), message);
-                                        } else {
-                                            unlockDialogFragment(view, progressBarSendCoins,
-                                                    walletAddress, toAddress, quantity, languageKey);
-                                        }
+                                    if (progressBarSendCoins.getVisibility() == View.VISIBLE) {
+                                        message = getResources().getString(R.string.send_transaction_message_exits);
+                                        GlobalMethods.ShowToast(getContext(), message);
                                     } else {
-                                        sendTransaction(getContext(), progressBarSendCoins,
-                                                walletAddress, toAddress, quantity, sendPassword, languageKey);
+                                        unlockDialogFragment(view, progressBarSendCoins,
+                                                walletAddress, toAddress, quantity, languageKey);
                                     }
                                     return;
                                 }
@@ -407,8 +400,9 @@ public class SendFragment extends Fragment  {
                 String rpcEndpoint = GlobalMethods.RPC_ENDPOINT_URL;
                 int chainId = Integer.parseInt(GlobalMethods.NETWORK_ID);
                 String gasLimit = GlobalMethods.GAS_QCN_LIMIT;
+                boolean advancedSigningEnabled = PrefConnect.readBoolean(context, PrefConnect.ADVANCED_SIGNING_ENABLED_KEY, false);
 
-                keyViewModel.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, new BridgeCallback() {
+                keyViewModel.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, new BridgeCallback() {
                     @Override
                     public void onResult(String jsonResult) {
                         if (getActivity() == null) return;
@@ -418,7 +412,7 @@ public class SendFragment extends Fragment  {
                                     JSONObject result = new JSONObject(jsonResult);
                                     JSONObject data = result.getJSONObject("data");
                                     String txHash = data.getString("txHash");
-                                    sendCompletedDialogFragment(context, password);
+                                    sendCompletedDialogFragment(context);
                                 } catch (Exception e) {
                                     progressBar.setVisibility(View.GONE);
                                     sendButtonStatus = 0;
@@ -465,7 +459,7 @@ public class SendFragment extends Fragment  {
                 .replaceAll("[<>]", "");
     }
 
-    private void sendCompletedDialogFragment(Context context, String password) {
+    private void sendCompletedDialogFragment(Context context) {
         try {
             AlertDialog dialog = new AlertDialog.Builder(getContext())
                     .setTitle((CharSequence) "").setView((int)
@@ -478,7 +472,7 @@ public class SendFragment extends Fragment  {
                 public void onClick(View v) {
                     sendButtonStatus = 0;
                     dialog.dismiss();
-                    mSendListener.onSendComplete(password);
+                    mSendListener.onSendComplete(null);
                 }
             });
         } catch (Exception e) {

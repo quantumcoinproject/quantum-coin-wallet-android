@@ -7,7 +7,7 @@ public interface IKeyService {
     void walletFromPhrase(String[] words, BridgeCallback callback);
     void walletFromSeed(int[] seedArray, BridgeCallback callback);
     void walletFromKeys(String privKeyBase64, String pubKeyBase64, BridgeCallback callback);
-    void sendTransaction(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, BridgeCallback callback);
+    void sendTransaction(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled, BridgeCallback callback);
     void isValidAddress(String address, BridgeCallback callback);
     void computeAddress(String pubKeyBase64, BridgeCallback callback);
     void initializeOffline(BridgeCallback callback);
@@ -18,7 +18,7 @@ public interface IKeyService {
     String walletFromPhraseBlocking(String[] words);
     String walletFromSeedBlocking(int[] seedArray);
     String walletFromKeysBlocking(String privKeyBase64, String pubKeyBase64);
-    String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId);
+    String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled);
     String isValidAddressBlocking(String address);
     String computeAddressBlocking(String pubKeyBase64);
     String initializeOfflineBlocking();

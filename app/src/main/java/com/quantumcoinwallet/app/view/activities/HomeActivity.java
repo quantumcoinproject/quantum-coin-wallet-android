@@ -26,7 +26,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -82,8 +82,11 @@ public class HomeActivity extends FragmentActivity implements
         RevealWalletFragment.OnRevealWalletCompleteListener {
 
     private static final String TAG = "HomeActivity";
+    private static final long UNLOCK_TIMEOUT_MS = 300_000;
 
     private final int notificationRequestCode = 112;
+    private long lastUnlockTimestamp = 0L;
+    private boolean unlockDialogShowing = false;
 
     private LinearLayout topLinearLayout;
     private ViewGroup.LayoutParams topLinearLayoutParams;
@@ -328,9 +331,14 @@ public class HomeActivity extends FragmentActivity implements
 
             if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
                 if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
-                    screenViewType(0);
-                    beginTransaction(HomeMainFragment.newInstance(), bundle);
-                    notificationThread(1);
+                    showUnlockDialog(new Runnable() {
+                        @Override
+                        public void run() {
+                            screenViewType(0);
+                            beginTransaction(HomeMainFragment.newInstance(), bundle);
+                            notificationThread(1);
+                        }
+                    });
                 }
             } else {
                 screenViewType(-1);
@@ -454,7 +462,7 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void onSendComplete(String password) {
         try {
-            bundle.putString("sendPassword", password);
+            bundle.remove("sendPassword");
             screenViewType(0);
             beginTransaction(HomeMainFragment.newInstance(), bundle);
         } catch (Exception e) {
@@ -536,6 +544,96 @@ public class HomeActivity extends FragmentActivity implements
             screenViewType(1);
             beginTransaction(WalletsFragment.newInstance(), bundle);
         } catch (Exception e) {
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        try {
+            if (walletAddress != null
+                    && walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)
+                    && walletAddress.length() == GlobalMethods.ADDRESS_LENGTH
+                    && !unlockDialogShowing
+                    && (System.currentTimeMillis() - lastUnlockTimestamp) > UNLOCK_TIMEOUT_MS) {
+                showUnlockDialog(null);
+            }
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    private void showUnlockDialog(final Runnable onSuccess) {
+        if (unlockDialogShowing) return;
+        unlockDialogShowing = true;
+
+        try {
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                    .setTitle((CharSequence) "")
+                    .setView((int) R.layout.unlock_dialog_fragment)
+                    .create();
+            dialog.setCancelable(false);
+            dialog.show();
+
+            TextView unlockWalletTextView = (TextView) dialog.findViewById(
+                    R.id.textView_unlock_langValues_unlock_wallet);
+            unlockWalletTextView.setText(jsonViewModel.getUnlockWalletByLangValues());
+
+            TextView unlockPasswordTextView = (TextView) dialog.findViewById(
+                    R.id.textView_unlock_langValues_enter_wallet_password);
+            unlockPasswordTextView.setText(jsonViewModel.getEnterQuantumWalletPasswordByLangValues());
+
+            android.widget.EditText passwordEditText = (android.widget.EditText) dialog.findViewById(
+                    R.id.editText_unlock_langValues_enter_a_password);
+            passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
+
+            Button unlockButton = (Button) dialog.findViewById(
+                    R.id.button_unlock_langValues_unlock);
+            unlockButton.setText(jsonViewModel.getUnlockByLangValues());
+
+            Button closeButton = (Button) dialog.findViewById(
+                    R.id.button_unlock_langValues_close);
+            closeButton.setText(jsonViewModel.getCloseByLangValues());
+            closeButton.setVisibility(View.GONE);
+
+            final KeyViewModel keyViewModel = new KeyViewModel();
+
+            unlockButton.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    String password = passwordEditText.getText().toString();
+                    if (password == null || password.isEmpty()) {
+                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                jsonViewModel.getErrorTitleByLangValues(),
+                                jsonViewModel.getEnterApasswordByLangValues());
+                        return;
+                    }
+                    try {
+                        String passwordSHA256 = PrefConnect.getSha256Hash(password.trim());
+                        String storedHash = keyViewModel.decryptDataByString(
+                                HomeActivity.this, PrefConnect.WALLET_KEY_PASSWORD, password.trim());
+                        if (!passwordSHA256.equalsIgnoreCase(storedHash)) {
+                            GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                    jsonViewModel.getErrorTitleByLangValues(),
+                                    jsonViewModel.getWalletPasswordMismatchByErrors());
+                            return;
+                        }
+                    } catch (Exception e) {
+                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                jsonViewModel.getErrorTitleByLangValues(),
+                                jsonViewModel.getWalletPasswordMismatchByErrors());
+                        return;
+                    }
+                    lastUnlockTimestamp = System.currentTimeMillis();
+                    unlockDialogShowing = false;
+                    dialog.dismiss();
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                }
+            });
+        } catch (Exception e) {
+            unlockDialogShowing = false;
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
     }

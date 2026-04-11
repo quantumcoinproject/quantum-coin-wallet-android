@@ -42,6 +42,8 @@ public class PrefConnect {
 
     public static String BLOCKCHAIN_NETWORK_LIST = "BLOCKCHAIN_NETWORK_LIST";
 
+    public static String ADVANCED_SIGNING_ENABLED_KEY = "ADVANCED_SIGNING_ENABLED";
+
     public static void clearAllPrefs(Context context) {
         getEditor(context).clear().commit();
     }

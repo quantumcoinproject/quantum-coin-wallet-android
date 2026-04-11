@@ -45,7 +45,7 @@ public class KeyViewModel extends ViewModel {
     public void walletFromPhrase(String[] words, BridgeCallback callback) { keyInteract.walletFromPhrase(words, callback); }
     public void walletFromSeed(int[] seedArray, BridgeCallback callback) { keyInteract.walletFromSeed(seedArray, callback); }
     public void walletFromKeys(String privKeyBase64, String pubKeyBase64, BridgeCallback callback) { keyInteract.walletFromKeys(privKeyBase64, pubKeyBase64, callback); }
-    public void sendTransaction(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, BridgeCallback callback) { keyInteract.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, callback); }
+    public void sendTransaction(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled, BridgeCallback callback) { keyInteract.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, callback); }
     public void isValidAddress(String address, BridgeCallback callback) { keyInteract.isValidAddress(address, callback); }
     public void initializeOffline(BridgeCallback callback) { keyInteract.initializeOffline(callback); }
     public void initialize(int chainId, String rpcEndpoint, BridgeCallback callback) { keyInteract.initialize(chainId, rpcEndpoint, callback); }
@@ -55,7 +55,7 @@ public class KeyViewModel extends ViewModel {
     public String walletFromPhraseBlocking(String[] words) { return keyInteract.walletFromPhraseBlocking(words); }
     public String walletFromSeedBlocking(int[] seedArray) { return keyInteract.walletFromSeedBlocking(seedArray); }
     public String initializeOfflineBlocking() { return keyInteract.initializeOfflineBlocking(); }
-    public String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId) { return keyInteract.sendTransactionBlocking(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId); }
+    public String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled) { return keyInteract.sendTransactionBlocking(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled); }
 
     // --- Wei conversion (pure Java, main-thread safe) ---
     public String getWeiToDogeProtocol(String value) {

@@ -23,7 +23,7 @@ public class KeyInteract {
     public void walletFromPhrase(String[] words, BridgeCallback callback) { keyService.walletFromPhrase(words, callback); }
     public void walletFromSeed(int[] seedArray, BridgeCallback callback) { keyService.walletFromSeed(seedArray, callback); }
     public void walletFromKeys(String privKeyBase64, String pubKeyBase64, BridgeCallback callback) { keyService.walletFromKeys(privKeyBase64, pubKeyBase64, callback); }
-    public void sendTransaction(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, BridgeCallback callback) { keyService.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, callback); }
+    public void sendTransaction(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled, BridgeCallback callback) { keyService.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, callback); }
     public void isValidAddress(String address, BridgeCallback callback) { keyService.isValidAddress(address, callback); }
     public void computeAddress(String pubKeyBase64, BridgeCallback callback) { keyService.computeAddress(pubKeyBase64, callback); }
     public void initializeOffline(BridgeCallback callback) { keyService.initializeOffline(callback); }
@@ -34,7 +34,7 @@ public class KeyInteract {
     public String walletFromPhraseBlocking(String[] words) { return keyService.walletFromPhraseBlocking(words); }
     public String walletFromSeedBlocking(int[] seedArray) { return keyService.walletFromSeedBlocking(seedArray); }
     public String walletFromKeysBlocking(String privKeyBase64, String pubKeyBase64) { return keyService.walletFromKeysBlocking(privKeyBase64, pubKeyBase64); }
-    public String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId) { return keyService.sendTransactionBlocking(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId); }
+    public String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled) { return keyService.sendTransactionBlocking(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled); }
     public String isValidAddressBlocking(String address) { return keyService.isValidAddressBlocking(address); }
     public String initializeOfflineBlocking() { return keyService.initializeOfflineBlocking(); }
     public String initializeBlocking(int chainId, String rpcEndpoint) { return keyService.initializeBlocking(chainId, rpcEndpoint); }

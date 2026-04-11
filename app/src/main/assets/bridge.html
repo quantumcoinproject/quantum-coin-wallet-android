@@ -141,7 +141,7 @@ var bridge = {
         }
     },
 
-    sendTransaction: async function(requestId, privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId) {
+    sendTransaction: async function(requestId, privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled) {
         try {
             if (!requireSDK(requestId)) return;
             await QuantumCoinSDK.Initialize(new QuantumCoinSDK.Config(chainId, rpcEndpoint));
@@ -150,10 +150,12 @@ var bridge = {
             var privBytes = base64ToBytes(privKeyBase64);
             var pubBytes = base64ToBytes(pubKeyBase64);
             var wallet = await QuantumCoinSDK.Wallet.fromKeys(privBytes, pubBytes, provider);
+            var signingContext = wallet.getSigningContext(advancedSigningEnabled === true);
             var tx = await wallet.sendTransaction({
                 to: toAddress,
                 value: BigInt(valueWei),
-                gasLimit: Number(gasLimit)
+                gasLimit: Number(gasLimit),
+                signingContext: signingContext
             });
             sendResult(requestId, { txHash: tx.hash });
         } catch (e) {

@@ -76,6 +76,7 @@ public class RevealWalletFragment extends Fragment {
         String languageKey = getArguments().getString("languageKey");
         String walletAddress  = getArguments().getString("walletAddress");
         String walletPassword = getArguments().getString("walletPassword");
+        getArguments().remove("walletPassword");
 
         JsonViewModel jsonViewModel = new JsonViewModel(getContext(), languageKey);
 

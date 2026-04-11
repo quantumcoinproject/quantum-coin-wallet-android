@@ -73,7 +73,8 @@ public class QuantumCoinJSBridge {
     public void sendTransactionAsync(String privKeyBase64, String pubKeyBase64,
                                      String toAddress, String valueWei,
                                      String gasLimit, String rpcEndpoint,
-                                     int chainId, BridgeCallback callback) {
+                                     int chainId, boolean advancedSigningEnabled,
+                                     BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.sendTransaction('" + requestId + "', '"
@@ -83,7 +84,8 @@ public class QuantumCoinJSBridge {
                 + escapeForJs(valueWei) + "', '"
                 + escapeForJs(gasLimit) + "', '"
                 + escapeForJs(rpcEndpoint) + "', "
-                + chainId + ")";
+                + chainId + ", "
+                + advancedSigningEnabled + ")";
         evaluateOnMainThread(jsCall);
     }
 
@@ -147,10 +149,11 @@ public class QuantumCoinJSBridge {
 
     public String sendTransaction(String privKeyBase64, String pubKeyBase64,
                                   String toAddress, String valueWei,
-                                  String gasLimit, String rpcEndpoint, int chainId) {
+                                  String gasLimit, String rpcEndpoint, int chainId,
+                                  boolean advancedSigningEnabled) {
         return blockingCall(cb -> sendTransactionAsync(
                 privKeyBase64, pubKeyBase64, toAddress, valueWei,
-                gasLimit, rpcEndpoint, chainId, cb));
+                gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, cb));
     }
 
     public String isValidAddress(String address) {

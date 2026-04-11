@@ -91,6 +91,7 @@ public class HomeWalletFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         walletPassword = getArguments().getString("walletPassword");
+        getArguments().remove("walletPassword");
         String languageKey = getArguments().getString("languageKey");
 
         tempSeedWords = null;
