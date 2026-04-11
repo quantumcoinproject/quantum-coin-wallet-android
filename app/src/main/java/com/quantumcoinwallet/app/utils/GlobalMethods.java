@@ -199,6 +199,10 @@ public class GlobalMethods {
     //api exception error route
     public static void ApiExceptionSourceCodeRoute(Context context, int code,
                                                    String displayerrormessage, String exceptionError) {
+        if (!(context instanceof Activity)) {
+            GlobalMethods.ShowToast(context, displayerrormessage);
+            return;
+        }
         Activity activity = (Activity) context;
 
         switch (code) {
@@ -222,8 +226,7 @@ public class GlobalMethods {
                 break;
         }
 
-        //FireBase log
-        Firebase.CrashLog(exceptionError);
+        //Firebase.CrashLog(exceptionError);
     }
 
     //Exception Offline Or exception error

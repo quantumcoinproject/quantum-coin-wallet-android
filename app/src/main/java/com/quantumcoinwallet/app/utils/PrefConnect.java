@@ -174,7 +174,7 @@ public class PrefConnect {
             digest.reset();
             return bin2hex(digest.digest(password.getBytes()));
         } catch (Exception ignored) {
-            return null;
+            return "";
         }
     }
 

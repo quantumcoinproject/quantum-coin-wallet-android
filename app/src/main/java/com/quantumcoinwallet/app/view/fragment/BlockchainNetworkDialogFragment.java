@@ -66,8 +66,9 @@ public class BlockchainNetworkDialogFragment extends DialogFragment {
         List<BlockchainNetwork> blockchainNetworkList = null;
         try {
             blockchainNetworkList = GlobalMethods.BlockChainNetworkRead(getContext());
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getContext(), TAG, e);
+            return;
         }
 
         //BlockchainNetworkViewModel blockchainNetworkViewModel = new BlockchainNetworkViewModel(getContext());

@@ -74,7 +74,11 @@ public class BlockchainNetworkAddFragment extends Fragment  {
 
             ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_blockchain_network_add);
 
-            blockchainNetworkAddNetworkEditText.setText(makeJSON().toString());
+            try {
+                blockchainNetworkAddNetworkEditText.setText(makeJSON().toString(2));
+            } catch (Exception e) {
+                blockchainNetworkAddNetworkEditText.setText(makeJSON().toString());
+            }
 
             blockchainNetworkAddNetworkTextView.setText(jsonViewModel.getAddNetworkByLangValues());
             blockchainNetworkEnterNetworkJsonTextView.setText(jsonViewModel.getEnterNetworkJsonByLangValues());
@@ -175,8 +179,8 @@ public class BlockchainNetworkAddFragment extends Fragment  {
             jObj.put("scanApiDomain", "app.readrelay.quantumcoinapi.com");
             jObj.put("rpcEndpoint",  "https://public.rpc.quantumcoinapi.com");
             jObj.put("blockExplorerDomain",  "quantumscan.com");
-            jObj.put("blockchainName",  "EXAMPLE NET");
-            jObj.put("networkId",  1729);
+            jObj.put("blockchainName",  "MAINNET");
+            jObj.put("networkId",  123123);
         } catch (Exception e) {
             System.out.println("Error:" + e);
         }

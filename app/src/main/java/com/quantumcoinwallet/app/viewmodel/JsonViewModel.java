@@ -1147,6 +1147,22 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
+    public String getErrorOccurredByLangValues() {
+        try {
+            return _jsonInteract.getErrorOccurredByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getErrorTitleByLangValues() {
+        try {
+            return _jsonInteract.getErrorTitleByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     public String getErrorByErrors() {
         try {

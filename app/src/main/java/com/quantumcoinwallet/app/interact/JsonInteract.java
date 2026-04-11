@@ -164,6 +164,8 @@ public class JsonInteract {
     private static final String data_lang_key_skip_verify_confirm = "skip-verify-confirm";
     private static final String data_lang_key_yes = "yes";
     private static final String data_lang_key_no = "no";
+    private static final String data_lang_key_errorOccurred = "errorOccurred";
+    private static final String data_lang_key_errorTitle = "errorTitle";
 
 
     private static final String data_lang_key_errors = "errors";
@@ -659,6 +661,12 @@ public class JsonInteract {
     public String getNoByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_no);
     }
+    public String getErrorOccurredByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_errorOccurred);
+    }
+    public String getErrorTitleByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_errorTitle);
+    }
 
     public String getErrorByErrors() throws JSONException{
         return getErrors().getString(data_lang_key_error);
@@ -751,16 +759,16 @@ public class JsonInteract {
         return getLangValues().getString(data_lang_key_enterEthSig );
     }
     public String getEnterAmount() throws JSONException{
-        return getLangValues().getString(data_lang_key_enterAmount );
+        return getErrors().getString(data_lang_key_enterAmount);
     }
     public String getAmountLarge() throws JSONException{
-        return getLangValues().getString(data_lang_key_amountLarge );
+        return getErrors().getString(data_lang_key_amountLarge);
     }
     public String getEthAddr() throws JSONException{
-        return getLangValues().getString(data_lang_key_ethAddr );
+        return getErrors().getString(data_lang_key_ethAddr);
     }
     public String getQuantumAddr() throws JSONException{
-        return getLangValues().getString(data_lang_key_quantumAddr );
+        return getErrors().getString(data_lang_key_quantumAddr);
     }
     public String getNoMoreTxns() throws JSONException{
         return getLangValues().getString(data_lang_key_noMoreTxns );

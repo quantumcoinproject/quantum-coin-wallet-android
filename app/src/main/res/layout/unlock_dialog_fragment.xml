@@ -97,11 +97,6 @@
                         android:textColor="@color/colorCommon7"
                         android:background="@drawable/button_dark_pink_selector"/>
 
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:background="@color/colorGray" />
-
                     <Button
                         android:id="@+id/button_unlock_langValues_unlock"
                         android:layout_width="wrap_content"

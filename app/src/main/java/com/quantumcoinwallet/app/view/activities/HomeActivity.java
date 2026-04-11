@@ -12,6 +12,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
@@ -166,6 +167,8 @@ public class HomeActivity extends FragmentActivity implements
             centerRelativeLayout = (RelativeLayout) findViewById(R.id.center_relative_layout_home_id);
             walletAddressTextView = (TextView) findViewById(R.id.textView_home_wallet_address);
             ImageButton copyClipboardImageButton = (ImageButton) findViewById(R.id.imageButton_home_copy_clipboard);
+            TextView homeCopiedTextView = (TextView) findViewById(R.id.textView_home_copied);
+            homeCopiedTextView.setText(jsonViewModel.getCopiedByLangValues());
             ImageButton blockExploreImageButton = (ImageButton) findViewById(R.id.imageButton_home_block_explore);
 
             TextView balanceCoinSymbolTextView = (TextView) findViewById(R.id.textView_home_coin_symbol);
@@ -237,6 +240,13 @@ public class HomeActivity extends FragmentActivity implements
                     ClipboardManager clipBoard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
                     ClipData clipData = ClipData.newPlainText("currentAddress", walletAddressTextView.getText());
                     clipBoard.setPrimaryClip(clipData);
+                    homeCopiedTextView.setVisibility(View.VISIBLE);
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            homeCopiedTextView.setVisibility(View.GONE);
+                        }
+                    }, 600);
                 }
             });
 
@@ -313,6 +323,8 @@ public class HomeActivity extends FragmentActivity implements
                     return false;
                 }
             });
+
+            deselectAllNavItems();
 
             if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
                 if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
@@ -554,6 +566,7 @@ public class HomeActivity extends FragmentActivity implements
                     bottomNavigationView.setVisibility(View.VISIBLE);
                     centerRelativeLayout.setVisibility(View.VISIBLE);
                     blockChainNetworkTextView.setVisibility(View.VISIBLE);
+                    deselectAllNavItems();
                     break;
                 case 1:
                     screenHeight = (Utility.calculateScreenWidthDp(getApplicationContext()) * 30 / 100);
@@ -574,6 +587,14 @@ public class HomeActivity extends FragmentActivity implements
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
+    }
+
+    private void deselectAllNavItems() {
+        bottomNavigationView.getMenu().setGroupCheckable(0, true, false);
+        for (int i = 0; i < bottomNavigationView.getMenu().size(); i++) {
+            bottomNavigationView.getMenu().getItem(i).setChecked(false);
+        }
+        bottomNavigationView.getMenu().setGroupCheckable(0, true, true);
     }
 
     private void getCurrentWallet(String indexKey) {

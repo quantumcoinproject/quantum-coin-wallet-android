@@ -68,7 +68,7 @@ public class AccountsApi {
         Object localVarPostBody = new Object();
 
         // create path and map variables
-        String localVarPath = "/api/accounts/{address}/balance"
+        String localVarPath = "/account/{address}"
             .replaceAll("\\{" + "address" + "\\}", apiClient.escapeString(address.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -191,7 +191,7 @@ public class AccountsApi {
         Object localVarPostBody = new Object();
 
         // create path and map variables
-        String localVarPath = "/api/accounts/{address}/pending/txn/page/{pageIndex}"
+        String localVarPath = "/account/{address}/transactions/pending/{pageIndex}"
             .replaceAll("\\{" + "address" + "\\}", apiClient.escapeString(address.toString()))
             .replaceAll("\\{" + "pageIndex" + "\\}", apiClient.escapeString(pageIndex.toString()));
 
@@ -323,7 +323,7 @@ public class AccountsApi {
         Object localVarPostBody = new Object();
 
         // create path and map variables
-        String localVarPath = "/api/accounts/{address}/txn/page/{pageIndex}"
+        String localVarPath = "/account/{address}/transactions/{pageIndex}"
             .replaceAll("\\{" + "address" + "\\}", apiClient.escapeString(address.toString()))
             .replaceAll("\\{" + "pageIndex" + "\\}", apiClient.escapeString(pageIndex.toString()));
 

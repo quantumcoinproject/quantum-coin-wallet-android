@@ -6,6 +6,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -68,6 +69,8 @@ public class ReceiveFragment extends Fragment  {
         TextView receiveAddressTextView = (TextView) getView().findViewById(R.id.textView_receive_wallet_address);
 
         ImageButton copyClipboardImageButton = (ImageButton) getView().findViewById(R.id.imageButton_receive_copy_clipboard);
+        TextView receiveCopiedTextView = (TextView) getView().findViewById(R.id.textView_receive_copied);
+        receiveCopiedTextView.setText(jsonViewModel.getCopiedByLangValues());
         ImageView qrCodeImageView = (ImageView) getView().findViewById(R.id.imageView_receive_qr_code);
 
         receiveCoinsTextView.setText(jsonViewModel.getReceive_coinsByLangValues());
@@ -85,6 +88,13 @@ public class ReceiveFragment extends Fragment  {
                 ClipboardManager clipBoard = (ClipboardManager) getActivity().getSystemService(getActivity().CLIPBOARD_SERVICE);
                 ClipData clipData = ClipData.newPlainText("receiveAddress", receiveAddressTextView.getText());
                 clipBoard.setPrimaryClip(clipData);
+                receiveCopiedTextView.setVisibility(View.VISIBLE);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        receiveCopiedTextView.setVisibility(View.GONE);
+                    }
+                }, 600);
             }
         });
 
@@ -141,7 +151,7 @@ public class ReceiveFragment extends Fragment  {
             }
             return bmp;
         } catch (WriterException e) {
-            GlobalMethods.ExceptionError(newInstance().getContext(), TAG, e);
+            GlobalMethods.ExceptionError(context, TAG, e);
         }
         return null;
     }

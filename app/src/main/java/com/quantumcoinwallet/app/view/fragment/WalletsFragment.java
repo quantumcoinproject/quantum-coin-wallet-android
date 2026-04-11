@@ -139,7 +139,7 @@ public class WalletsFragment extends Fragment  {
                 if (walletPassword==null || walletPassword.isEmpty()) {
                      unlockDialogFragment(progressBar, 0, null, languageKey);
                 } else {
-                    VerifyPassword(progressBar, walletPassword, 0, null, languageKey);
+                    VerifyPassword(null, progressBar, walletPassword, 0, null, languageKey);
                 }
             }
         });
@@ -160,7 +160,7 @@ public class WalletsFragment extends Fragment  {
                             if (walletPassword==null || walletPassword.isEmpty()) {
                                 unlockDialogFragment(progressBar, 1, walletAddress, languageKey);
                             } else {
-                                VerifyPassword(progressBar, walletPassword, 1, walletAddress, languageKey);
+                                VerifyPassword(null, progressBar, walletPassword, 1, walletAddress, languageKey);
                             }
                             break;
                         }
@@ -227,8 +227,7 @@ public class WalletsFragment extends Fragment  {
                     if (walletPassword==null || walletPassword.isEmpty()) {
                         messageDialogFragment(languageKey, jsonViewModel.getEnterApasswordByLangValues());
                     } else {
-                        VerifyPassword(progressBar, walletPassword, listenerStatus, walletAddress, languageKey);
-                        dialog.dismiss();
+                        VerifyPassword(dialog, progressBar, walletPassword, listenerStatus, walletAddress, languageKey);
                     }
                 }
             });
@@ -259,12 +258,13 @@ public class WalletsFragment extends Fragment  {
         }
     }
 
-    private void VerifyPassword(ProgressBar progressBar, String walletPassword, int listenerStatus, String walletAddress, String languageKey)  {
+    private void VerifyPassword(AlertDialog dialog, ProgressBar progressBar, String walletPassword, int listenerStatus, String walletAddress, String languageKey)  {
         try {
             String passwordSHA256 = PrefConnect.getSha256Hash(walletPassword);
             String password= keyViewModel.decryptDataByString(getContext(), PrefConnect.WALLET_KEY_PASSWORD, walletPassword);
 
             if (passwordSHA256.equalsIgnoreCase(password)) {
+               if (dialog != null) dialog.dismiss();
                switch (listenerStatus) {
                    case 0:
                        mWalletsListener.onWalletsCompleteByCreateOrRestore(walletPassword);
@@ -274,7 +274,7 @@ public class WalletsFragment extends Fragment  {
                        break;
                }
             } else {
-                messageDialogFragment(languageKey, jsonViewModel.getEnterApasswordByLangValues());
+                messageDialogFragment(languageKey, jsonViewModel.getWalletPasswordMismatchByErrors());
             }
         } catch (Exception e) {
            // GlobalMethods.ExceptionError(getContext(), TAG, e);

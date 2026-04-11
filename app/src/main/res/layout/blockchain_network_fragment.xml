@@ -88,20 +88,18 @@
                             android:alpha="0.2"
                             android:background="@drawable/line_2_shape" />
 
-                        <LinearLayout
+                        <HorizontalScrollView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical">
+                            android:fillViewport="true">
 
-                            <include layout="@layout/blockchain_network_header"/>
+                            <TableLayout
+                                android:id="@+id/table_blockchain_network"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:stretchColumns="*" />
 
-                        </LinearLayout>
-
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/recycler_blockchain_network"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:clipToPadding="false"/>
+                        </HorizontalScrollView>
 
                         <View
                             android:layout_width="wrap_content"

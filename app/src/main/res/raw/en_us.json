@@ -201,10 +201,12 @@
       "skip": "Skip",
       "skip-verify-confirm": "Are you sure you want to skip verification? It is recommended that you verify.",
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "errorOccurred": "An error occurred: ",
+      "errorTitle": "Error"
     },
     "errors": {
-      "error": "An unexpected error occurred. Immediately backup the wallet folder at [STORAGE_PATH]. [ERROR]",
+      "error": "An unexpected error occurred. [ERROR]",
       "wrongAnswer": "Your answer is wrong! Please read the question carefully and try again.",
       "selectOption": "Please select an option.",
       "retypePasswordMismatch": "Retype the password correctly",
@@ -220,7 +222,7 @@
       "enterWalletFilePassword": "Please enter the wallet file's password.",
       "walletFileOpenError": "An error occurred opening the wallet file. Please ensure your password is correct and the wallet file is valid.",
       "enterWalletPassord": "Please enter the wallet password.",
-      "walletOpenError": "An error occurred opening the wallet. Please ensure your password is correct. If you entered the correct password, immediately backup the wallet folder at [STORAGE_PATH].",
+      "walletOpenError": "An error occurred opening the wallet. Please ensure your password is correct.",
       "noSeed": "This wallet does not have seed words. It may have been restored from a backup file, in which case there will be no seed words. You may backup this wallet as a file instead, using the Backup option.",
       "walletAddressExists": "The wallet has already been added.",
       "invalidNetworkJson": "The JSON is invalid.",

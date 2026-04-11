@@ -45,6 +45,7 @@ public class RevealWalletFragment extends Fragment {
     private static final String TAG = "RevealSeedWalletFragment";
 
     private boolean ThreadStop = false;
+    private int revealedWordCount = 48;
 
     private OnRevealWalletCompleteListener mRevealWalletListener;
 
@@ -97,7 +98,7 @@ public class RevealWalletFragment extends Fragment {
 
         try {
             ShowRevealSeedScreen(jsonViewModel,
-                    revealSeedWordsViewTitleTextView, revealSeedWordsViewTextViews, progressBar, walletAddress, walletPassword);
+                    revealSeedWordsViewTitleTextView, revealSeedWordsViewCaptionTextViews, revealSeedWordsViewTextViews, progressBar, walletAddress, walletPassword);
 
         } catch (KeyServiceException e) {
             progressBar.setVisibility(View.GONE);
@@ -113,7 +114,14 @@ public class RevealWalletFragment extends Fragment {
                     Thread.sleep(1000);
                     mRevealWalletListener.onRevealWalletComplete();
                 } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    Thread.currentThread().interrupt();
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                GlobalMethods.ExceptionError(getContext(), TAG, e);
+                            }
+                        });
+                    }
                 }
             }
         });
@@ -165,7 +173,7 @@ public class RevealWalletFragment extends Fragment {
     }
 
     private void ShowRevealSeedScreen(JsonViewModel jsonViewModel,
-                                     TextView revealSeedWordsViewTitleTextView, TextView[] textViews,
+                                     TextView revealSeedWordsViewTitleTextView, TextView[] captionViews, TextView[] textViews,
                                    ProgressBar progressBar,String walletAddress, String walletPassword) throws
             KeyServiceException, InvalidKeyException {
 
@@ -175,7 +183,9 @@ public class RevealWalletFragment extends Fragment {
         String[] wallet = keyViewModel.decryptDataByAccount(getContext(),walletAddress, walletPassword);
 
         String[] seedWordsList = wallet[2].split(",");
+        revealedWordCount = seedWordsList.length;
         loadRevealSeedWords(seedWordsList, textViews, progressBar);
+        updateRevealRowVisibility(captionViews, textViews, revealedWordCount);
     }
 
     private void loadRevealSeedWords(String[] wordList, TextView[] textViews, ProgressBar progressBar) {
@@ -191,6 +201,20 @@ public class RevealWalletFragment extends Fragment {
             GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
         }
         progressBar.setVisibility(View.GONE);
+    }
+
+    private void updateRevealRowVisibility(TextView[] captions, TextView[] values, int wordCount) {
+        int totalRows = wordCount / 4;
+        for (int row = 0; row < 12; row++) {
+            int visibility = (row < totalRows) ? View.VISIBLE : View.GONE;
+            int idx = row * 4;
+            if (idx < captions.length) {
+                ((View) captions[idx].getParent()).setVisibility(visibility);
+            }
+            if (idx < values.length) {
+                ((View) values[idx].getParent()).setVisibility(visibility);
+            }
+        }
     }
 
     private TextView[] RevealSeedWordsViewCaptionTextViews() {
@@ -305,10 +329,11 @@ public class RevealWalletFragment extends Fragment {
 
     private String ClipboardCopyData(TextView[] revealSeedWordsViewCaptionTextViews, TextView[] revealSeedWordsViewTextViews){
         String copyData = "";
-        for (int i=0; i<revealSeedWordsViewCaptionTextViews.length; i++) {
+        int limit = Math.min(revealedWordCount, revealSeedWordsViewCaptionTextViews.length);
+        for (int i=0; i<limit; i++) {
             copyData = copyData + revealSeedWordsViewCaptionTextViews[i].getText() + " = " +  revealSeedWordsViewTextViews[i].getText() + "\n";
         }
-        return copyData.toString();
+        return copyData;
     }
 
 }

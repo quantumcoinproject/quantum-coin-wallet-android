@@ -31,7 +31,7 @@ public class AccountPendingTransactionSummaryResponse {
   @SerializedName(SERIALIZED_NAME_PAGE_COUNT)
   private Integer pageCount;
 
-  public static final String SERIALIZED_NAME_RESULT = "result";
+  public static final String SERIALIZED_NAME_RESULT = "items";
   @SerializedName(SERIALIZED_NAME_RESULT)
   private List<AccountPendingTransactionSummary> result = new ArrayList<AccountPendingTransactionSummary>();
 

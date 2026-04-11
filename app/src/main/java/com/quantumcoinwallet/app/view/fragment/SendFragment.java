@@ -40,6 +40,7 @@ import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
 import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
+import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
 import org.json.JSONObject;
@@ -298,13 +299,26 @@ public class SendFragment extends Fragment  {
 
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    //Check password
                     String password = passwordEditText.getText().toString();
-                    if (password==null || password.isEmpty()) {
+                    if (password == null || password.isEmpty()) {
                         messageDialogFragment(languageKey, jsonViewModel.getEnterApasswordByLangValues());
                         return;
                     }
-                    if(sendButtonStatus == 1){
+                    try {
+                        String passwordSHA256 = PrefConnect.getSha256Hash(password.trim());
+                        String storedHash = keyViewModel.decryptDataByString(
+                                getContext(), PrefConnect.WALLET_KEY_PASSWORD, password.trim());
+                        if (!passwordSHA256.equalsIgnoreCase(storedHash)) {
+                            messageDialogFragment(languageKey,
+                                    jsonViewModel.getWalletPasswordMismatchByErrors());
+                            return;
+                        }
+                    } catch (Exception e) {
+                        messageDialogFragment(languageKey,
+                                jsonViewModel.getWalletPasswordMismatchByErrors());
+                        return;
+                    }
+                    if (sendButtonStatus == 1) {
                         dialog.dismiss();
                         sendTransaction(getContext(), progressBarSendCoins,
                                 walletAddress, toAddress, quantity, password.trim(), languageKey);
@@ -397,23 +411,39 @@ public class SendFragment extends Fragment  {
                 keyViewModel.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, new BridgeCallback() {
                     @Override
                     public void onResult(String jsonResult) {
-                        try {
-                            JSONObject result = new JSONObject(jsonResult);
-                            JSONObject data = result.getJSONObject("data");
-                            String txHash = data.getString("txHash");
-                            sendCompletedDialogFragment(context, password);
-                        } catch (Exception e) {
-                            progressBar.setVisibility(View.GONE);
-                            sendButtonStatus = 0;
-                            GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
-                        }
+                        if (getActivity() == null) return;
+                        getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                try {
+                                    JSONObject result = new JSONObject(jsonResult);
+                                    JSONObject data = result.getJSONObject("data");
+                                    String txHash = data.getString("txHash");
+                                    sendCompletedDialogFragment(context, password);
+                                } catch (Exception e) {
+                                    progressBar.setVisibility(View.GONE);
+                                    sendButtonStatus = 0;
+                                    String errorTitle = jsonViewModel.getErrorTitleByLangValues();
+                                    String prefix = jsonViewModel.getErrorOccurredByLangValues();
+                                    GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                            prefix + sanitizeErrorMessage(e.getMessage()));
+                                }
+                            }
+                        });
                     }
 
                     @Override
                     public void onError(String error) {
-                        progressBar.setVisibility(View.GONE);
-                        sendButtonStatus = 0;
-                        GlobalMethods.ShowErrorDialog(getContext(), "Transaction Failed", error);
+                        if (getActivity() == null) return;
+                        getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                progressBar.setVisibility(View.GONE);
+                                sendButtonStatus = 0;
+                                String errorTitle = jsonViewModel.getErrorTitleByLangValues();
+                                String prefix = jsonViewModel.getErrorOccurredByLangValues();
+                                GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                        prefix + sanitizeErrorMessage(error));
+                            }
+                        });
                     }
                 });
             }
@@ -426,6 +456,13 @@ public class SendFragment extends Fragment  {
         progressBar.setVisibility(View.GONE);
         sendButtonStatus = 0;
         messageDialogFragment(languageKey, jsonViewModel.getWalletPasswordMismatchByErrors());
+    }
+
+    private String sanitizeErrorMessage(String message) {
+        if (message == null) return "";
+        return android.text.Html.fromHtml(message, android.text.Html.FROM_HTML_MODE_LEGACY)
+                .toString()
+                .replaceAll("[<>]", "");
     }
 
     private void sendCompletedDialogFragment(Context context, String password) {
@@ -537,21 +574,30 @@ public class SendFragment extends Fragment  {
 
             okButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    cameraSource.release();
-                    assert qrcodeTextView != null;
-                    if(qrcodeTextView.getText().toString().startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
+                    cameraSource.stop();
+                    if (qrcodeTextView.getText().toString().startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
                         walletAddressEditText.setText(qrcodeTextView.getText());
                     } else {
                         walletAddressEditText.setText("");
                     }
-                    dialog.dismiss();
+                    v.post(new Runnable() {
+                        public void run() {
+                            cameraSource.release();
+                            dialog.dismiss();
+                        }
+                    });
                 }
             });
 
             closeButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    cameraSource.release();
-                    dialog.dismiss();
+                    cameraSource.stop();
+                    v.post(new Runnable() {
+                        public void run() {
+                            cameraSource.release();
+                            dialog.dismiss();
+                        }
+                    });
                 }
             });
 
