@@ -96,6 +96,35 @@ public class QuantumCoinJSBridge {
         evaluateOnMainThread(jsCall);
     }
 
+    public void sendTokenTransactionAsync(String privKeyBase64, String pubKeyBase64,
+                                          String contractAddress, String toAddress,
+                                          String amountWei, String gasLimit,
+                                          String rpcEndpoint, int chainId,
+                                          boolean advancedSigningEnabled,
+                                          BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.sendTokenTransaction('" + requestId + "', '"
+                + escapeForJs(privKeyBase64) + "', '"
+                + escapeForJs(pubKeyBase64) + "', '"
+                + escapeForJs(contractAddress) + "', '"
+                + escapeForJs(toAddress) + "', '"
+                + escapeForJs(amountWei) + "', '"
+                + escapeForJs(gasLimit) + "', '"
+                + escapeForJs(rpcEndpoint) + "', "
+                + chainId + ", "
+                + advancedSigningEnabled + ")";
+        evaluateOnMainThread(jsCall);
+    }
+
+    public void parseUnitsAsync(String value, int decimals, BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.parseUnits('" + requestId + "', '"
+                + escapeForJs(value) + "', " + decimals + ")";
+        evaluateOnMainThread(jsCall);
+    }
+
     public void isValidAddressAsync(String address, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
@@ -197,6 +226,20 @@ public class QuantumCoinJSBridge {
         return blockingCall(cb -> sendTransactionAsync(
                 privKeyBase64, pubKeyBase64, toAddress, valueWei,
                 gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, cb));
+    }
+
+    public String sendTokenTransaction(String privKeyBase64, String pubKeyBase64,
+                                       String contractAddress, String toAddress,
+                                       String amountWei, String gasLimit,
+                                       String rpcEndpoint, int chainId,
+                                       boolean advancedSigningEnabled) {
+        return blockingCall(cb -> sendTokenTransactionAsync(
+                privKeyBase64, pubKeyBase64, contractAddress, toAddress, amountWei,
+                gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, cb));
+    }
+
+    public String parseUnits(String value, int decimals) {
+        return blockingCall(cb -> parseUnitsAsync(value, decimals, cb));
     }
 
     public String isValidAddress(String address) {

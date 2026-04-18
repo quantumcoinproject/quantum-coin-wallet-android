@@ -17,10 +17,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,8 +36,12 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.quantumcoinwallet.app.R;
+import com.quantumcoinwallet.app.api.read.ApiException;
+import com.quantumcoinwallet.app.api.read.model.AccountTokenListResponse;
+import com.quantumcoinwallet.app.api.read.model.AccountTokenSummary;
 import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
 import com.quantumcoinwallet.app.asynctask.read.AccountBalanceRestTask;
+import com.quantumcoinwallet.app.asynctask.read.ListAccountTokensRestTask;
 import com.quantumcoinwallet.app.bridge.BridgeCallback;
 import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
@@ -48,6 +55,9 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 import android.Manifest;
 import android.content.ClipData;
@@ -73,6 +83,13 @@ public class SendFragment extends Fragment  {
     private SendFragment.OnSendCompleteListener mSendListener;
     private KeyViewModel keyViewModel = new KeyViewModel();
     private JsonViewModel jsonViewModel;
+
+    // Asset selection state. When selectedContract == null the native Q asset is active.
+    private String selectedContract;
+    private String selectedSymbol;
+    private int selectedDecimals = 18;
+    private String selectedTokenBalanceWei;
+    private List<AccountTokenSummary> tokenOptions = new ArrayList<>();
 
     private BarcodeDetector barcodeDetector;
     private CameraSource cameraSource;
@@ -159,7 +176,16 @@ public class SendFragment extends Fragment  {
 
             Button buttonRetry = (Button) getView().findViewById(R.id.button_retry);
 
-            getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
+            TextView assetLabelTextView = (TextView) getView().findViewById(R.id.textView_send_asset_label);
+            assetLabelTextView.setText(jsonViewModel.getAssetToSendByLangValues());
+
+            final Spinner assetSpinner = (Spinner) getView().findViewById(R.id.spinner_send_asset);
+            final TextView assetSelectedTextView = (TextView) getView().findViewById(R.id.textView_send_asset_selected);
+
+            setupAssetSpinner(assetSpinner, assetSelectedTextView, balanceValueTextView,
+                    progressBar, walletAddress);
+            refreshTokenOptionsFromApi(assetSpinner, assetSelectedTextView, balanceValueTextView,
+                    progressBar, walletAddress);
 
             backArrowImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
@@ -383,64 +409,74 @@ public class SendFragment extends Fragment  {
             if (progressBar.getVisibility() == View.VISIBLE) {
                 String message = getResources().getString(R.string.send_transaction_message_exits);
                 GlobalMethods.ShowToast(getContext(), message);
-            } else {
-                progressBar.setVisibility(View.VISIBLE);
-                SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-                String indexStr = PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.get(fromAddress);
-                if (indexStr == null) {
-                    throw new Exception("Wallet not found for address");
-                }
-                String walletJsonStr = secureStorage.loadWallet(context, Integer.parseInt(indexStr));
-                JSONObject walletData = new JSONObject(walletJsonStr);
-                String privKeyBase64 = walletData.getString("privateKey");
-                String pubKeyBase64 = walletData.getString("publicKey");
+                return;
+            }
+            progressBar.setVisibility(View.VISIBLE);
+            SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+            String indexStr = PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.get(fromAddress);
+            if (indexStr == null) {
+                throw new Exception("Wallet not found for address");
+            }
+            String walletJsonStr = secureStorage.loadWallet(context, Integer.parseInt(indexStr));
+            JSONObject walletData = new JSONObject(walletJsonStr);
+            String privKeyBase64 = walletData.getString("privateKey");
+            String pubKeyBase64 = walletData.getString("publicKey");
 
-                String valueWei = CoinUtils.parseEther(quantity);
-                String rpcEndpoint = GlobalMethods.RPC_ENDPOINT_URL;
-                int chainId = Integer.parseInt(GlobalMethods.NETWORK_ID);
-                String gasLimit = GlobalMethods.GAS_QCN_LIMIT;
-                boolean advancedSigningEnabled = PrefConnect.readBoolean(context, PrefConnect.ADVANCED_SIGNING_ENABLED_KEY, false);
+            String rpcEndpoint = GlobalMethods.RPC_ENDPOINT_URL;
+            int chainId = Integer.parseInt(GlobalMethods.NETWORK_ID);
+            boolean advancedSigningEnabled = PrefConnect.readBoolean(context, PrefConnect.ADVANCED_SIGNING_ENABLED_KEY, false);
 
-                keyViewModel.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, new BridgeCallback() {
-                    @Override
-                    public void onResult(String jsonResult) {
-                        if (getActivity() == null) return;
-                        getActivity().runOnUiThread(new Runnable() {
-                            public void run() {
-                                try {
-                                    JSONObject result = new JSONObject(jsonResult);
-                                    JSONObject data = result.getJSONObject("data");
-                                    String txHash = data.getString("txHash");
-                                    sendCompletedDialogFragment(context);
-                                } catch (Exception e) {
-                                    progressBar.setVisibility(View.GONE);
-                                    sendButtonStatus = 0;
-                                    String errorTitle = jsonViewModel.getErrorTitleByLangValues();
-                                    String prefix = jsonViewModel.getErrorOccurredByLangValues();
-                                    GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
-                                            prefix + sanitizeErrorMessage(e.getMessage()));
-                                }
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onError(String error) {
-                        if (getActivity() == null) return;
-                        getActivity().runOnUiThread(new Runnable() {
-                            public void run() {
+            BridgeCallback callback = new BridgeCallback() {
+                @Override
+                public void onResult(String jsonResult) {
+                    if (getActivity() == null) return;
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            try {
+                                JSONObject result = new JSONObject(jsonResult);
+                                JSONObject data = result.getJSONObject("data");
+                                String txHash = data.getString("txHash");
+                                sendCompletedDialogFragment(context);
+                            } catch (Exception e) {
                                 progressBar.setVisibility(View.GONE);
                                 sendButtonStatus = 0;
                                 String errorTitle = jsonViewModel.getErrorTitleByLangValues();
                                 String prefix = jsonViewModel.getErrorOccurredByLangValues();
                                 GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
-                                        prefix + sanitizeErrorMessage(error));
+                                        prefix + sanitizeErrorMessage(e.getMessage()));
                             }
-                        });
-                    }
-                });
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    if (getActivity() == null) return;
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            progressBar.setVisibility(View.GONE);
+                            sendButtonStatus = 0;
+                            String errorTitle = jsonViewModel.getErrorTitleByLangValues();
+                            String prefix = jsonViewModel.getErrorOccurredByLangValues();
+                            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                    prefix + sanitizeErrorMessage(error));
+                        }
+                    });
+                }
+            };
+
+            if (selectedContract == null) {
+                String valueWei = CoinUtils.parseEther(quantity);
+                String gasLimit = GlobalMethods.GAS_QCN_LIMIT;
+                keyViewModel.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei,
+                        gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, callback);
+            } else {
+                String amountWei = CoinUtils.parseUnits(quantity, selectedDecimals);
+                String gasLimit = GlobalMethods.GAS_TOKEN_LIMIT;
+                keyViewModel.sendTokenTransaction(privKeyBase64, pubKeyBase64, selectedContract,
+                        toAddress, amountWei, gasLimit, rpcEndpoint, chainId,
+                        advancedSigningEnabled, callback);
             }
-            return;
         } catch (Exception e) {
             progressBar.setVisibility(View.GONE);
             sendButtonStatus = 0;
@@ -449,6 +485,114 @@ public class SendFragment extends Fragment  {
             GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
                     prefix + sanitizeErrorMessage(e.getMessage()));
         }
+    }
+
+    /**
+     * Builds the asset spinner with "Q" first and one entry per cached token.
+     * Selection mutates `selectedContract/Symbol/Decimals/TokenBalanceWei` and
+     * updates the displayed balance.
+     */
+    private void setupAssetSpinner(final Spinner spinner,
+                                   final TextView assetSelectedTextView,
+                                   final TextView balanceValueTextView,
+                                   final ProgressBar balanceProgress,
+                                   final String walletAddress) {
+        tokenOptions = new ArrayList<>();
+        if (GlobalMethods.CURRENT_WALLET_TOKEN_LIST != null
+                && Objects.equals(GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS, walletAddress)) {
+            tokenOptions.addAll(GlobalMethods.CURRENT_WALLET_TOKEN_LIST);
+        }
+
+        List<String> labels = new ArrayList<>();
+        labels.add("Q");
+        for (AccountTokenSummary t : tokenOptions) {
+            labels.add(formatSpinnerLabel(t));
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
+                android.R.layout.simple_spinner_item, labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) {
+                    selectedContract = null;
+                    selectedSymbol = "Q";
+                    selectedDecimals = 18;
+                    selectedTokenBalanceWei = null;
+                    assetSelectedTextView.setText("QuantumCoin");
+                    getBalanceByAccount(walletAddress, balanceValueTextView, balanceProgress);
+                    return;
+                }
+                int tokenIndex = position - 1;
+                if (tokenIndex < 0 || tokenIndex >= tokenOptions.size()) {
+                    return;
+                }
+                AccountTokenSummary token = tokenOptions.get(tokenIndex);
+                selectedContract = token.getContractAddress();
+                selectedSymbol = token.getSymbol();
+                selectedDecimals = token.getDecimals() == null ? 18 : token.getDecimals();
+                selectedTokenBalanceWei = token.getTokenBalance();
+                assetSelectedTextView.setText(safe(token.getContractAddress()));
+                balanceValueTextView.setText(
+                        CoinUtils.formatUnits(safe(selectedTokenBalanceWei), selectedDecimals));
+                balanceProgress.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+    }
+
+    /**
+     * Kicks a best-effort refresh of the token list from the scan API so the spinner
+     * reflects the latest set of holdings. Runs silently when offline or on failure.
+     */
+    private void refreshTokenOptionsFromApi(final Spinner spinner,
+                                            final TextView assetSelectedTextView,
+                                            final TextView balanceValueTextView,
+                                            final ProgressBar balanceProgress,
+                                            final String walletAddress) {
+        if (walletAddress == null || walletAddress.isEmpty()) return;
+        if (!GlobalMethods.IsNetworkAvailable(getContext())) return;
+        try {
+            String[] params = { walletAddress, "1" };
+            ListAccountTokensRestTask task = new ListAccountTokensRestTask(
+                    getContext(), new ListAccountTokensRestTask.TaskListener() {
+                @Override
+                public void onFinished(AccountTokenListResponse response) {
+                    List<AccountTokenSummary> items = (response == null || response.getItems() == null)
+                            ? new ArrayList<AccountTokenSummary>()
+                            : response.getItems();
+                    GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new ArrayList<>(items);
+                    GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = walletAddress;
+                    setupAssetSpinner(spinner, assetSelectedTextView, balanceValueTextView,
+                            balanceProgress, walletAddress);
+                }
+
+                @Override
+                public void onFailure(ApiException apiException) {
+                    // silent: spinner keeps the existing options
+                }
+            });
+            task.execute(params);
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getContext(), TAG, e);
+        }
+    }
+
+    private static String formatSpinnerLabel(AccountTokenSummary token) {
+        String symbol = token.getSymbol() == null ? "" : token.getSymbol();
+        String name = token.getName() == null ? "" : token.getName();
+        if (name.isEmpty()) return symbol;
+        return symbol + " (" + name + ")";
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
     }
 
     private String sanitizeErrorMessage(String message) {

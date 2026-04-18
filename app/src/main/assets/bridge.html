@@ -202,6 +202,43 @@ var bridge = {
         }
     },
 
+    sendTokenTransaction: async function(requestId, privKeyBase64, pubKeyBase64,
+                                         contractAddress, toAddress, amountWei,
+                                         gasLimit, rpcEndpoint, chainId, advancedSigningEnabled) {
+        try {
+            if (!requireSDK(requestId)) return;
+            if (!QuantumCoinSDK.IERC20) {
+                sendError(requestId, 'IERC20 is not exposed by QuantumCoinSDK bundle');
+                return;
+            }
+            await QuantumCoinSDK.Initialize(new QuantumCoinSDK.Config(chainId, rpcEndpoint));
+            _sdkInitialized = true;
+            var provider = new QuantumCoinSDK.JsonRpcProvider(rpcEndpoint, chainId);
+            var privBytes = base64ToBytes(privKeyBase64);
+            var pubBytes = base64ToBytes(pubKeyBase64);
+            var wallet = await QuantumCoinSDK.Wallet.fromKeys(privBytes, pubBytes, provider);
+            var signingContext = wallet.getSigningContext(advancedSigningEnabled === true);
+            var token = QuantumCoinSDK.IERC20.connect(contractAddress, wallet);
+            var tx = await token.transfer(toAddress, BigInt(amountWei), {
+                gasLimit: Number(gasLimit),
+                signingContext: signingContext
+            });
+            sendResult(requestId, { txHash: tx.hash });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    parseUnits: async function(requestId, value, decimals) {
+        try {
+            if (!requireSDK(requestId)) return;
+            var result = QuantumCoinSDK.parseUnits(value, Number(decimals));
+            sendResult(requestId, { value: result.toString() });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
     isValidAddress: async function(requestId, address) {
         try {
             if (!(await ensureInitialized(requestId))) return;

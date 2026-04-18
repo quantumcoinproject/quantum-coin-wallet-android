@@ -436,6 +436,9 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void onBlockchainNetworkDialogOk() {
         try{
+            // Network switch invalidates the scan-API token cache.
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
             finish();
             startActivity(getIntent());
         } catch (Exception e) {
@@ -925,6 +928,7 @@ public class HomeActivity extends FragmentActivity implements
     }
 
     private void getCurrentWallet(String indexKey) {
+        String previousAddress = walletAddress;
         if(PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP != null) {
             for (Map.Entry<String, String> entry : PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.entrySet()) {
                 if (Objects.equals(indexKey, entry.getKey())) {
@@ -933,6 +937,11 @@ public class HomeActivity extends FragmentActivity implements
                     break;
                 }
             }
+        }
+        // Invalidate token cache whenever the active wallet changed.
+        if (!Objects.equals(previousAddress, walletAddress)) {
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
         }
         bundle.putString("walletAddress", walletAddress);
         walletAddressTextView.setText(walletAddress);

@@ -243,7 +243,13 @@
       "restore-no-backups-found": "No backup files were found in the selected folder.",
       "restore-select-all": "Select all",
       "restore-select-none": "Select none",
-      "restore-confirm": "Restore selected wallets"
+      "restore-confirm": "Restore selected wallets",
+      "tokens": "Tokens",
+      "no-tokens": "No tokens for this address",
+      "contract": "Contract",
+      "symbol": "Symbol",
+      "asset-to-send": "Asset to send",
+      "token-send-confirm": "Send [SYMBOL]?"
     },
     "errors": {
       "error": "An unexpected error occurred. [ERROR]",

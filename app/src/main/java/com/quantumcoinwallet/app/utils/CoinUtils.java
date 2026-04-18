@@ -43,6 +43,64 @@ public final class CoinUtils {
     }
 
     /**
+     * Converts a wei-like value (decimal or 0x-prefixed hex) to a human-readable amount
+     * using the supplied number of decimals. Mirrors ethers.formatUnits.
+     */
+    public static String formatUnits(String value, int decimals) {
+        if (value == null) {
+            return "0";
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return "0";
+        }
+        try {
+            BigInteger wei;
+            if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
+                wei = new BigInteger(trimmed.substring(2), 16);
+            } else {
+                wei = new BigInteger(trimmed);
+            }
+            if (wei.signum() == 0) {
+                return "0";
+            }
+            if (decimals <= 0) {
+                return wei.toString();
+            }
+            BigDecimal divisor = BigDecimal.TEN.pow(decimals);
+            BigDecimal scaled = new BigDecimal(wei).divide(divisor, decimals, RoundingMode.HALF_UP);
+            return scaled.stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException | ArithmeticException e) {
+            return "0";
+        }
+    }
+
+    /**
+     * Converts a human-readable amount to wei using the supplied decimals. Mirrors
+     * ethers.parseUnits. Returns the integer string (no fractional wei).
+     */
+    public static String parseUnits(String amount, int decimals) {
+        if (amount == null) {
+            return "0";
+        }
+        String trimmed = amount.trim();
+        if (trimmed.isEmpty()) {
+            return "0";
+        }
+        try {
+            BigDecimal value = new BigDecimal(trimmed);
+            if (value.signum() == 0) {
+                return "0";
+            }
+            BigDecimal scale = BigDecimal.TEN.pow(Math.max(decimals, 0));
+            BigInteger wei = value.multiply(scale).setScale(0, RoundingMode.HALF_UP).toBigInteger();
+            return wei.toString();
+        } catch (NumberFormatException | ArithmeticException e) {
+            return "0";
+        }
+    }
+
+    /**
      * Converts a human-readable ether amount string to wei (smallest unit) as a decimal string.
      *
      * @param etherValue ether amount; null, empty, or invalid yields "0"

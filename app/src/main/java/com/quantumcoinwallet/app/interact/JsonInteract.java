@@ -207,6 +207,13 @@ public class JsonInteract {
     private static final String data_lang_key_restore_select_none = "restore-select-none";
     private static final String data_lang_key_restore_confirm = "restore-confirm";
 
+    private static final String data_lang_key_tokens = "tokens";
+    private static final String data_lang_key_no_tokens = "no-tokens";
+    private static final String data_lang_key_contract = "contract";
+    private static final String data_lang_key_symbol = "symbol";
+    private static final String data_lang_key_asset_to_send = "asset-to-send";
+    private static final String data_lang_key_token_send_confirm = "token-send-confirm";
+
 
     private static final String data_lang_key_errors = "errors";
     private static final String data_lang_key_error = "error";
@@ -826,6 +833,25 @@ public class JsonInteract {
     }
     public String getRestoreConfirmByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_restore_confirm);
+    }
+
+    public String getTokensByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_tokens);
+    }
+    public String getNoTokensByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_no_tokens);
+    }
+    public String getContractByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_contract);
+    }
+    public String getSymbolByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_symbol);
+    }
+    public String getAssetToSendByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_asset_to_send);
+    }
+    public String getTokenSendConfirmByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_token_send_confirm);
     }
 
     public String getErrorByErrors() throws JSONException{

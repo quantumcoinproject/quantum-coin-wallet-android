@@ -1324,6 +1324,25 @@ public class JsonViewModel extends ViewModel{
         try { return _jsonInteract.getRestoreConfirmByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
     }
 
+    public String getTokensByLangValues() {
+        try { return _jsonInteract.getTokensByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getNoTokensByLangValues() {
+        try { return _jsonInteract.getNoTokensByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getContractByLangValues() {
+        try { return _jsonInteract.getContractByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getSymbolByLangValues() {
+        try { return _jsonInteract.getSymbolByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getAssetToSendByLangValues() {
+        try { return _jsonInteract.getAssetToSendByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getTokenSendConfirmByLangValues() {
+        try { return _jsonInteract.getTokenSendConfirmByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+
     public String getErrorByErrors() {
         try {
             return _jsonInteract.getErrorByErrors();

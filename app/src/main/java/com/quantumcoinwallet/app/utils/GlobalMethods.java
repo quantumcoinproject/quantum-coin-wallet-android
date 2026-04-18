@@ -17,6 +17,7 @@ import android.widget.Toast;
 import androidx.annotation.RawRes;
 
 import com.quantumcoinwallet.app.R;
+import com.quantumcoinwallet.app.api.read.model.AccountTokenSummary;
 import com.quantumcoinwallet.app.model.BlockchainNetwork;
 import com.quantumcoinwallet.app.seedwords.SeedWords;
 import com.google.gson.Gson;
@@ -61,6 +62,13 @@ public class GlobalMethods {
     public static String NETWORK_ID = null;
 
     public static String GAS_QCN_LIMIT = "21000";
+    public static String GAS_TOKEN_LIMIT = "84000";
+
+    // Token list cache populated from the scan API for the currently active wallet.
+    // CURRENT_WALLET_TOKEN_LIST_ADDRESS tracks which address the cache belongs to,
+    // so HomeActivity can invalidate on wallet switch / network change.
+    public static volatile List<AccountTokenSummary> CURRENT_WALLET_TOKEN_LIST = new ArrayList<>();
+    public static volatile String CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
 
     public static int DURATION = 20;
     public static int MINIMUM_PASSWORD_LENGTH = 12;
