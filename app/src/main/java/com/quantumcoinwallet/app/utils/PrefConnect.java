@@ -44,6 +44,14 @@ public class PrefConnect {
 
     public static String ADVANCED_SIGNING_ENABLED_KEY = "ADVANCED_SIGNING_ENABLED";
 
+    public static String BACKUP_ENABLED_KEY = "BACKUP_ENABLED";
+
+    public static String CLOUD_BACKUP_ENABLED_KEY = "CLOUD_BACKUP_ENABLED";
+    public static String CLOUD_BACKUP_FOLDER_URI_KEY = "CLOUD_BACKUP_FOLDER_URI";
+
+    public static String WALLET_HAS_SEED_KEY_PREFIX = "WALLET_HAS_SEED_";
+    public static HashMap<String, Boolean> WALLET_INDEX_HAS_SEED_MAP = new HashMap<>();
+
     public static void clearAllPrefs(Context context) {
         getEditor(context).clear().commit();
     }

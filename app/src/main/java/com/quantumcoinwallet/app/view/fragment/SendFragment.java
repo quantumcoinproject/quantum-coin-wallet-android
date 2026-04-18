@@ -38,6 +38,7 @@ import com.quantumcoinwallet.app.asynctask.read.AccountBalanceRestTask;
 import com.quantumcoinwallet.app.bridge.BridgeCallback;
 import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
+import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.PrefConnect;
@@ -297,16 +298,8 @@ public class SendFragment extends Fragment  {
                         messageDialogFragment(languageKey, jsonViewModel.getEnterApasswordByLangValues());
                         return;
                     }
-                    try {
-                        String passwordSHA256 = PrefConnect.getSha256Hash(password.trim());
-                        String storedHash = keyViewModel.decryptDataByString(
-                                getContext(), PrefConnect.WALLET_KEY_PASSWORD, password.trim());
-                        if (!passwordSHA256.equalsIgnoreCase(storedHash)) {
-                            messageDialogFragment(languageKey,
-                                    jsonViewModel.getWalletPasswordMismatchByErrors());
-                            return;
-                        }
-                    } catch (Exception e) {
+                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                    if (!secureStorage.verifyPassword(getContext(), password.trim())) {
                         messageDialogFragment(languageKey,
                                 jsonViewModel.getWalletPasswordMismatchByErrors());
                         return;
@@ -314,7 +307,7 @@ public class SendFragment extends Fragment  {
                     if (sendButtonStatus == 1) {
                         dialog.dismiss();
                         sendTransaction(getContext(), progressBarSendCoins,
-                                walletAddress, toAddress, quantity, password.trim(), languageKey);
+                                walletAddress, toAddress, quantity, languageKey);
                     }
                     sendButtonStatus = 2;
                 }
@@ -385,16 +378,22 @@ public class SendFragment extends Fragment  {
     }
 
     private void sendTransaction(Context context, ProgressBar progressBar,
-                                 String fromAddress, String toAddress, String quantity, String password, String languageKey) {
+                                 String fromAddress, String toAddress, String quantity, String languageKey) {
         try {
             if (progressBar.getVisibility() == View.VISIBLE) {
                 String message = getResources().getString(R.string.send_transaction_message_exits);
                 GlobalMethods.ShowToast(getContext(), message);
             } else {
                 progressBar.setVisibility(View.VISIBLE);
-                String[] keyData = keyViewModel.decryptDataByAccount(context, fromAddress, password);
-                String privKeyBase64 = keyData[0];
-                String pubKeyBase64 = keyData[1];
+                SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                String indexStr = PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.get(fromAddress);
+                if (indexStr == null) {
+                    throw new Exception("Wallet not found for address");
+                }
+                String walletJsonStr = secureStorage.loadWallet(context, Integer.parseInt(indexStr));
+                JSONObject walletData = new JSONObject(walletJsonStr);
+                String privKeyBase64 = walletData.getString("privateKey");
+                String pubKeyBase64 = walletData.getString("publicKey");
 
                 String valueWei = CoinUtils.parseEther(quantity);
                 String rpcEndpoint = GlobalMethods.RPC_ENDPOINT_URL;
@@ -442,14 +441,14 @@ public class SendFragment extends Fragment  {
                 });
             }
             return;
-        } catch (KeyServiceException e){
-
-        }catch (InvalidKeyException e){
-
+        } catch (Exception e) {
+            progressBar.setVisibility(View.GONE);
+            sendButtonStatus = 0;
+            String errorTitle = jsonViewModel.getErrorTitleByLangValues();
+            String prefix = jsonViewModel.getErrorOccurredByLangValues();
+            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                    prefix + sanitizeErrorMessage(e.getMessage()));
         }
-        progressBar.setVisibility(View.GONE);
-        sendButtonStatus = 0;
-        messageDialogFragment(languageKey, jsonViewModel.getWalletPasswordMismatchByErrors());
     }
 
     private String sanitizeErrorMessage(String message) {

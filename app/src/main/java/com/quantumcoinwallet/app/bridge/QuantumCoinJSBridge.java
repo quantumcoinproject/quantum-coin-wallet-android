@@ -44,6 +44,13 @@ public class QuantumCoinJSBridge {
         evaluateOnMainThread(jsCall);
     }
 
+    public void createRandomAsync(int keyType, BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.createRandom('" + requestId + "', " + keyType + ")";
+        evaluateOnMainThread(jsCall);
+    }
+
     public void walletFromSeedAsync(int[] seedArray, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
@@ -121,6 +128,38 @@ public class QuantumCoinJSBridge {
         evaluateOnMainThread(jsCall);
     }
 
+    public void encryptWalletJsonAsync(String walletInputJson, String password,
+                                       BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.encryptWalletJson('" + requestId + "', '"
+                + escapeForJs(walletInputJson) + "', '"
+                + escapeForJs(password) + "')";
+        evaluateOnMainThread(jsCall);
+    }
+
+    public void decryptWalletJsonAsync(String walletJson, String password,
+                                       BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.decryptWalletJson('" + requestId + "', '"
+                + escapeForJs(walletJson) + "', '"
+                + escapeForJs(password) + "')";
+        evaluateOnMainThread(jsCall);
+    }
+
+    public void scryptDeriveAsync(String password, String saltBase64,
+                                  int N, int r, int p, int keyLen,
+                                  BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.scryptDerive('" + requestId + "', '"
+                + escapeForJs(password) + "', '"
+                + escapeForJs(saltBase64) + "', "
+                + N + ", " + r + ", " + p + ", " + keyLen + ")";
+        evaluateOnMainThread(jsCall);
+    }
+
     // ---- Blocking wrappers ----
 
     public String initialize(int chainId, String rpcEndpoint) {
@@ -133,6 +172,10 @@ public class QuantumCoinJSBridge {
 
     public String createRandomSeed(int keyType) {
         return blockingCall(cb -> createRandomSeedAsync(keyType, cb));
+    }
+
+    public String createRandom(int keyType) {
+        return blockingCall(cb -> createRandomAsync(keyType, cb));
     }
 
     public String walletFromSeed(int[] seedArray) {
@@ -170,6 +213,19 @@ public class QuantumCoinJSBridge {
 
     public String parseEther(String etherValue) {
         return blockingCall(cb -> parseEtherAsync(etherValue, cb));
+    }
+
+    public String scryptDerive(String password, String saltBase64,
+                               int N, int r, int p, int keyLen) {
+        return blockingCall(cb -> scryptDeriveAsync(password, saltBase64, N, r, p, keyLen, cb));
+    }
+
+    public String encryptWalletJson(String walletInputJson, String password) {
+        return blockingCall(cb -> encryptWalletJsonAsync(walletInputJson, password, cb));
+    }
+
+    public String decryptWalletJson(String walletJson, String password) {
+        return blockingCall(cb -> decryptWalletJsonAsync(walletJson, password, cb));
     }
 
     // ---- Internal helpers ----

@@ -8,8 +8,11 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.provider.DocumentsContract;
 import android.text.Editable;
 import android.text.SpannableString;
 import android.text.TextWatcher;
@@ -27,11 +30,16 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.quantumcoinwallet.app.R;
+import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
@@ -57,6 +65,9 @@ public class HomeWalletFragment extends Fragment {
 
     private KeyViewModel keyViewModel;
     private String[] tempSeedWords;
+    private String tempAddress;
+    private String tempPrivateKeyBase64;
+    private String tempPublicKeyBase64;
     private SeedWordAutoCompleteAdapter seedWordAutoCompleteAdapter;
    // private TextView[] homeSeedWordsViewTextViews;
     private AutoCompleteTextView[] homeSeedWordsViewAutoCompleteTextViews;
@@ -65,6 +76,8 @@ public class HomeWalletFragment extends Fragment {
     private  String  walletPassword = null;
     private String walletIndexKey = "0";
     private OnHomeWalletCompleteListener mHomeWalletListener;
+    private ActivityResultLauncher<Intent> cloudFolderPickerLauncher;
+    private Runnable pendingCloudContinuation;
 
     public static HomeWalletFragment newInstance() {
         HomeWalletFragment fragment = new HomeWalletFragment();
@@ -78,6 +91,36 @@ public class HomeWalletFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        cloudFolderPickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                new ActivityResultCallback<ActivityResult>() {
+                    @Override
+                    public void onActivityResult(ActivityResult result) {
+                        Runnable continuation = pendingCloudContinuation;
+                        pendingCloudContinuation = null;
+                        try {
+                            if (result != null && result.getResultCode() == android.app.Activity.RESULT_OK
+                                    && result.getData() != null && result.getData().getData() != null) {
+                                Uri treeUri = result.getData().getData();
+                                int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+                                try {
+                                    getContext().getContentResolver()
+                                            .takePersistableUriPermission(treeUri, takeFlags);
+                                } catch (Exception ignore) { }
+                                PrefConnect.writeString(getContext(),
+                                        PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, treeUri.toString());
+                                PrefConnect.writeBoolean(getContext(),
+                                        PrefConnect.CLOUD_BACKUP_ENABLED_KEY, true);
+                            } else {
+                                PrefConnect.writeBoolean(getContext(),
+                                        PrefConnect.CLOUD_BACKUP_ENABLED_KEY, false);
+                            }
+                        } finally {
+                            if (continuation != null) continuation.run();
+                        }
+                    }
+                });
     }
 
     @Override
@@ -280,17 +323,29 @@ public class HomeWalletFragment extends Fragment {
             public void onClick(View v) {
                 if (homeCreateRestoreWalletRadioButton_0.isChecked() == true) {
                     tempSeedWords = null;
-                    homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
-                    homeWalletTypeLinearLayout.setVisibility(View.VISIBLE);
-                    WalletTypeView(homeWalletTypeTitleTextView, homeWalletTypeDescriptionTextView,
-                            homeWalletTypeDefaultRadioButton, homeWalletTypeAdvancedRadioButton, homeWalletTypeNextButton);
+                    Runnable proceed = new Runnable() {
+                        @Override
+                        public void run() {
+                            homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
+                            homeWalletTypeLinearLayout.setVisibility(View.VISIBLE);
+                            WalletTypeView(homeWalletTypeTitleTextView, homeWalletTypeDescriptionTextView,
+                                    homeWalletTypeDefaultRadioButton, homeWalletTypeAdvancedRadioButton, homeWalletTypeNextButton);
+                        }
+                    };
+                    showBackupPromptIfNeeded(proceed);
                 } else if (homeCreateRestoreWalletRadioButton_1.isChecked() == true) {
                     tempSeedWords = null;
-                    homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
-                    homeSeedWordLengthLinearLayout.setVisibility(View.VISIBLE);
-                    SeedWordLengthView(homeSeedWordLengthTitleTextView, homeSeedWordLengthDescriptionTextView,
-                            homeSeedWordLength32RadioButton, homeSeedWordLength36RadioButton, homeSeedWordLength48RadioButton,
-                            homeSeedWordLengthNextButton);
+                    Runnable proceed = new Runnable() {
+                        @Override
+                        public void run() {
+                            homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
+                            homeSeedWordLengthLinearLayout.setVisibility(View.VISIBLE);
+                            SeedWordLengthView(homeSeedWordLengthTitleTextView, homeSeedWordLengthDescriptionTextView,
+                                    homeSeedWordLength32RadioButton, homeSeedWordLength36RadioButton, homeSeedWordLength48RadioButton,
+                                    homeSeedWordLengthNextButton);
+                        }
+                    };
+                    showBackupPromptIfNeeded(proceed);
                 } else {
                     String message = jsonViewModel.getSelectOptionByErrors();
                     Bundle bundleRoute = new Bundle();
@@ -408,14 +463,18 @@ public class HomeWalletFragment extends Fragment {
                     public void run() {
                         try {
                             KeyViewModel.getBridge().initializeOffline();
-                            String seedResult = KeyViewModel.getBridge().createRandomSeed(selectedKeyType);
-                            JSONObject json = new JSONObject(seedResult);
-                            JSONArray dataArray = json.getJSONArray("data");
-                            final String[] words = new String[dataArray.length()];
-                            for (int i = 0; i < dataArray.length(); i++) {
-                                words[i] = dataArray.getString(i);
+                            String createResult = KeyViewModel.getBridge().createRandom(selectedKeyType);
+                            JSONObject json = new JSONObject(createResult);
+                            JSONObject data = json.getJSONObject("data");
+                            JSONArray wordsArray = data.getJSONArray("seedWords");
+                            final String[] words = new String[wordsArray.length()];
+                            for (int i = 0; i < wordsArray.length(); i++) {
+                                words[i] = wordsArray.getString(i);
                             }
                             tempSeedWords = words;
+                            tempAddress = data.getString("address");
+                            tempPrivateKeyBase64 = data.getString("privateKey");
+                            tempPublicKeyBase64 = data.getString("publicKey");
                             selectedWordCount = words.length;
                             getActivity().runOnUiThread(new Runnable() {
                                 public void run() {
@@ -852,48 +911,161 @@ public class HomeWalletFragment extends Fragment {
         new Thread(new Runnable() {
             public void run() {
                 try {
-                    KeyViewModel.getBridge().initializeOffline();
-                    String walletResult = KeyViewModel.getBridge().walletFromPhrase(seedWords);
-                    JSONObject json = new JSONObject(walletResult);
-                    JSONObject data = json.getJSONObject("data");
-                    final String address = data.getString("address");
-                    String privateKeyBase64 = data.getString("privateKey");
-                    String publicKeyBase64 = data.getString("publicKey");
+                    final String address;
+                    String privateKeyBase64;
+                    String publicKeyBase64;
+                    boolean reuseCached = tempAddress != null && tempPrivateKeyBase64 != null
+                            && tempPublicKeyBase64 != null && tempSeedWords != null
+                            && seedWords.length == tempSeedWords.length
+                            && java.util.Arrays.equals(seedWords, tempSeedWords);
+                    if (reuseCached) {
+                        address = tempAddress;
+                        privateKeyBase64 = tempPrivateKeyBase64;
+                        publicKeyBase64 = tempPublicKeyBase64;
+                    } else {
+                        KeyViewModel.getBridge().initializeOffline();
+                        String walletResult = KeyViewModel.getBridge().walletFromPhrase(seedWords);
+                        JSONObject json = new JSONObject(walletResult);
+                        JSONObject data = json.getJSONObject("data");
+                        address = data.getString("address");
+                        privateKeyBase64 = data.getString("privateKey");
+                        publicKeyBase64 = data.getString("publicKey");
+                    }
                     String seedWordsJoined = android.text.TextUtils.join(",", seedWords);
-                    final String[] keyPair = new String[]{privateKeyBase64, publicKeyBase64, seedWordsJoined};
+
+                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+
+                    if (!secureStorage.isInitialized(getContext())) {
+                        secureStorage.createMainKey(getContext(), walletPassword);
+                    }
+                    if (!secureStorage.isUnlocked()) {
+                        secureStorage.unlock(getContext(), walletPassword);
+                    }
+
+                    int newIndex = secureStorage.getMaxWalletIndex(getContext()) + 1;
+                    walletIndexKey = String.valueOf(newIndex);
+
+                    JSONObject walletJson = new JSONObject();
+                    walletJson.put("address", address);
+                    walletJson.put("privateKey", privateKeyBase64);
+                    walletJson.put("publicKey", publicKeyBase64);
+                    walletJson.put("seed", seedWordsJoined);
+
+                    secureStorage.saveWallet(getContext(), newIndex, walletJson.toString());
+                    secureStorage.setMaxWalletIndex(getContext(), newIndex);
+
+                    PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.put(address, walletIndexKey);
+                    PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.put(walletIndexKey, address);
+                    PrefConnect.writeBoolean(getContext(),
+                            PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + walletIndexKey, true);
+                    PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(walletIndexKey, true);
+
+                    com.quantumcoinwallet.app.backup.CloudBackupManager
+                            .autoBackupToCloudIfEnabled(getContext(), walletJson, walletPassword);
 
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
-                            String passwordSHA256 = PrefConnect.getSha256Hash(walletPassword);
-                            keyViewModel.encryptDataByString(getContext(), PrefConnect.WALLET_KEY_PASSWORD, walletPassword, passwordSHA256);
-                            keyViewModel.encryptDataByAccount(getContext(), address, walletPassword, keyPair);
-
-                            if (PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP != null) {
-                                walletIndexKey = String.valueOf(PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.size());
-                            }
-                            PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.put(address, walletIndexKey);
-                            PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.put(walletIndexKey, address);
-
-                            PrefConnect.saveHasMap(getContext(),
-                                    PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX, PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP);
-                            PrefConnect.saveHasMap(getContext(),
-                                    PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_INDEX_ADDRESS, PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP);
-
                             progressBar.setVisibility(View.GONE);
                             mHomeWalletListener.onHomeWalletCompleteByHomeMain(walletIndexKey);
                         }
                     });
                 } catch (Exception e) {
                     final String errorMsg = e.getMessage();
-                    getActivity().runOnUiThread(new Runnable() {
-                        public void run() {
-                            progressBar.setVisibility(View.GONE);
-                            GlobalMethods.ShowErrorDialog(getContext(), "Error", errorMsg);
-                        }
-                    });
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                progressBar.setVisibility(View.GONE);
+                                GlobalMethods.ShowErrorDialog(getContext(), "Error", errorMsg);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
+    }
+
+    private void showBackupPromptIfNeeded(final Runnable onComplete) {
+        Runnable cloudStep = new Runnable() {
+            @Override
+            public void run() {
+                showCloudBackupPromptIfNeeded(onComplete);
+            }
+        };
+
+        boolean alreadyPrompted = getContext().getSharedPreferences(
+                PrefConnect.PREF_NAME, Context.MODE_PRIVATE).contains(PrefConnect.BACKUP_ENABLED_KEY);
+        if (alreadyPrompted) {
+            cloudStep.run();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle(jsonViewModel.getBackupByLangValues());
+        builder.setMessage(jsonViewModel.getBackupPromptByLangValues());
+        builder.setCancelable(false);
+        builder.setPositiveButton(jsonViewModel.getYesByLangValues(), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                PrefConnect.writeBoolean(getContext(), PrefConnect.BACKUP_ENABLED_KEY, true);
+                dialog.dismiss();
+                cloudStep.run();
+            }
+        });
+        builder.setNegativeButton(jsonViewModel.getNoByLangValues(), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                PrefConnect.writeBoolean(getContext(), PrefConnect.BACKUP_ENABLED_KEY, false);
+                dialog.dismiss();
+                cloudStep.run();
+            }
+        });
+        builder.show();
+    }
+
+    private void showCloudBackupPromptIfNeeded(final Runnable onComplete) {
+        boolean alreadyPrompted = getContext().getSharedPreferences(
+                PrefConnect.PREF_NAME, Context.MODE_PRIVATE).contains(PrefConnect.CLOUD_BACKUP_ENABLED_KEY);
+        if (alreadyPrompted) {
+            onComplete.run();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle(jsonViewModel.getCloudBackupByLangValues());
+        builder.setMessage(jsonViewModel.getCloudBackupPromptByLangValues());
+        builder.setCancelable(false);
+        builder.setPositiveButton(jsonViewModel.getYesByLangValues(), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                pendingCloudContinuation = onComplete;
+                launchFolderPicker();
+            }
+        });
+        builder.setNegativeButton(jsonViewModel.getNoByLangValues(), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                PrefConnect.writeBoolean(getContext(), PrefConnect.CLOUD_BACKUP_ENABLED_KEY, false);
+                dialog.dismiss();
+                onComplete.run();
+            }
+        });
+        builder.show();
+    }
+
+    private void launchFolderPicker() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            cloudFolderPickerLauncher.launch(intent);
+        } catch (Exception e) {
+            PrefConnect.writeBoolean(getContext(), PrefConnect.CLOUD_BACKUP_ENABLED_KEY, false);
+            Runnable continuation = pendingCloudContinuation;
+            pendingCloudContinuation = null;
+            if (continuation != null) continuation.run();
+        }
     }
 
     private void WalletTypeView(TextView titleTextView, TextView descriptionTextView,

@@ -14,7 +14,7 @@ module.exports = {
   target: 'web',
   resolve: {
     fallback: {
-      crypto: require.resolve('crypto-browserify'),
+      crypto: path.resolve(__dirname, 'src/crypto-shim.js'),
       stream: require.resolve('stream-browserify'),
       buffer: require.resolve('buffer/'),
       events: require.resolve('events/'),
@@ -35,12 +35,14 @@ module.exports = {
       string_decoder: require.resolve('string_decoder/'),
       zlib: false,
       'node:net': false,
-      'node:crypto': require.resolve('crypto-browserify'),
+      'node:crypto': path.resolve(__dirname, 'src/crypto-shim.js'),
     },
     alias: {
       process: 'process/browser',
       util: path.resolve(__dirname, 'src/util-shim.js'),
+      quantumcoin: path.resolve(__dirname, 'node_modules/quantumcoin'),
     },
+    symlinks: true,
   },
   plugins: [
     new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {

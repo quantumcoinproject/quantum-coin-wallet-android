@@ -9,6 +9,7 @@ import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.interact.KeyInteract;
 import com.quantumcoinwallet.app.keystorage.IKeyStore;
 import com.quantumcoinwallet.app.keystorage.KeyStore;
+import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.services.IKeyService;
 import com.quantumcoinwallet.app.services.KeyService;
 import com.quantumcoinwallet.app.utils.CoinUtils;
@@ -26,19 +27,21 @@ public class KeyViewModel extends ViewModel {
 
     private final KeyInteract keyInteract;
     private static QuantumCoinJSBridge bridgeInstance;
+    private static SecureStorage secureStorageInstance;
 
     public KeyViewModel() {
         IKeyStore keyStore = new KeyStore();
-        // Bridge will be set later via initBridge()
         keyInteract = new KeyInteract(new KeyService(bridgeInstance), keyStore);
     }
 
     public static void initBridge(Context context) {
         WebViewManager webViewManager = WebViewManager.getInstance(context);
         bridgeInstance = new QuantumCoinJSBridge(webViewManager);
+        secureStorageInstance = new SecureStorage(bridgeInstance);
     }
 
     public static QuantumCoinJSBridge getBridge() { return bridgeInstance; }
+    public static SecureStorage getSecureStorage() { return secureStorageInstance; }
 
     // --- New bridge methods ---
     public void createRandomSeed(int keyType, BridgeCallback callback) { keyInteract.createRandomSeed(keyType, callback); }

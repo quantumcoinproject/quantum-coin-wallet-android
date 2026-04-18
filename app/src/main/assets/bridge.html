@@ -37,6 +37,17 @@ function base64ToBytes(b64) {
     return bytes;
 }
 
+function hexToBytes(hex) {
+    if (!hex) return new Uint8Array(0);
+    var clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+    if (clean.length % 2 !== 0) throw new Error('invalid hex length');
+    var bytes = new Uint8Array(clean.length / 2);
+    for (var i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(clean.substr(i * 2, 2), 16);
+    }
+    return bytes;
+}
+
 function extractWalletInfo(wallet) {
     return {
         address: wallet.address,
@@ -102,6 +113,34 @@ var bridge = {
             if (!(await ensureInitialized(requestId))) return;
             var words = await QuantumCoinSDK.Wallet.createRandomSeed(keyType);
             sendResult(requestId, words);
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    createRandom: async function(requestId, keyType) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var kt = (keyType === 0 || keyType == null) ? undefined : keyType;
+            var wallet = QuantumCoinSDK.Wallet.createRandom(undefined, kt);
+            var seedHex = wallet.seed;
+            if (!seedHex) {
+                sendError(requestId, 'createRandom returned wallet without seed');
+                return;
+            }
+            var seedBytes = hexToBytes(seedHex);
+            var words = QuantumCoinSDK.getWordListFromSeedArray(seedBytes);
+            if (!Array.isArray(words)) {
+                sendError(requestId, 'getWordListFromSeedArray returned non-array');
+                return;
+            }
+            sendResult(requestId, {
+                address: wallet.address,
+                privateKey: bytesToBase64(wallet.signingKey.privateKeyBytes),
+                publicKey: bytesToBase64(wallet.signingKey.publicKeyBytes),
+                seed: seedHex,
+                seedWords: words
+            });
         } catch (e) {
             sendError(requestId, e);
         }
@@ -199,6 +238,72 @@ var bridge = {
             if (!requireSDK(requestId)) return;
             var result = QuantumCoinSDK.parseEther(etherValue);
             sendResult(requestId, { value: result.toString() });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    encryptWalletJson: async function(requestId, walletInputJson, password) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var input = JSON.parse(walletInputJson);
+            var json;
+            if (input.seedWords && input.seedWords.length > 0) {
+                var wallet = QuantumCoinSDK.Wallet.fromPhrase(input.seedWords);
+                json = wallet.encryptSync(password);
+                sendResult(requestId, { json: json, address: wallet.address });
+                return;
+            }
+            if (input.privateKey && input.publicKey) {
+                var privBytes = base64ToBytes(input.privateKey);
+                var pubBytes = base64ToBytes(input.publicKey);
+                var wallet2 = await QuantumCoinSDK.Wallet.fromKeys(privBytes, pubBytes);
+                json = wallet2.encryptSync(password);
+                sendResult(requestId, { json: json, address: wallet2.address });
+                return;
+            }
+            sendError(requestId, 'encryptWalletJson: no seedWords or privateKey/publicKey supplied');
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    decryptWalletJson: async function(requestId, walletJsonString, password) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            var wallet = QuantumCoinSDK.Wallet.fromEncryptedJsonSync(walletJsonString, password);
+            var seedHex = wallet.seed;
+            var seedWords = null;
+            if (seedHex) {
+                var seedBytes = hexToBytes(seedHex);
+                var words = QuantumCoinSDK.getWordListFromSeedArray(seedBytes);
+                if (Array.isArray(words)) {
+                    seedWords = words;
+                }
+            }
+            sendResult(requestId, {
+                address: wallet.address,
+                privateKey: bytesToBase64(wallet.signingKey.privateKeyBytes),
+                publicKey: bytesToBase64(wallet.signingKey.publicKeyBytes),
+                seed: seedHex || null,
+                seedWords: seedWords
+            });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    scryptDerive: async function(requestId, passwordUtf8, saltBase64, N, r, p, keyLen) {
+        try {
+            if (!requireSDK(requestId)) return;
+            if (!(await ensureInitialized(requestId))) return;
+            var passwordBytes = new TextEncoder().encode(passwordUtf8);
+            var saltBytes = Uint8Array.from(atob(saltBase64), function(c) { return c.charCodeAt(0); });
+            var hexKey = QuantumCoinSDK.scryptSync(passwordBytes, saltBytes, N, r, p, keyLen);
+            var keyHex = hexKey.startsWith("0x") ? hexKey.slice(2) : hexKey;
+            var keyBytes = new Uint8Array(keyHex.match(/.{2}/g).map(function(b) { return parseInt(b, 16); }));
+            var keyBase64 = btoa(String.fromCharCode.apply(null, keyBytes));
+            sendResult(requestId, { key: keyBase64 });
         } catch (e) {
             sendError(requestId, e);
         }

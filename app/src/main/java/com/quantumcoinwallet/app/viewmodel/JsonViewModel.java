@@ -1203,6 +1203,126 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
+    public String getBackupByLangValues() {
+        try {
+            return _jsonInteract.getBackupByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getBackupPromptByLangValues() {
+        try {
+            return _jsonInteract.getBackupPromptByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getBackupDescriptionByLangValues() {
+        try {
+            return _jsonInteract.getBackupDescriptionByLangValues();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getPhoneBackupByLangValues() {
+        try { return _jsonInteract.getPhoneBackupByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getCloudBackupByLangValues() {
+        try { return _jsonInteract.getCloudBackupByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getCloudBackupPromptByLangValues() {
+        try { return _jsonInteract.getCloudBackupPromptByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getCloudBackupDescriptionByLangValues() {
+        try { return _jsonInteract.getCloudBackupDescriptionByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getSelectBackupFolderByLangValues() {
+        try { return _jsonInteract.getSelectBackupFolderByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getChangeFolderByLangValues() {
+        try { return _jsonInteract.getChangeFolderByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getNoFolderSelectedByLangValues() {
+        try { return _jsonInteract.getNoFolderSelectedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getCurrentFolderByLangValues() {
+        try { return _jsonInteract.getCurrentFolderByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getExportWalletByLangValues() {
+        try { return _jsonInteract.getExportWalletByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupWalletByLangValues() {
+        try { return _jsonInteract.getBackupWalletByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupWaitByLangValues() {
+        try { return _jsonInteract.getBackupWaitByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupSavedByLangValues() {
+        try { return _jsonInteract.getBackupSavedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupFailedByLangValues() {
+        try { return _jsonInteract.getBackupFailedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupPasswordByLangValues() {
+        try { return _jsonInteract.getBackupPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getUseCurrentPasswordByLangValues() {
+        try { return _jsonInteract.getUseCurrentPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getUseDifferentPasswordByLangValues() {
+        try { return _jsonInteract.getUseDifferentPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getConfirmBackupPasswordByLangValues() {
+        try { return _jsonInteract.getConfirmBackupPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreFromCloudByLangValues() {
+        try { return _jsonInteract.getRestoreFromCloudByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreFromFileByLangValues() {
+        try { return _jsonInteract.getRestoreFromFileByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreEnterPasswordByLangValues() {
+        try { return _jsonInteract.getRestoreEnterPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreDecryptFailedByLangValues() {
+        try { return _jsonInteract.getRestoreDecryptFailedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreEnterDifferentPasswordByLangValues() {
+        try { return _jsonInteract.getRestoreEnterDifferentPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreSkipByLangValues() {
+        try { return _jsonInteract.getRestoreSkipByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreProgressByLangValues() {
+        try { return _jsonInteract.getRestoreProgressByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreSummaryByLangValues() {
+        try { return _jsonInteract.getRestoreSummaryByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreRestoredByLangValues() {
+        try { return _jsonInteract.getRestoreRestoredByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreAlreadyPresentByLangValues() {
+        try { return _jsonInteract.getRestoreAlreadyPresentByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreFailedByLangValues() {
+        try { return _jsonInteract.getRestoreFailedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreNoBackupsFoundByLangValues() {
+        try { return _jsonInteract.getRestoreNoBackupsFoundByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreSelectAllByLangValues() {
+        try { return _jsonInteract.getRestoreSelectAllByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreSelectNoneByLangValues() {
+        try { return _jsonInteract.getRestoreSelectNoneByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getRestoreConfirmByLangValues() {
+        try { return _jsonInteract.getRestoreConfirmByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
 
     public String getErrorByErrors() {
         try {

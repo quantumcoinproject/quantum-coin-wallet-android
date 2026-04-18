@@ -29,12 +29,15 @@ import androidx.fragment.app.FragmentManager;
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
+import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.seedwords.SeedWords;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.view.adapter.SeedWordAutoCompleteAdapter;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
+
+import org.json.JSONObject;
 
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
@@ -75,8 +78,6 @@ public class RevealWalletFragment extends Fragment {
 
         String languageKey = getArguments().getString("languageKey");
         String walletAddress  = getArguments().getString("walletAddress");
-        String walletPassword = getArguments().getString("walletPassword");
-        getArguments().remove("walletPassword");
 
         JsonViewModel jsonViewModel = new JsonViewModel(getContext(), languageKey);
 
@@ -99,12 +100,9 @@ public class RevealWalletFragment extends Fragment {
 
         try {
             ShowRevealSeedScreen(jsonViewModel,
-                    revealSeedWordsViewTitleTextView, revealSeedWordsViewCaptionTextViews, revealSeedWordsViewTextViews, progressBar, walletAddress, walletPassword);
+                    revealSeedWordsViewTitleTextView, revealSeedWordsViewCaptionTextViews, revealSeedWordsViewTextViews, progressBar, walletAddress);
 
-        } catch (KeyServiceException e) {
-            progressBar.setVisibility(View.GONE);
-            GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
-        } catch (InvalidKeyException e) {
+        } catch (Exception e) {
             progressBar.setVisibility(View.GONE);
             GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
         }
@@ -175,15 +173,20 @@ public class RevealWalletFragment extends Fragment {
 
     private void ShowRevealSeedScreen(JsonViewModel jsonViewModel,
                                      TextView revealSeedWordsViewTitleTextView, TextView[] captionViews, TextView[] textViews,
-                                   ProgressBar progressBar,String walletAddress, String walletPassword) throws
-            KeyServiceException, InvalidKeyException {
+                                   ProgressBar progressBar, String walletAddress) throws Exception {
 
         revealSeedWordsViewTitleTextView.setText(jsonViewModel.getSeedWordsByLangValues());
 
-        KeyViewModel keyViewModel = new KeyViewModel();
-        String[] wallet = keyViewModel.decryptDataByAccount(getContext(),walletAddress, walletPassword);
+        SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+        String indexStr = PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.get(walletAddress);
+        if (indexStr == null) {
+            throw new Exception("Wallet not found for address");
+        }
+        String walletJsonStr = secureStorage.loadWallet(getContext(), Integer.parseInt(indexStr));
+        JSONObject walletData = new JSONObject(walletJsonStr);
+        String seedStr = walletData.getString("seed");
 
-        String[] seedWordsList = wallet[2].split(",");
+        String[] seedWordsList = seedStr.split(",");
         revealedWordCount = seedWordsList.length;
         loadRevealSeedWords(seedWordsList, textViews, progressBar);
         updateRevealRowVisibility(captionViews, textViews, revealedWordCount);

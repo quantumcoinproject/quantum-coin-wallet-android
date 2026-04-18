@@ -1,7 +1,9 @@
 package com.quantumcoinwallet.app.view.fragment;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,7 +15,22 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
+
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.documentfile.provider.DocumentFile;
+
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+
+import org.json.JSONObject;
+
+import com.quantumcoinwallet.app.backup.CloudBackupManager;
+import com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
@@ -28,6 +45,7 @@ import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummaryRespons
 import com.quantumcoinwallet.app.asynctask.read.AccountPendingTxnRestTask;
 import com.quantumcoinwallet.app.asynctask.read.AccountTxnRestTask;
 import com.quantumcoinwallet.app.entity.KeyServiceException;
+import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.GridAutoFitLayoutManager;
 import com.quantumcoinwallet.app.utils.PrefConnect;
@@ -58,6 +76,10 @@ public class WalletsFragment extends Fragment  {
     private KeyViewModel keyViewModel;
     private OnWalletsCompleteListener mWalletsListener;
 
+    private ActivityResultLauncher<Intent> exportCreateDocumentLauncher;
+    private String pendingExportEncryptedJson;
+    private String pendingExportWalletAddress;
+
     public static WalletsFragment newInstance() {
         WalletsFragment fragment = new WalletsFragment();
         return fragment;
@@ -70,6 +92,63 @@ public class WalletsFragment extends Fragment  {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        exportCreateDocumentLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                new ActivityResultCallback<ActivityResult>() {
+                    @Override
+                    public void onActivityResult(ActivityResult result) {
+                        final String encryptedJson = pendingExportEncryptedJson;
+                        final String address = pendingExportWalletAddress;
+                        pendingExportEncryptedJson = null;
+                        pendingExportWalletAddress = null;
+                        if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK
+                                || result.getData() == null || result.getData().getData() == null
+                                || encryptedJson == null) {
+                            return;
+                        }
+                        final Uri uri = result.getData().getData();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                OutputStream os = null;
+                                try {
+                                    os = getContext().getContentResolver().openOutputStream(uri);
+                                    if (os == null) throw new IllegalStateException("openOutputStream returned null");
+                                    os.write(encryptedJson.getBytes(StandardCharsets.UTF_8));
+                                    os.flush();
+                                    getActivity().runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            String tmpl = jsonViewModel.getBackupSavedByLangValues();
+                                            String msg = tmpl != null
+                                                    ? tmpl.replace("[FOLDER]", "")
+                                                          .replace("[FILENAME]",
+                                                                  uri.getLastPathSegment() != null
+                                                                      ? uri.getLastPathSegment() : "")
+                                                    : "Wallet exported";
+                                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                                } catch (final Exception e) {
+                                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                                    getActivity().runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
+                                            String msg = tmpl != null
+                                                    ? tmpl.replace("[ERROR]",
+                                                            e.getMessage() == null ? "" : e.getMessage())
+                                                    : ("Export failed: " + e.getMessage());
+                                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                                } finally {
+                                    if (os != null) { try { os.close(); } catch (Exception ignore) {} }
+                                }
+                            }
+                        }).start();
+                    }
+                });
     }
 
     @Override
@@ -167,6 +246,17 @@ public class WalletsFragment extends Fragment  {
                     }
                 }
             }
+            @Override
+            public void onWalletExportClick(View view, int position) {
+                String indexKey = String.valueOf(position);
+                String walletAddress = PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.get(indexKey);
+                if (walletAddress == null) return;
+                if (walletPassword == null || walletPassword.isEmpty()) {
+                    unlockDialogFragment(progressBar, 2, walletAddress, languageKey);
+                } else {
+                    VerifyPassword(null, progressBar, walletPassword, 2, walletAddress, languageKey);
+                }
+            }
         });
 
     }
@@ -260,10 +350,8 @@ public class WalletsFragment extends Fragment  {
 
     private void VerifyPassword(AlertDialog dialog, ProgressBar progressBar, String walletPassword, int listenerStatus, String walletAddress, String languageKey)  {
         try {
-            String passwordSHA256 = PrefConnect.getSha256Hash(walletPassword);
-            String password= keyViewModel.decryptDataByString(getContext(), PrefConnect.WALLET_KEY_PASSWORD, walletPassword);
-
-            if (passwordSHA256.equalsIgnoreCase(password)) {
+            SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+            if (secureStorage.verifyPassword(getContext(), walletPassword)) {
                if (dialog != null) dialog.dismiss();
                switch (listenerStatus) {
                    case 0:
@@ -272,13 +360,95 @@ public class WalletsFragment extends Fragment  {
                    case 1:
                        mWalletsListener.onWalletsCompleteByReveal(walletAddress, walletPassword);
                        break;
+                   case 2:
+                       startExportFlow(walletAddress, walletPassword);
+                       break;
                }
             } else {
                 messageDialogFragment(languageKey, jsonViewModel.getWalletPasswordMismatchByErrors());
             }
         } catch (Exception e) {
-           // GlobalMethods.ExceptionError(getContext(), TAG, e);
             messageDialogFragment(languageKey, jsonViewModel.getWalletOpenErrorByErrors());
+        }
+    }
+
+    private void startExportFlow(final String walletAddress, final String walletPassword) {
+        BackupPasswordDialog.show(getContext(), jsonViewModel, walletPassword,
+                new BackupPasswordDialog.OnBackupPasswordListener() {
+                    @Override
+                    public void onPasswordSelected(final String backupPassword) {
+                        encryptAndPickExportLocation(walletAddress, walletPassword, backupPassword);
+                    }
+                    @Override
+                    public void onCanceled() { }
+                });
+    }
+
+    private void encryptAndPickExportLocation(final String walletAddress,
+                                              final String unlockPassword,
+                                              final String backupPassword) {
+        final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_wallets);
+        progressBar.setVisibility(View.VISIBLE);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                    String indexKey = PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.get(walletAddress);
+                    if (indexKey == null) throw new IllegalStateException("wallet index missing");
+                    String walletJsonStr = secureStorage.loadWallet(getContext(),
+                            Integer.parseInt(indexKey));
+                    JSONObject walletJson = new JSONObject(walletJsonStr);
+                    final CloudBackupManager.EncryptedResult enc =
+                            CloudBackupManager.encryptWallet(walletJson, backupPassword);
+                    final String filename = CloudBackupManager.buildFilename(enc.address);
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressBar.setVisibility(View.GONE);
+                            launchExportSavePicker(enc.json, enc.address, filename);
+                        }
+                    });
+                } catch (final Exception e) {
+                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressBar.setVisibility(View.GONE);
+                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
+                            String msg = tmpl != null
+                                    ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
+                                    : ("Export failed: " + e.getMessage());
+                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void launchExportSavePicker(String encryptedJson, String address, String filename) {
+        pendingExportEncryptedJson = encryptedJson;
+        pendingExportWalletAddress = address;
+        try {
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType(CloudBackupManager.BACKUP_MIME_TYPE);
+            intent.putExtra(Intent.EXTRA_TITLE, filename);
+
+            String folderUriStr = PrefConnect.readString(getContext(),
+                    PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
+            if (folderUriStr != null && !folderUriStr.isEmpty()) {
+                try {
+                    intent.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI,
+                            Uri.parse(folderUriStr));
+                } catch (Exception ignore) { }
+            }
+            exportCreateDocumentLauncher.launch(intent);
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getContext(), TAG, e);
+            pendingExportEncryptedJson = null;
+            pendingExportWalletAddress = null;
         }
     }
 

@@ -171,6 +171,41 @@ public class JsonInteract {
     private static final String data_lang_key_advanced_signing_description = "advanced-signing-description";
     private static final String data_lang_key_enabled = "enabled";
     private static final String data_lang_key_disabled = "disabled";
+    private static final String data_lang_key_backup = "backup";
+    private static final String data_lang_key_backup_prompt = "backup-prompt";
+    private static final String data_lang_key_backup_description = "backup-description";
+    private static final String data_lang_key_phone_backup = "phone-backup";
+    private static final String data_lang_key_cloud_backup = "cloud-backup";
+    private static final String data_lang_key_cloud_backup_prompt = "cloud-backup-prompt";
+    private static final String data_lang_key_cloud_backup_description = "cloud-backup-description";
+    private static final String data_lang_key_select_backup_folder = "select-backup-folder";
+    private static final String data_lang_key_change_folder = "change-folder";
+    private static final String data_lang_key_no_folder_selected = "no-folder-selected";
+    private static final String data_lang_key_current_folder = "current-folder";
+    private static final String data_lang_key_export_wallet = "export-wallet";
+    private static final String data_lang_key_backup_wallet = "backup-wallet";
+    private static final String data_lang_key_backup_wait = "backup-wait";
+    private static final String data_lang_key_backup_saved = "backup-saved";
+    private static final String data_lang_key_backup_failed = "backup-failed";
+    private static final String data_lang_key_backup_password = "backup-password";
+    private static final String data_lang_key_use_current_password = "use-current-password";
+    private static final String data_lang_key_use_different_password = "use-different-password";
+    private static final String data_lang_key_confirm_backup_password = "confirm-backup-password";
+    private static final String data_lang_key_restore_from_cloud = "restore-from-cloud";
+    private static final String data_lang_key_restore_from_file = "restore-from-file";
+    private static final String data_lang_key_restore_enter_password = "restore-enter-password";
+    private static final String data_lang_key_restore_decrypt_failed = "restore-decrypt-failed";
+    private static final String data_lang_key_restore_enter_different_password = "restore-enter-different-password";
+    private static final String data_lang_key_restore_skip = "restore-skip";
+    private static final String data_lang_key_restore_progress = "restore-progress";
+    private static final String data_lang_key_restore_summary = "restore-summary";
+    private static final String data_lang_key_restore_restored = "restore-restored";
+    private static final String data_lang_key_restore_already_present = "restore-already-present";
+    private static final String data_lang_key_restore_failed = "restore-failed";
+    private static final String data_lang_key_restore_no_backups_found = "restore-no-backups-found";
+    private static final String data_lang_key_restore_select_all = "restore-select-all";
+    private static final String data_lang_key_restore_select_none = "restore-select-none";
+    private static final String data_lang_key_restore_confirm = "restore-confirm";
 
 
     private static final String data_lang_key_errors = "errors";
@@ -686,6 +721,111 @@ public class JsonInteract {
     }
     public String getDisabledByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_disabled);
+    }
+    public String getBackupByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_backup);
+    }
+    public String getBackupPromptByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_backup_prompt);
+    }
+    public String getBackupDescriptionByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_backup_description);
+    }
+    public String getPhoneBackupByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_phone_backup);
+    }
+    public String getCloudBackupByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_cloud_backup);
+    }
+    public String getCloudBackupPromptByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_cloud_backup_prompt);
+    }
+    public String getCloudBackupDescriptionByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_cloud_backup_description);
+    }
+    public String getSelectBackupFolderByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_select_backup_folder);
+    }
+    public String getChangeFolderByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_change_folder);
+    }
+    public String getNoFolderSelectedByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_no_folder_selected);
+    }
+    public String getCurrentFolderByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_current_folder);
+    }
+    public String getExportWalletByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_export_wallet);
+    }
+    public String getBackupWalletByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_backup_wallet);
+    }
+    public String getBackupWaitByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_backup_wait);
+    }
+    public String getBackupSavedByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_backup_saved);
+    }
+    public String getBackupFailedByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_backup_failed);
+    }
+    public String getBackupPasswordByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_backup_password);
+    }
+    public String getUseCurrentPasswordByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_use_current_password);
+    }
+    public String getUseDifferentPasswordByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_use_different_password);
+    }
+    public String getConfirmBackupPasswordByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_confirm_backup_password);
+    }
+    public String getRestoreFromCloudByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_from_cloud);
+    }
+    public String getRestoreFromFileByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_from_file);
+    }
+    public String getRestoreEnterPasswordByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_enter_password);
+    }
+    public String getRestoreDecryptFailedByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_decrypt_failed);
+    }
+    public String getRestoreEnterDifferentPasswordByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_enter_different_password);
+    }
+    public String getRestoreSkipByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_skip);
+    }
+    public String getRestoreProgressByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_progress);
+    }
+    public String getRestoreSummaryByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_summary);
+    }
+    public String getRestoreRestoredByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_restored);
+    }
+    public String getRestoreAlreadyPresentByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_already_present);
+    }
+    public String getRestoreFailedByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_failed);
+    }
+    public String getRestoreNoBackupsFoundByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_no_backups_found);
+    }
+    public String getRestoreSelectAllByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_select_all);
+    }
+    public String getRestoreSelectNoneByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_select_none);
+    }
+    public String getRestoreConfirmByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_confirm);
     }
 
     public String getErrorByErrors() throws JSONException{
