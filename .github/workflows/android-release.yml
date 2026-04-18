@@ -9,18 +9,13 @@ jobs:
   BuildArtifacts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: set up JDK 11
-        uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '21'
           distribution: 'temurin'
           cache: gradle
-      - name: Install Dependencies
-        run: |
-           cd ${{ github.workspace }} 
-           chmod +x install-android-library-ubuntu.sh 
-           ./install-android-library-ubuntu.sh
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build with Gradle
@@ -28,7 +23,7 @@ jobs:
       - name: Build Quantum Coin Wallet APK - ${{ env.main_project_module }} module
         run: ./gradlew assembleDebug --stacktrace
       - name: Upload Quantum Coin Wallet APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: quantum-coin-wallet-debug
           path: ${{ env.main_project_module }}/build/outputs/apk/debug/
@@ -40,11 +35,11 @@ jobs:
     steps:
       - name: Generate version string
         id: version-string
-        run: echo "::set-output name=VERSION_STR::${GITHUB_REF##*/}"
- 
+        run: echo "VERSION_STR=${GITHUB_REF##*/}" >> "$GITHUB_OUTPUT"
+
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
- 
+        uses: actions/download-artifact@v4
+
       - name: Create a release APK
         uses: ncipollo/release-action@v1
         with:

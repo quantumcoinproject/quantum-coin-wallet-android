@@ -8,7 +8,7 @@ public class BlockchainNetwork {
 
     @SerializedName(SERIALIZED_NAME_BLOCKCHAIN_NETWORK)
     private String scanApiDomain;
-    private String txnApiDomain;
+    private String rpcEndpoint;
     private String blockExplorerDomain;
     private String blockchainName;
     private String networkId;
@@ -17,9 +17,9 @@ public class BlockchainNetwork {
 
     }
 
-    public BlockchainNetwork(String scanApiDomain, String txnApiDomain, String blockExplorerDomain, String blockchainName, String networkId) {
+    public BlockchainNetwork(String scanApiDomain, String rpcEndpoint, String blockExplorerDomain, String blockchainName, String networkId) {
         this.scanApiDomain = scanApiDomain;
-        this.txnApiDomain = txnApiDomain;
+        this.rpcEndpoint = rpcEndpoint;
         this.blockExplorerDomain = blockExplorerDomain;
         this.blockchainName = blockchainName;
         this.networkId = networkId;
@@ -33,12 +33,12 @@ public class BlockchainNetwork {
         this.scanApiDomain = scanApiDomain;
     }
 
-    public String getTxnApiDomain() {
-        return txnApiDomain;
+    public String getRpcEndpoint() {
+        return rpcEndpoint;
     }
 
-    public void setTxnApiDomain(String txnApiDomain) {
-        this.txnApiDomain = txnApiDomain;
+    public void setRpcEndpoint(String rpcEndpoint) {
+        this.rpcEndpoint = rpcEndpoint;
     }
 
     public String getBlockExplorerDomain() {
@@ -69,7 +69,7 @@ public class BlockchainNetwork {
     public String toString() {
         return "BlockchainNetwork{" +
                 "scanApiDomain='" + scanApiDomain + '\'' +
-                ", txnApiDomain=" + txnApiDomain + '\'' +
+                ", rpcEndpoint=" + rpcEndpoint + '\'' +
                 ", blockExplorerDomain=" + blockExplorerDomain + '\'' +
                 ", blockchainName=" + blockchainName + '\'' +
                 ", networkId=" + networkId +

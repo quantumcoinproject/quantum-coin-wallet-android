@@ -17,10 +17,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,19 +36,28 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.quantumcoinwallet.app.R;
+import com.quantumcoinwallet.app.api.read.ApiException;
+import com.quantumcoinwallet.app.api.read.model.AccountTokenListResponse;
+import com.quantumcoinwallet.app.api.read.model.AccountTokenSummary;
 import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
-import com.quantumcoinwallet.app.api.write.model.TransactionSummaryResponse;
 import com.quantumcoinwallet.app.asynctask.read.AccountBalanceRestTask;
-import com.quantumcoinwallet.app.asynctask.write.TransactionRestTask;
+import com.quantumcoinwallet.app.asynctask.read.ListAccountTokensRestTask;
+import com.quantumcoinwallet.app.bridge.BridgeCallback;
 import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
+import com.quantumcoinwallet.app.keystorage.SecureStorage;
+import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
+import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
-import com.google.android.gms.common.util.Strings;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 import android.Manifest;
 import android.content.ClipData;
@@ -71,6 +83,13 @@ public class SendFragment extends Fragment  {
     private SendFragment.OnSendCompleteListener mSendListener;
     private KeyViewModel keyViewModel = new KeyViewModel();
     private JsonViewModel jsonViewModel;
+
+    // Asset selection state. When selectedContract == null the native Q asset is active.
+    private String selectedContract;
+    private String selectedSymbol;
+    private int selectedDecimals = 18;
+    private String selectedTokenBalanceWei;
+    private List<AccountTokenSummary> tokenOptions = new ArrayList<>();
 
     private BarcodeDetector barcodeDetector;
     private CameraSource cameraSource;
@@ -102,8 +121,6 @@ public class SendFragment extends Fragment  {
         try {
             String languageKey = getArguments().getString("languageKey");
             String walletAddress = getArguments().getString("walletAddress");
-            String sendPassword = getArguments().getString("sendPassword");
-            ////String sendPassword = "Test123$$Test123$$"; //getArguments().getString("sendPassword");
 
             jsonViewModel = new JsonViewModel(getContext(), languageKey);
 
@@ -159,11 +176,20 @@ public class SendFragment extends Fragment  {
 
             Button buttonRetry = (Button) getView().findViewById(R.id.button_retry);
 
-            getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
+            TextView assetLabelTextView = (TextView) getView().findViewById(R.id.textView_send_asset_label);
+            assetLabelTextView.setText(jsonViewModel.getAssetToSendByLangValues());
+
+            final Spinner assetSpinner = (Spinner) getView().findViewById(R.id.spinner_send_asset);
+            final TextView assetSelectedTextView = (TextView) getView().findViewById(R.id.textView_send_asset_selected);
+
+            setupAssetSpinner(assetSpinner, assetSelectedTextView, balanceValueTextView,
+                    progressBar, walletAddress);
+            refreshTokenOptionsFromApi(assetSpinner, assetSelectedTextView, balanceValueTextView,
+                    progressBar, walletAddress);
 
             backArrowImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    mSendListener.onSendComplete(sendPassword);
+                    mSendListener.onSendComplete(null);
                 }
             });
 
@@ -187,17 +213,12 @@ public class SendFragment extends Fragment  {
                                     String toAddress = addressToSendEditText.getText().toString();
                                     String quantity = quantityToSendEditText.getText().toString();
 
-                                    if (sendPassword == null || sendPassword.isEmpty()) {
-                                        if (progressBarSendCoins.getVisibility() == View.VISIBLE) {
-                                            message = getResources().getString(R.string.send_transaction_message_exits);
-                                            GlobalMethods.ShowToast(getContext(), message);
-                                        } else {
-                                            unlockDialogFragment(view, progressBarSendCoins,
-                                                    walletAddress, toAddress, quantity, languageKey);
-                                        }
+                                    if (progressBarSendCoins.getVisibility() == View.VISIBLE) {
+                                        message = getResources().getString(R.string.send_transaction_message_exits);
+                                        GlobalMethods.ShowToast(getContext(), message);
                                     } else {
-                                        sendTransaction(getContext(), progressBarSendCoins,
-                                                walletAddress, toAddress, quantity, sendPassword, languageKey);
+                                        unlockDialogFragment(view, progressBarSendCoins,
+                                                walletAddress, toAddress, quantity, languageKey);
                                     }
                                     return;
                                 }
@@ -298,16 +319,21 @@ public class SendFragment extends Fragment  {
 
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    //Check password
                     String password = passwordEditText.getText().toString();
-                    if (password==null || password.isEmpty()) {
+                    if (password == null || password.isEmpty()) {
                         messageDialogFragment(languageKey, jsonViewModel.getEnterApasswordByLangValues());
                         return;
                     }
-                    if(sendButtonStatus == 1){
+                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                    if (!secureStorage.verifyPassword(getContext(), password.trim())) {
+                        messageDialogFragment(languageKey,
+                                jsonViewModel.getWalletPasswordMismatchByErrors());
+                        return;
+                    }
+                    if (sendButtonStatus == 1) {
                         dialog.dismiss();
                         sendTransaction(getContext(), progressBarSendCoins,
-                                walletAddress, toAddress, quantity, password.trim(), languageKey);
+                                walletAddress, toAddress, quantity, languageKey);
                     }
                     sendButtonStatus = 2;
                 }
@@ -338,15 +364,13 @@ public class SendFragment extends Fragment  {
 
                 String[] taskParams = { address };
 
-                KeyViewModel keyViewModel = new KeyViewModel();
-
                 AccountBalanceRestTask task = new AccountBalanceRestTask(
                     getContext(), new AccountBalanceRestTask.TaskListener() {
                     @Override
                     public void onFinished(BalanceResponse balanceResponse) throws ServiceException {
                         if (balanceResponse.getResult().getBalance() != null) {
                             String value = balanceResponse.getResult().getBalance().toString();
-                            String quantity = (String) keyViewModel.getWeiToDogeProtocol(value);
+                            String quantity = CoinUtils.formatWei(value);
                             balanceTextView.setText(quantity);
                         }
                         progressBar.setVisibility(View.GONE);
@@ -380,175 +404,205 @@ public class SendFragment extends Fragment  {
     }
 
     private void sendTransaction(Context context, ProgressBar progressBar,
-                                 String fromAddress, String toAddress, String quantity, String password, String languageKey) {
+                                 String fromAddress, String toAddress, String quantity, String languageKey) {
         try {
             if (progressBar.getVisibility() == View.VISIBLE) {
                 String message = getResources().getString(R.string.send_transaction_message_exits);
                 GlobalMethods.ShowToast(getContext(), message);
-            } else {
-                progressBar.setVisibility(View.VISIBLE);
-                String[] keyData = keyViewModel.decryptDataByAccount(context, fromAddress, password);
-                int[] SK_KEY =  GlobalMethods.GetIntDataArrayByString(keyData[0]);
-                int[] PK_KEY =  GlobalMethods.GetIntDataArrayByString(keyData[1]);
-
-                getBalanceNonceByAccount(context, progressBar, fromAddress, toAddress, quantity, SK_KEY, PK_KEY,
-                        password, languageKey);
+                return;
             }
-            return;
-        } catch (KeyServiceException e){
+            progressBar.setVisibility(View.VISIBLE);
+            SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+            String indexStr = PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.get(fromAddress);
+            if (indexStr == null) {
+                throw new Exception("Wallet not found for address");
+            }
+            String walletJsonStr = secureStorage.loadWallet(context, Integer.parseInt(indexStr));
+            JSONObject walletData = new JSONObject(walletJsonStr);
+            String privKeyBase64 = walletData.getString("privateKey");
+            String pubKeyBase64 = walletData.getString("publicKey");
 
-        }catch (InvalidKeyException e){
+            String rpcEndpoint = GlobalMethods.RPC_ENDPOINT_URL;
+            int chainId = Integer.parseInt(GlobalMethods.NETWORK_ID);
+            boolean advancedSigningEnabled = PrefConnect.readBoolean(context, PrefConnect.ADVANCED_SIGNING_ENABLED_KEY, false);
 
-        }
-        progressBar.setVisibility(View.GONE);
-        sendButtonStatus = 0;
-        messageDialogFragment(languageKey, jsonViewModel.getWalletPasswordMismatchByErrors());
-    }
-
-    private  void getBalanceNonceByAccount(Context context, ProgressBar progressBar, String fromAddress, String toAddress,
-                                           String quantity, int[] SK_KEY, int[] PK_KEY, String password, String languageKey) {
-        try{
-            linerLayoutOffline.setVisibility(View.GONE);
-
-            //Internet connection check
-            if (GlobalMethods.IsNetworkAvailable(getContext())) {
-
-                String[] taskParams = { fromAddress };
-
-                AccountBalanceRestTask task = new AccountBalanceRestTask(
-                        context, new AccountBalanceRestTask.TaskListener() {
-                    @Override
-                    public void onFinished(BalanceResponse balanceResponse) {
-                        getTxData(context, progressBar, balanceResponse, fromAddress, toAddress,
-                                quantity, SK_KEY, PK_KEY, password, languageKey);
-                    }
-                    @Override
-                    public void onFailure(com.quantumcoinwallet.app.api.read.ApiException e) {
-                        progressBar.setVisibility(View.GONE);
-                        sendButtonStatus = 0;
-
-                        int code = e.getCode();
-                        boolean check = GlobalMethods.ApiExceptionSourceCodeBoolean(code);
-                        if(check == true) {
-                            GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
-                                    getString(R.string.apierror),
-                                    TAG + " : AccountBalanceRestTask : " + e.toString());
-                        } else {
-                            GlobalMethods.OfflineOrExceptionError(getContext(),
-                                    linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                                    textViewSubTitleRetry, true);
+            BridgeCallback callback = new BridgeCallback() {
+                @Override
+                public void onResult(String jsonResult) {
+                    if (getActivity() == null) return;
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            try {
+                                JSONObject result = new JSONObject(jsonResult);
+                                JSONObject data = result.getJSONObject("data");
+                                String txHash = data.getString("txHash");
+                                sendCompletedDialogFragment(context);
+                            } catch (Exception e) {
+                                progressBar.setVisibility(View.GONE);
+                                sendButtonStatus = 0;
+                                String errorTitle = jsonViewModel.getErrorTitleByLangValues();
+                                String prefix = jsonViewModel.getErrorOccurredByLangValues();
+                                GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                        prefix + sanitizeErrorMessage(e.getMessage()));
+                            }
                         }
-                    }
-                });
-
-                task.execute(taskParams);
-            } else {
-                progressBar.setVisibility(View.GONE);
-                sendButtonStatus = 0;
-
-                GlobalMethods.OfflineOrExceptionError(getContext(),
-                        linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                        textViewSubTitleRetry, false);
-            }
-        } catch (Exception e) {
-            progressBar.setVisibility(View.GONE);
-            sendButtonStatus = 0;
-
-            GlobalMethods.ExceptionError(getContext(), TAG, e);
-        }
-    }
-
-    private  void getTxData(Context context, ProgressBar progressBar, BalanceResponse balanceResponse,
-                            String fromAddress, String toAddress, String quantity,
-                            int[] SK_KEY, int[] PK_KEY, String password, String languageKey){
-        try {
-            String NONCE = "0";
-
-            //Nonce
-            if(balanceResponse.getResult().getNonce() != null){
-                String nonce = (String)balanceResponse.getResult().getNonce();
-                if(!Strings.isEmptyOrWhitespace(nonce)){
-                    NONCE = nonce;
+                    });
                 }
-            }
 
-            int[] message  = (int[]) keyViewModel.getTxnSigningHash(fromAddress,  NONCE,
-                    toAddress, quantity, GlobalMethods.GAS_QCN_LIMIT, "", GlobalMethods.NETWORK_ID);
-            int[] SIGN = GlobalMethods.GetIntDataArrayByString(keyViewModel.signAccount(message, SK_KEY));
-            int verify = (int) keyViewModel.verifyAccount(message, SIGN, PK_KEY);
-
-            if(verify==0){
-                //String txHash = (String) keyViewModel.getTxHash(fromAddress,  NONCE, toAddress, quantity,
-                //        GlobalMethods.GAS, GlobalMethods.GAS_PRICE,  GlobalMethods.NETWORK_ID, PK_KEY, SIGN);
-
-                String txData = (String) keyViewModel.getTxData(fromAddress,  NONCE, toAddress, quantity,
-                        GlobalMethods.GAS_QCN_LIMIT, "",  GlobalMethods.NETWORK_ID, PK_KEY, SIGN);
-
-                transactionByAccount(context, progressBar, txData, password);
-            } else {
-                messageDialogFragment(languageKey, getResources().getString(R.string.unlock_message_description));
-                progressBar.setVisibility(View.GONE);
-                sendButtonStatus = 0;
-            }
-        } catch (ServiceException e) {
-            progressBar.setVisibility(View.GONE);
-            sendButtonStatus = 0;
-            GlobalMethods.ExceptionError(getContext(), TAG, e);
-        }
-    }
-
-    private  void transactionByAccount(Context context, ProgressBar progressBar, String txData, String password) {
-        try{
-            retryStatus = 1;
-
-            linerLayoutOffline.setVisibility(View.GONE);
-
-            //Internet connection check
-            if (GlobalMethods.IsNetworkAvailable(getContext())) {
-
-                String[] taskParams = { txData };
-
-                TransactionRestTask task = new TransactionRestTask(
-                        context, new TransactionRestTask.TaskListener() {
-                    @Override
-                    public void onFinished(TransactionSummaryResponse transactionSummaryResponse) {
-                        sendCompletedDialogFragment(context,password);
-                    }
-                    @Override
-                    public void onFailure(com.quantumcoinwallet.app.api.write.ApiException e) {
-                        progressBar.setVisibility(View.GONE);
-                        sendButtonStatus = 0;
-
-                        int code = e.getCode();
-                        boolean check = GlobalMethods.ApiExceptionSourceCodeBoolean(code);
-                        if(check == true) {
-                            GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
-                                    getString(R.string.apierror),
-                                    TAG + " : TransactionRestTask : " + e.toString());
-                        } else {
-                            GlobalMethods.OfflineOrExceptionError(getContext(),
-                                    linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                                    textViewSubTitleRetry, true);
+                @Override
+                public void onError(String error) {
+                    if (getActivity() == null) return;
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            progressBar.setVisibility(View.GONE);
+                            sendButtonStatus = 0;
+                            String errorTitle = jsonViewModel.getErrorTitleByLangValues();
+                            String prefix = jsonViewModel.getErrorOccurredByLangValues();
+                            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                    prefix + sanitizeErrorMessage(error));
                         }
-                    }
-                });
-                task.execute(taskParams);
-            } else {
-                progressBar.setVisibility(View.GONE);
-                sendButtonStatus = 0;
+                    });
+                }
+            };
 
-                GlobalMethods.OfflineOrExceptionError(getContext(),
-                        linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                        textViewSubTitleRetry, false);
+            if (selectedContract == null) {
+                String valueWei = CoinUtils.parseEther(quantity);
+                String gasLimit = GlobalMethods.GAS_QCN_LIMIT;
+                keyViewModel.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei,
+                        gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, callback);
+            } else {
+                String amountWei = CoinUtils.parseUnits(quantity, selectedDecimals);
+                String gasLimit = GlobalMethods.GAS_TOKEN_LIMIT;
+                keyViewModel.sendTokenTransaction(privKeyBase64, pubKeyBase64, selectedContract,
+                        toAddress, amountWei, gasLimit, rpcEndpoint, chainId,
+                        advancedSigningEnabled, callback);
             }
         } catch (Exception e) {
             progressBar.setVisibility(View.GONE);
             sendButtonStatus = 0;
+            String errorTitle = jsonViewModel.getErrorTitleByLangValues();
+            String prefix = jsonViewModel.getErrorOccurredByLangValues();
+            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                    prefix + sanitizeErrorMessage(e.getMessage()));
+        }
+    }
+
+    /**
+     * Builds the asset spinner with "Q" first and one entry per cached token.
+     * Selection mutates `selectedContract/Symbol/Decimals/TokenBalanceWei` and
+     * updates the displayed balance.
+     */
+    private void setupAssetSpinner(final Spinner spinner,
+                                   final TextView assetSelectedTextView,
+                                   final TextView balanceValueTextView,
+                                   final ProgressBar balanceProgress,
+                                   final String walletAddress) {
+        tokenOptions = new ArrayList<>();
+        if (GlobalMethods.CURRENT_WALLET_TOKEN_LIST != null
+                && Objects.equals(GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS, walletAddress)) {
+            tokenOptions.addAll(GlobalMethods.CURRENT_WALLET_TOKEN_LIST);
+        }
+
+        List<String> labels = new ArrayList<>();
+        labels.add("Q");
+        for (AccountTokenSummary t : tokenOptions) {
+            labels.add(formatSpinnerLabel(t));
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
+                android.R.layout.simple_spinner_item, labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) {
+                    selectedContract = null;
+                    selectedSymbol = "Q";
+                    selectedDecimals = 18;
+                    selectedTokenBalanceWei = null;
+                    assetSelectedTextView.setText("QuantumCoin");
+                    getBalanceByAccount(walletAddress, balanceValueTextView, balanceProgress);
+                    return;
+                }
+                int tokenIndex = position - 1;
+                if (tokenIndex < 0 || tokenIndex >= tokenOptions.size()) {
+                    return;
+                }
+                AccountTokenSummary token = tokenOptions.get(tokenIndex);
+                selectedContract = token.getContractAddress();
+                selectedSymbol = token.getSymbol();
+                selectedDecimals = token.getDecimals() == null ? 18 : token.getDecimals();
+                selectedTokenBalanceWei = token.getTokenBalance();
+                assetSelectedTextView.setText(safe(token.getContractAddress()));
+                balanceValueTextView.setText(
+                        CoinUtils.formatUnits(safe(selectedTokenBalanceWei), selectedDecimals));
+                balanceProgress.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+    }
+
+    /**
+     * Kicks a best-effort refresh of the token list from the scan API so the spinner
+     * reflects the latest set of holdings. Runs silently when offline or on failure.
+     */
+    private void refreshTokenOptionsFromApi(final Spinner spinner,
+                                            final TextView assetSelectedTextView,
+                                            final TextView balanceValueTextView,
+                                            final ProgressBar balanceProgress,
+                                            final String walletAddress) {
+        if (walletAddress == null || walletAddress.isEmpty()) return;
+        if (!GlobalMethods.IsNetworkAvailable(getContext())) return;
+        try {
+            String[] params = { walletAddress, "1" };
+            ListAccountTokensRestTask task = new ListAccountTokensRestTask(
+                    getContext(), new ListAccountTokensRestTask.TaskListener() {
+                @Override
+                public void onFinished(AccountTokenListResponse response) {
+                    List<AccountTokenSummary> items = (response == null || response.getItems() == null)
+                            ? new ArrayList<AccountTokenSummary>()
+                            : response.getItems();
+                    GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new ArrayList<>(items);
+                    GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = walletAddress;
+                    setupAssetSpinner(spinner, assetSelectedTextView, balanceValueTextView,
+                            balanceProgress, walletAddress);
+                }
+
+                @Override
+                public void onFailure(ApiException apiException) {
+                    // silent: spinner keeps the existing options
+                }
+            });
+            task.execute(params);
+        } catch (Exception e) {
             GlobalMethods.ExceptionError(getContext(), TAG, e);
         }
     }
 
-    private void sendCompletedDialogFragment(Context context, String password) {
+    private static String formatSpinnerLabel(AccountTokenSummary token) {
+        String symbol = token.getSymbol() == null ? "" : token.getSymbol();
+        String name = token.getName() == null ? "" : token.getName();
+        if (name.isEmpty()) return symbol;
+        return symbol + " (" + name + ")";
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String sanitizeErrorMessage(String message) {
+        if (message == null) return "";
+        return android.text.Html.fromHtml(message, android.text.Html.FROM_HTML_MODE_LEGACY)
+                .toString()
+                .replaceAll("[<>]", "");
+    }
+
+    private void sendCompletedDialogFragment(Context context) {
         try {
             AlertDialog dialog = new AlertDialog.Builder(getContext())
                     .setTitle((CharSequence) "").setView((int)
@@ -561,7 +615,7 @@ public class SendFragment extends Fragment  {
                 public void onClick(View v) {
                     sendButtonStatus = 0;
                     dialog.dismiss();
-                    mSendListener.onSendComplete(password);
+                    mSendListener.onSendComplete(null);
                 }
             });
         } catch (Exception e) {
@@ -657,21 +711,30 @@ public class SendFragment extends Fragment  {
 
             okButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    cameraSource.release();
-                    assert qrcodeTextView != null;
-                    if(qrcodeTextView.getText().toString().startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
+                    cameraSource.stop();
+                    if (qrcodeTextView.getText().toString().startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
                         walletAddressEditText.setText(qrcodeTextView.getText());
                     } else {
                         walletAddressEditText.setText("");
                     }
-                    dialog.dismiss();
+                    v.post(new Runnable() {
+                        public void run() {
+                            cameraSource.release();
+                            dialog.dismiss();
+                        }
+                    });
                 }
             });
 
             closeButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    cameraSource.release();
-                    dialog.dismiss();
+                    cameraSource.stop();
+                    v.post(new Runnable() {
+                        public void run() {
+                            cameraSource.release();
+                            dialog.dismiss();
+                        }
+                    });
                 }
             });
 

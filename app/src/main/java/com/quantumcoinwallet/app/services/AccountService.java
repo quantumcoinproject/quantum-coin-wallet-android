@@ -7,9 +7,6 @@ import com.quantumcoinwallet.app.api.read.model.*;
 import com.quantumcoinwallet.app.entity.Result;
 import com.quantumcoinwallet.app.asynctask.read.*;
 
-import com.quantumcoinwallet.app.api.write.model.*;
-import com.quantumcoinwallet.app.asynctask.write.*;
-
 public class AccountService  implements IAccountService
 {
     private Result<Object> _objectResult = null ;
@@ -84,33 +81,6 @@ public class AccountService  implements IAccountService
             }
             @Override
             public void onFailure(com.quantumcoinwallet.app.api.read.ApiException e) {
-                _objectResult = new  Result<Object>(null, e);
-            }
-        });
-
-        try {
-            task.execute(taskParams).wait();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        return  _objectResult;
-    }
-
-    @Override
-    public  Result<Object> sendTransactionByAccount(String txData) {
-
-        Context context = null;
-        String[] taskParams = { txData };
-
-        TransactionRestTask task = new TransactionRestTask(
-                context.getApplicationContext(), new TransactionRestTask.TaskListener() {
-            @Override
-            public void onFinished(TransactionSummaryResponse transactionSummaryResponse) {
-                _objectResult = new  Result<Object>(transactionSummaryResponse, null);
-            }
-
-            @Override
-            public void onFailure(com.quantumcoinwallet.app.api.write.ApiException e) {
                 _objectResult = new  Result<Object>(null, e);
             }
         });

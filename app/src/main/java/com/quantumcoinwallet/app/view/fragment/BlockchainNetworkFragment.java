@@ -1,40 +1,30 @@
 package com.quantumcoinwallet.app.view.fragment;
 
 import android.content.Context;
+import android.graphics.Typeface;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.model.BlockchainNetwork;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
-import com.quantumcoinwallet.app.utils.GridAutoFitLayoutManager;
-import com.quantumcoinwallet.app.utils.Utility;
-import com.quantumcoinwallet.app.view.adapter.BlockchainNetworkAdapter;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 
 import java.util.List;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
-import butterknife.Unbinder;
-
 public class BlockchainNetworkFragment extends Fragment  {
 
     private static final String TAG = "BlockchainNetworkFragment";
-
-    private BlockchainNetworkAdapter blockchainNetworkAdapter;
-    Unbinder unbinder;
-
-    @BindView(R.id.recycler_blockchain_network)
-    RecyclerView recycler;
 
     private OnBlockchainNetworkCompleteListener mBlockchainNetworkListener;
 
@@ -61,7 +51,6 @@ public class BlockchainNetworkFragment extends Fragment  {
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        this.unbinder = ButterKnife.bind((Object) this, view);
         try {
             assert getArguments() != null;
 
@@ -71,45 +60,57 @@ public class BlockchainNetworkFragment extends Fragment  {
 
             ImageButton backArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_blockchain_network_back_arrow);
             TextView blockchainNetworkTitleTextView = (TextView) getView().findViewById(R.id.textview_blockchain_network_langValues_networks);
-
-            TextView blockchainNetworkIdTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_id);
-            TextView blockchainNetworkNameTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_name);
-            TextView blockchainNetworkScanApiUrlTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_scanApiUrl);
-            TextView blockchainNetworkTxnApiUrlTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_txnApiUrl);
-            TextView blockchainNetworkBlockExplorerUrlTextView = (TextView) getView().findViewById(R.id.textView_blockchain_network_header_langValues_blockExplorerUrl);
-
             TextView blockchainNetworkAddNetworkTextView = (TextView) getView().findViewById(R.id.textview_blockchain_network_langValues_add_network);
-
             ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_blockchain_network);
+            TableLayout tableLayout = (TableLayout) getView().findViewById(R.id.table_blockchain_network);
 
             blockchainNetworkTitleTextView.setText(jsonViewModel.getNetworksByLangValues());
-            blockchainNetworkIdTextView.setText(jsonViewModel.getIdByLangValues());
-            blockchainNetworkNameTextView.setText(jsonViewModel.getNameByLangValues());
-
-            blockchainNetworkScanApiUrlTextView.setText(jsonViewModel.getScanApiUrlByLangValues());
-            blockchainNetworkTxnApiUrlTextView.setText(jsonViewModel.getTxnApiUrlByLangValues());
-            blockchainNetworkBlockExplorerUrlTextView.setText(jsonViewModel.getBlockExplorerUrlByLangValues());
-
             blockchainNetworkAddNetworkTextView.setText(jsonViewModel.getAddNetworkByLangValues());
 
             progressBar.setVisibility(View.VISIBLE);
 
-            this.recycler.removeAllViewsInLayout();
-
-            int mNoOfColumns = Utility.calculateNoOfColumns(getContext(), R.id.recycler_blockchain_network);
-
-            GridAutoFitLayoutManager mLayoutManager = new GridAutoFitLayoutManager(getContext(),
-                    mNoOfColumns, 1, false);
-
             List<BlockchainNetwork> blockchainNetworkList = GlobalMethods.BlockChainNetworkRead(getContext());
 
-            this.recycler.setLayoutManager(mLayoutManager);
+            tableLayout.removeAllViews();
 
-            this.blockchainNetworkAdapter = new BlockchainNetworkAdapter(getContext(), blockchainNetworkList);
+            int paddingPx = dpToPx(8);
 
-            this.recycler.setAdapter(blockchainNetworkAdapter);
+            TableRow headerRow = new TableRow(getContext());
+            String[] headers = {
+                jsonViewModel.getIdByLangValues(),
+                jsonViewModel.getNameByLangValues(),
+                jsonViewModel.getScanApiUrlByLangValues(),
+                jsonViewModel.getRpcEndpointByLangValues(),
+                jsonViewModel.getBlockExplorerUrlByLangValues()
+            };
+            for (String header : headers) {
+                TextView tv = new TextView(getContext());
+                tv.setText(header);
+                tv.setTypeface(null, Typeface.BOLD);
+                tv.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+                tv.setSingleLine(true);
+                headerRow.addView(tv);
+            }
+            tableLayout.addView(headerRow);
 
-            this.blockchainNetworkAdapter.notifyDataSetChanged();
+            for (BlockchainNetwork network : blockchainNetworkList) {
+                TableRow row = new TableRow(getContext());
+                String[] cells = {
+                    network.getNetworkId(),
+                    network.getBlockchainName(),
+                    network.getScanApiDomain(),
+                    network.getRpcEndpoint(),
+                    network.getBlockExplorerDomain()
+                };
+                for (String cellText : cells) {
+                    TextView tv = new TextView(getContext());
+                    tv.setText(cellText != null ? cellText : "");
+                    tv.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+                    tv.setSingleLine(true);
+                    row.addView(tv);
+                }
+                tableLayout.addView(row);
+            }
 
             progressBar.setVisibility(View.GONE);
 
@@ -128,6 +129,12 @@ public class BlockchainNetworkFragment extends Fragment  {
         } catch(Exception e){
             GlobalMethods.ExceptionError(getContext(), TAG, e);
         }
+    }
+
+    private int dpToPx(int dp) {
+        return (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, dp,
+                getResources().getDisplayMetrics());
     }
 
     @Override

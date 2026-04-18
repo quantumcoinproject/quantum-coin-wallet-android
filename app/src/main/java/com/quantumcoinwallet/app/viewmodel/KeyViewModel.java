@@ -1,192 +1,95 @@
 package com.quantumcoinwallet.app.viewmodel;
 
 import android.content.Context;
-import android.security.keystore.UserNotAuthenticatedException;
 
+import com.quantumcoinwallet.app.bridge.BridgeCallback;
+import com.quantumcoinwallet.app.bridge.QuantumCoinJSBridge;
+import com.quantumcoinwallet.app.bridge.WebViewManager;
 import com.quantumcoinwallet.app.entity.KeyServiceException;
-import com.quantumcoinwallet.app.entity.ServiceException;
-import com.quantumcoinwallet.app.hybrid.HybridPqcJNIImpl;
-import com.quantumcoinwallet.app.hybrid.IHybridPqcJNIImpl;
 import com.quantumcoinwallet.app.interact.KeyInteract;
 import com.quantumcoinwallet.app.keystorage.IKeyStore;
 import com.quantumcoinwallet.app.keystorage.KeyStore;
+import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.services.IKeyService;
 import com.quantumcoinwallet.app.services.KeyService;
+import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import androidx.lifecycle.ViewModel;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-//@HiltViewModel
-public class KeyViewModel  extends ViewModel{
+public class KeyViewModel extends ViewModel {
 
-    private IHybridPqcJNIImpl iHybridPqcJNI = new HybridPqcJNIImpl();
-    private IKeyService iKeyService = new KeyService(iHybridPqcJNI);
-    private IKeyStore iKeyStore = new KeyStore();
+    private final KeyInteract keyInteract;
+    private static QuantumCoinJSBridge bridgeInstance;
+    private static SecureStorage secureStorageInstance;
 
-    //@Inject
-    private final KeyInteract _keyInteract;
-
-    //@Inject
     public KeyViewModel() {
-        _keyInteract = new KeyInteract(iKeyService, iKeyStore);
+        IKeyStore keyStore = new KeyStore();
+        keyInteract = new KeyInteract(new KeyService(bridgeInstance), keyStore);
     }
 
-    public String cryptoNewSeed() throws ServiceException {
-        return _keyInteract.random();
+    public static void initBridge(Context context) {
+        WebViewManager webViewManager = WebViewManager.getInstance(context);
+        bridgeInstance = new QuantumCoinJSBridge(webViewManager);
+        secureStorageInstance = new SecureStorage(bridgeInstance);
     }
 
-    public String cryptoExpandSeed(int[] seed) throws ServiceException {
-        return _keyInteract.seedExpander(seed);
+    public static QuantumCoinJSBridge getBridge() { return bridgeInstance; }
+    public static SecureStorage getSecureStorage() { return secureStorageInstance; }
+
+    // --- New bridge methods ---
+    public void createRandomSeed(int keyType, BridgeCallback callback) { keyInteract.createRandomSeed(keyType, callback); }
+    public void walletFromPhrase(String[] words, BridgeCallback callback) { keyInteract.walletFromPhrase(words, callback); }
+    public void walletFromSeed(int[] seedArray, BridgeCallback callback) { keyInteract.walletFromSeed(seedArray, callback); }
+    public void walletFromKeys(String privKeyBase64, String pubKeyBase64, BridgeCallback callback) { keyInteract.walletFromKeys(privKeyBase64, pubKeyBase64, callback); }
+    public void sendTransaction(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled, BridgeCallback callback) { keyInteract.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, callback); }
+    public void sendTokenTransaction(String privKeyBase64, String pubKeyBase64, String contractAddress, String toAddress, String amountWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled, BridgeCallback callback) { keyInteract.sendTokenTransaction(privKeyBase64, pubKeyBase64, contractAddress, toAddress, amountWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, callback); }
+    public void isValidAddress(String address, BridgeCallback callback) { keyInteract.isValidAddress(address, callback); }
+    public void initializeOffline(BridgeCallback callback) { keyInteract.initializeOffline(callback); }
+    public void initialize(int chainId, String rpcEndpoint, BridgeCallback callback) { keyInteract.initialize(chainId, rpcEndpoint, callback); }
+
+    // Blocking variants for background threads
+    public String createRandomSeedBlocking(int keyType) { return keyInteract.createRandomSeedBlocking(keyType); }
+    public String walletFromPhraseBlocking(String[] words) { return keyInteract.walletFromPhraseBlocking(words); }
+    public String walletFromSeedBlocking(int[] seedArray) { return keyInteract.walletFromSeedBlocking(seedArray); }
+    public String initializeOfflineBlocking() { return keyInteract.initializeOfflineBlocking(); }
+    public String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled) { return keyInteract.sendTransactionBlocking(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled); }
+    public String sendTokenTransactionBlocking(String privKeyBase64, String pubKeyBase64, String contractAddress, String toAddress, String amountWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled) { return keyInteract.sendTokenTransactionBlocking(privKeyBase64, pubKeyBase64, contractAddress, toAddress, amountWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled); }
+
+    // --- Wei conversion (pure Java, main-thread safe) ---
+    public String getWeiToDogeProtocol(String value) {
+        return CoinUtils.formatWei(value);
     }
 
-    public String[] cryptoNewKeyPairFromSeed(int[] expandedSeedArray) throws ServiceException {
-        return (String[]) newAccountFromSeed(expandedSeedArray);
-    }
-
-    public String cryptoSign(int[] message, int[] skKey) throws ServiceException {
-        return (String) _keyInteract.signAccount(message, skKey);
-    }
-
-    public int cryptoVerify(int[] message, int[] sign, int[] pkKey) throws ServiceException {
-        return _keyInteract.verifyAccount(message, sign, pkKey);
-    }
-
-    public int[] scrypt(int[] skKey, int[] salt) throws ServiceException {
-        return _keyInteract.scrypt(skKey, salt);
-    }
-
-    public String publicKeyFromPrivateKey(int[] skKey) throws ServiceException {
-        return _keyInteract.publicKeyFromPrivateKey(skKey);
-    }
-
-    public String getAccountAddress(int[] pkKey) throws ServiceException {
-        return _keyInteract.getAccountAddress(pkKey);
-    }
-
-    public String isValidAddress(String quantumAddress) throws ServiceException {
-        return _keyInteract.isValidAddress(quantumAddress);
-    }
-
-
-    public int[] getTxnSigningHash(String fromAddress, String nonce, String toAddress,
-                                   String amount, String gasLimit, String data, String chainId) throws ServiceException {
-        return _keyInteract.getTxnSigningHash(fromAddress, nonce, toAddress,
-                amount, gasLimit,data, chainId);
-    }
-
-    public String getTxHash(String fromAddress, String nonce, String toAddress,
-                            String amount, String gasLimit, String data, String chainId, int[] pkKey, int[] sig) throws ServiceException {
-        return _keyInteract.getTxHash(fromAddress, nonce, toAddress,
-                amount, gasLimit, data, chainId, pkKey, sig);
-    }
-
-    public String getTxData(String fromAddress, String nonce, String toAddress,
-                            String amount, String gasLimit, String data, String chainId, int[] pkKey, int[] sig) throws ServiceException {
-        return _keyInteract.getTxData(fromAddress, nonce, toAddress,
-                amount, gasLimit, data, chainId, pkKey, sig);
-    }
-
-    public String getContractData(String method, String abiData, String argument1, String argument2) throws ServiceException {
-        return _keyInteract.getContractData(method, abiData, argument1, argument2);
-    }
-
-    public String getParseBigFloat(String value) throws ServiceException {
-        return _keyInteract.getParseBigFloat(value);
-    }
-
-    public String getParseBigFloatInner(String value) throws ServiceException {
-        return _keyInteract.getParseBigFloatInner(value);
-    }
-
-    public String getDogeProtocolToWei(String value) throws ServiceException {
-        return _keyInteract.getDogeProtocolToWei(value);
-    }
-
-    public String getWeiToDogeProtocol(String value) throws ServiceException {
-        return _keyInteract.getWeiToDogeProtocol(value);
-    }
-
+    // --- Encryption/decryption (unchanged) ---
     public boolean encryptDataByString(Context context, String key, String password, String passwordSHA256) {
-        return _keyInteract.encryptDataByAccount(context, key, password, passwordSHA256);
+        return keyInteract.encryptDataByAccount(context, key, password, passwordSHA256);
     }
-
 
     public String decryptDataByString(Context context, String key, String password) throws InvalidKeyException, KeyServiceException {
-        byte[] byteArray = _keyInteract.decryptDataByAccount(context, key, password);
-        String str = new String(byteArray); // for UTF-8 encoding
-        return str;
+        byte[] byteArray = keyInteract.decryptDataByAccount(context, key, password);
+        return new String(byteArray);
     }
 
-    public boolean encryptDataByAccount(Context context, String key, String password,
-                                        String[] keyPair) {
-       /* ByteBuffer sk_key_byteBuffer = ByteBuffer.allocate(SK_KEY.length * 4);
-        IntBuffer sk_key_intBuffer = sk_key_byteBuffer.asIntBuffer();
-        sk_key_intBuffer.put(SK_KEY);
-
-        ByteBuffer pk_key_byteBuffer = ByteBuffer.allocate(PK_KEY.length * 4);
-        IntBuffer pk_key_intBuffer = pk_key_byteBuffer.asIntBuffer();
-        pk_key_intBuffer.put(PK_KEY);
-
-        byte[] sk_key = sk_key_byteBuffer.array();
-        byte[] pk_key = pk_key_byteBuffer.array();
-        */
-
+    public boolean encryptDataByAccount(Context context, String key, String password, String[] keyPair) {
         Gson gson = new Gson();
-        List<String> textList = new ArrayList<String>(Arrays.asList(keyPair));
+        List<String> textList = new ArrayList<>(Arrays.asList(keyPair));
         String jsonText = gson.toJson(textList);
-        return _keyInteract.encryptDataByAccount(context, key, password, jsonText);
+        return keyInteract.encryptDataByAccount(context, key, password, jsonText);
     }
 
     public String[] decryptDataByAccount(Context context, String key, String password) throws InvalidKeyException, KeyServiceException {
-        byte[] byteArray = _keyInteract.decryptDataByAccount(context, key, password);
+        byte[] byteArray = keyInteract.decryptDataByAccount(context, key, password);
         String jsonString = new String(byteArray);
         List<String> dataList = Arrays.asList(new GsonBuilder().create().fromJson(jsonString, String[].class));
         String[] data = new String[dataList.size()];
         data = dataList.toArray(data);
         return data;
-
-        /*
-        IntBuffer intBuf =
-                ByteBuffer.wrap(byteArray)
-                        .order(ByteOrder.BIG_ENDIAN)
-                        .asIntBuffer();
-
-        String[] array = new String[intBuf.remaining()];
-        intBuf.get(array);
-        return array;
-         */
     }
-
-    public String[] newAccountFromSeed(int[] expandedSeedArray) throws ServiceException {
-        return _keyInteract.newAccountFromSeed(expandedSeedArray);
-    }
-
-    public String[] newAccount() throws ServiceException {
-        return _keyInteract.newAccount();
-    }
-
-    public String signAccount(int[] message, int[] skKey) throws ServiceException {
-        return _keyInteract.signAccount(message, skKey);
-    }
-
-    public int verifyAccount(int[] message, int[] sign, int[] pkKey) throws ServiceException {
-        return _keyInteract.verifyAccount(message, sign, pkKey);
-    }
-
-//    public int[] seedExpander(int[] seed) throws ServiceException {
-//        return _keyInteract.seedExpander(seed);
-//    }
-//    public int[] random() throws ServiceException {
-//        return _keyInteract.random();
-//    }
 }
-

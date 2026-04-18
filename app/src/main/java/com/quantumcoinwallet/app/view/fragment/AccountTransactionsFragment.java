@@ -38,10 +38,6 @@ import org.w3c.dom.Text;
 import java.util.ArrayList;
 import java.util.List;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
-import butterknife.Unbinder;
-
 public class AccountTransactionsFragment extends Fragment  {
 
     private static final String TAG = "AccountTransactionsFragment";
@@ -55,8 +51,7 @@ public class AccountTransactionsFragment extends Fragment  {
     private AccountPendingTransactionAdapter accountPendingTransactionAdapter;
     private List<AccountPendingTransactionSummary> accountPendingTransactionSummaries;
 
-    Unbinder unbinder;
-    @BindView(R.id.recycler_account_transactions) RecyclerView recycler;
+    RecyclerView recycler;
 
     private LinearLayout linerLayoutOffline;
     private ImageView imageViewRetry;
@@ -90,7 +85,7 @@ public class AccountTransactionsFragment extends Fragment  {
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        this.unbinder = ButterKnife.bind((Object) this, view);
+        this.recycler = view.findViewById(R.id.recycler_account_transactions);
 
         String languageKey = getArguments().getString("languageKey");
         String walletAddress = getArguments().getString("walletAddress");

@@ -52,13 +52,15 @@ public class AccountTxnRestTask  extends AsyncTask<String, Void, Void> {
     @Override
     public void onPostExecute(Void result) {
         super.onPostExecute(result);
-
-        if(this.taskListener != null) {
-            if (apiException == null) {
-                this.taskListener.onFinished(this.accountTransactionSummaryResponse);
-            } else {
-                this.taskListener.onFailure(apiException);
+        try {
+            if(this.taskListener != null) {
+                if (apiException == null) {
+                    this.taskListener.onFinished(this.accountTransactionSummaryResponse);
+                } else {
+                    this.taskListener.onFailure(apiException);
+                }
             }
+        } catch (Exception e) {
         }
     }
 

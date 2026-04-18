@@ -12,10 +12,12 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -25,7 +27,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -49,7 +51,6 @@ import com.quantumcoinwallet.app.utils.Utility;
 import com.quantumcoinwallet.app.view.fragment.BlockchainNetworkAddFragment;
 import com.quantumcoinwallet.app.view.fragment.BlockchainNetworkDialogFragment;
 import com.quantumcoinwallet.app.view.fragment.BlockchainNetworkFragment;
-import com.quantumcoinwallet.app.view.fragment.GetCoinsDogepTokensFragment;
 import com.quantumcoinwallet.app.view.fragment.HomeMainFragment;
 import com.quantumcoinwallet.app.view.fragment.HomeStartFragment;
 import com.quantumcoinwallet.app.view.fragment.HomeWalletFragment;
@@ -60,11 +61,16 @@ import com.quantumcoinwallet.app.view.fragment.RevealWalletFragment;
 import com.quantumcoinwallet.app.view.fragment.AccountTransactionsFragment;
 
 import com.quantumcoinwallet.app.view.fragment.WalletsFragment;
+import com.quantumcoinwallet.app.utils.CoinUtils;
+import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import org.json.JSONObject;
+
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -77,12 +83,15 @@ public class HomeActivity extends FragmentActivity implements
         BlockchainNetworkAddFragment.OnBlockchainNetworkAddCompleteListener,
         SendFragment.OnSendCompleteListener, ReceiveFragment.OnReceiveCompleteListener,
         AccountTransactionsFragment.OnAccountTransactionsCompleteListener, WalletsFragment.OnWalletsCompleteListener,
-        SettingsFragment.OnSettingsCompleteListener,  GetCoinsDogepTokensFragment.OnGetCoinsCompleteListener,
+        SettingsFragment.OnSettingsCompleteListener,
         RevealWalletFragment.OnRevealWalletCompleteListener {
 
     private static final String TAG = "HomeActivity";
+    private static final long UNLOCK_TIMEOUT_MS = 300_000;
 
     private final int notificationRequestCode = 112;
+    private long lastUnlockTimestamp = 0L;
+    private boolean unlockDialogShowing = false;
 
     private LinearLayout topLinearLayout;
     private ViewGroup.LayoutParams topLinearLayoutParams;
@@ -109,6 +118,8 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE);
         try {
             //locale language
 
@@ -123,16 +134,26 @@ public class HomeActivity extends FragmentActivity implements
 
             loadSeedsThread();
 
-            PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP = PrefConnect.loadHashMap(getApplicationContext(),
-                    PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX);
-
-            PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP = PrefConnect.loadHashMap(getApplicationContext(),
-                    PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_INDEX_ADDRESS);
-
-            PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE = PrefConnect.readString(getApplicationContext(),
-                    PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_KEY, "0");
-
             setContentView(R.layout.home_activity);
+
+            KeyViewModel.initBridge(getApplicationContext());
+
+            new Thread(new Runnable() {
+                public void run() {
+                    try {
+                        android.util.Log.i("QuantumCoinWallet", "Startup: waiting for bridge...");
+                        KeyViewModel.getBridge().initializeOffline();
+                        android.util.Log.i("QuantumCoinWallet", "Startup: SDK initialized successfully");
+                    } catch (Exception e) {
+                        android.util.Log.e("QuantumCoinWallet", "Startup: SDK init FAILED: " + e.getMessage(), e);
+                        runOnUiThread(new Runnable() {
+                            public void run() {
+                                GlobalMethods.ShowErrorDialog(HomeActivity.this, "SDK Init Failed", e.getMessage());
+                            }
+                        });
+                    }
+                }
+            }).start();
 
             //Linear top layout
             topLinearLayout = (LinearLayout) findViewById(R.id.top_linear_layout_home_id);
@@ -147,6 +168,8 @@ public class HomeActivity extends FragmentActivity implements
             centerRelativeLayout = (RelativeLayout) findViewById(R.id.center_relative_layout_home_id);
             walletAddressTextView = (TextView) findViewById(R.id.textView_home_wallet_address);
             ImageButton copyClipboardImageButton = (ImageButton) findViewById(R.id.imageButton_home_copy_clipboard);
+            TextView homeCopiedTextView = (TextView) findViewById(R.id.textView_home_copied);
+            homeCopiedTextView.setText(jsonViewModel.getCopiedByLangValues());
             ImageButton blockExploreImageButton = (ImageButton) findViewById(R.id.imageButton_home_block_explore);
 
             TextView balanceCoinSymbolTextView = (TextView) findViewById(R.id.textView_home_coin_symbol);
@@ -178,7 +201,9 @@ public class HomeActivity extends FragmentActivity implements
             receiveTitleTextView.setText(jsonViewModel.getReceiveByLangValues());
             transactionsTitleTextView.setText(jsonViewModel.getTransactionsByLangValues());
 
-            getCurrentWallet(PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE);
+            walletAddressTextView.setText("");
+            balanceValueTextView.setText("");
+            screenViewType(-1);
 
             //Notification permission
             if (Build.VERSION.SDK_INT >= 33) {
@@ -194,7 +219,7 @@ public class HomeActivity extends FragmentActivity implements
             List<BlockchainNetwork> blockchainNetworkList = GlobalMethods.BlockChainNetworkRead(getApplicationContext());
             BlockchainNetwork blockchainNetwork = blockchainNetworkList.get(blockchainNetworkIdIndex);
             GlobalMethods.SCAN_API_URL = GlobalMethods.HTTPS + blockchainNetwork.getScanApiDomain();
-            GlobalMethods.TXN_API_URL = GlobalMethods.HTTPS + blockchainNetwork.getTxnApiDomain();
+            GlobalMethods.RPC_ENDPOINT_URL = blockchainNetwork.getRpcEndpoint();
             GlobalMethods.BLOCK_EXPLORER_URL = GlobalMethods.HTTPS + blockchainNetwork.getBlockExplorerDomain();
             GlobalMethods.BLOCKCHAIN_NAME = blockchainNetwork.getBlockchainName();
             GlobalMethods.NETWORK_ID = blockchainNetwork.getNetworkId();
@@ -218,6 +243,13 @@ public class HomeActivity extends FragmentActivity implements
                     ClipboardManager clipBoard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
                     ClipData clipData = ClipData.newPlainText("currentAddress", walletAddressTextView.getText());
                     clipBoard.setPrimaryClip(clipData);
+                    homeCopiedTextView.setVisibility(View.VISIBLE);
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            homeCopiedTextView.setVisibility(View.GONE);
+                        }
+                    }, 600);
                 }
             });
 
@@ -267,40 +299,61 @@ public class HomeActivity extends FragmentActivity implements
             bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
                 @Override
                 public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-                    switch (item.getItemId()) {
-                        case R.id.nav_wallets:
-                            if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
-                                if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
-                                    screenViewType(1);
-                                    beginTransaction(WalletsFragment.newInstance(), bundle);
-                                }
+                    int id = item.getItemId();
+                    if (id == R.id.nav_wallets) {
+                        if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
+                            if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
+                                screenViewType(1);
+                                beginTransaction(WalletsFragment.newInstance(), bundle);
                             }
-                            return true;
-                        case R.id.nav_help:
-                            startActivity(new Intent(Intent.ACTION_VIEW,
-                                    Uri.parse(GlobalMethods.DP_DOCS_URL))
-                            );
-                            return true;
-                        case R.id.nav_block_explorer:
-                            startActivity(new Intent(Intent.ACTION_VIEW,
-                                    Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL))
-                            );
-                            return true;
-                        case R.id.nav_settings:
-                            screenViewType(1);
-                            beginTransaction(SettingsFragment.newInstance(), bundle);
-                            return true;
+                        }
+                        return true;
+                    } else if (id == R.id.nav_help) {
+                        startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(GlobalMethods.DP_DOCS_URL))
+                        );
+                        return true;
+                    } else if (id == R.id.nav_block_explorer) {
+                        startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL))
+                        );
+                        return true;
+                    } else if (id == R.id.nav_settings) {
+                        screenViewType(1);
+                        beginTransaction(SettingsFragment.newInstance(), bundle);
+                        return true;
                     }
                     return false;
                 }
             });
 
-            if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
-                if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
-                    screenViewType(0);
-                    beginTransaction(HomeMainFragment.newInstance(), bundle);
-                    notificationThread(1);
-                }
+            deselectAllNavItems();
+
+            SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+            boolean secureInitialized = secureStorage != null && secureStorage.isInitialized(getApplicationContext());
+            boolean oldDataExists = !PrefConnect.loadHashMap(getApplicationContext(),
+                    PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX).isEmpty();
+
+            if (secureInitialized) {
+                showUnlockDialog(new Runnable() {
+                    @Override
+                    public void run() {
+                        walletAddressTextView.setText(walletAddress);
+                        screenViewType(0);
+                        beginTransaction(HomeMainFragment.newInstance(), bundle);
+                        notificationThread(1);
+                    }
+                });
+            } else if (oldDataExists) {
+                showMigrationUnlockDialog(new Runnable() {
+                    @Override
+                    public void run() {
+                        walletAddressTextView.setText(walletAddress);
+                        screenViewType(0);
+                        beginTransaction(HomeMainFragment.newInstance(), bundle);
+                        notificationThread(1);
+                    }
+                });
             } else {
                 screenViewType(-1);
                 beginTransaction(HomeStartFragment.newInstance(), bundle);
@@ -383,6 +436,9 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void onBlockchainNetworkDialogOk() {
         try{
+            // Network switch invalidates the scan-API token cache.
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
             finish();
             startActivity(getIntent());
         } catch (Exception e) {
@@ -423,7 +479,7 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void onSendComplete(String password) {
         try {
-            bundle.putString("sendPassword", password);
+            bundle.remove("sendPassword");
             screenViewType(0);
             beginTransaction(HomeMainFragment.newInstance(), bundle);
         } catch (Exception e) {
@@ -460,7 +516,7 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void  onWalletsCompleteByCreateOrRestore(String walletPassword){
         screenViewType(1);
-        bundle.putString("walletPassword", walletPassword);
+        bundle.putString("walletPassword", "SECURE_STORAGE");
         beginTransaction(HomeWalletFragment.newInstance(), bundle);
     }
 
@@ -475,7 +531,6 @@ public class HomeActivity extends FragmentActivity implements
     public void onWalletsCompleteByReveal(String walletAddress, String walletPassword){
         screenViewType(1);
         bundle.putString("walletAddress", walletAddress);
-        bundle.putString("walletPassword", walletPassword);
         beginTransaction(RevealWalletFragment.newInstance(), bundle);
     }
 
@@ -500,37 +555,6 @@ public class HomeActivity extends FragmentActivity implements
     }
 
     @Override
-    public void onSettingsCompleteByGetCoin() {
-        try {
-            screenViewType(1);
-            beginTransaction(GetCoinsDogepTokensFragment.newInstance(), bundle);
-        } catch (Exception e) {
-            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
-        }
-    }
-
-    @Override
-    public void onGetCoinsCompleteByBackArrow() {
-        try {
-            screenViewType(1);
-            beginTransaction(SettingsFragment.newInstance(), bundle);
-        } catch (Exception e) {
-            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
-        }
-    }
-
-    @Override
-    public void onGetCoinsCompleteBySendData(String walletPassword) {
-        try {
-            screenViewType(0);
-            bundle.putString("walletPassword", walletPassword);
-            beginTransaction(HomeMainFragment.newInstance(), bundle);
-        } catch (Exception e) {
-            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
-        }
-    }
-
-    @Override
     public void onRevealWalletComplete() {
         try {
             screenViewType(1);
@@ -538,6 +562,312 @@ public class HomeActivity extends FragmentActivity implements
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        try {
+            SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+            if (secureStorage != null
+                    && secureStorage.isInitialized(getApplicationContext())
+                    && !unlockDialogShowing
+                    && (System.currentTimeMillis() - lastUnlockTimestamp) > UNLOCK_TIMEOUT_MS) {
+                secureStorage.lock();
+                showUnlockDialog(null);
+            }
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    private void showUnlockDialog(final Runnable onSuccess) {
+        if (unlockDialogShowing) return;
+        unlockDialogShowing = true;
+
+        try {
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                    .setTitle((CharSequence) "")
+                    .setView((int) R.layout.unlock_dialog_fragment)
+                    .create();
+            dialog.setCancelable(false);
+            dialog.show();
+
+            TextView unlockWalletTextView = (TextView) dialog.findViewById(
+                    R.id.textView_unlock_langValues_unlock_wallet);
+            unlockWalletTextView.setText(jsonViewModel.getUnlockWalletByLangValues());
+
+            TextView unlockPasswordTextView = (TextView) dialog.findViewById(
+                    R.id.textView_unlock_langValues_enter_wallet_password);
+            unlockPasswordTextView.setText(jsonViewModel.getEnterQuantumWalletPasswordByLangValues());
+
+            android.widget.EditText passwordEditText = (android.widget.EditText) dialog.findViewById(
+                    R.id.editText_unlock_langValues_enter_a_password);
+            passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
+
+            Button unlockButton = (Button) dialog.findViewById(
+                    R.id.button_unlock_langValues_unlock);
+            unlockButton.setText(jsonViewModel.getUnlockByLangValues());
+
+            Button closeButton = (Button) dialog.findViewById(
+                    R.id.button_unlock_langValues_close);
+            closeButton.setText(jsonViewModel.getCloseByLangValues());
+            closeButton.setVisibility(View.GONE);
+
+            unlockButton.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    String password = passwordEditText.getText().toString();
+                    if (password == null || password.isEmpty()) {
+                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                jsonViewModel.getErrorTitleByLangValues(),
+                                jsonViewModel.getEnterApasswordByLangValues());
+                        return;
+                    }
+                    unlockButton.setEnabled(false);
+                    passwordEditText.setEnabled(false);
+                    unlockButton.setText("...");
+
+                    final String trimmedPassword = password.trim();
+                    new Thread(new Runnable() {
+                        public void run() {
+                            try {
+                                SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                                boolean unlocked = secureStorage.unlock(
+                                        getApplicationContext(), trimmedPassword);
+                                if (!unlocked) {
+                                    runOnUiThread(new Runnable() {
+                                        public void run() {
+                                            unlockButton.setEnabled(true);
+                                            passwordEditText.setEnabled(true);
+                                            unlockButton.setText(jsonViewModel.getUnlockByLangValues());
+                                            GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                                    jsonViewModel.getErrorTitleByLangValues(),
+                                                    jsonViewModel.getWalletPasswordMismatchByErrors());
+                                        }
+                                    });
+                                    return;
+                                }
+                                Map<String, String>[] maps = secureStorage.buildWalletMaps(
+                                        getApplicationContext());
+                                PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP = maps[0];
+                                PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP = maps[1];
+                                PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE =
+                                        PrefConnect.readString(getApplicationContext(),
+                                                PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_KEY, "0");
+                                loadWalletHasSeedMap();
+
+                                runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        getCurrentWallet(PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE);
+                                        lastUnlockTimestamp = System.currentTimeMillis();
+                                        unlockDialogShowing = false;
+                                        dialog.dismiss();
+                                        if (onSuccess != null) {
+                                            onSuccess.run();
+                                        }
+                                    }
+                                });
+                            } catch (Exception e) {
+                                runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        unlockButton.setEnabled(true);
+                                        passwordEditText.setEnabled(true);
+                                        unlockButton.setText(jsonViewModel.getUnlockByLangValues());
+                                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                                jsonViewModel.getErrorTitleByLangValues(),
+                                                jsonViewModel.getWalletPasswordMismatchByErrors());
+                                    }
+                                });
+                            }
+                        }
+                    }).start();
+                }
+            });
+        } catch (Exception e) {
+            unlockDialogShowing = false;
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    private void showMigrationUnlockDialog(final Runnable onSuccess) {
+        if (unlockDialogShowing) return;
+        unlockDialogShowing = true;
+
+        try {
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                    .setTitle((CharSequence) "")
+                    .setView((int) R.layout.unlock_dialog_fragment)
+                    .create();
+            dialog.setCancelable(false);
+            dialog.show();
+
+            TextView unlockWalletTextView = (TextView) dialog.findViewById(
+                    R.id.textView_unlock_langValues_unlock_wallet);
+            unlockWalletTextView.setText(jsonViewModel.getUnlockWalletByLangValues());
+
+            TextView unlockPasswordTextView = (TextView) dialog.findViewById(
+                    R.id.textView_unlock_langValues_enter_wallet_password);
+            unlockPasswordTextView.setText(jsonViewModel.getEnterQuantumWalletPasswordByLangValues());
+
+            android.widget.EditText passwordEditText = (android.widget.EditText) dialog.findViewById(
+                    R.id.editText_unlock_langValues_enter_a_password);
+            passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
+
+            Button unlockButton = (Button) dialog.findViewById(
+                    R.id.button_unlock_langValues_unlock);
+            unlockButton.setText(jsonViewModel.getUnlockByLangValues());
+
+            Button closeButton = (Button) dialog.findViewById(
+                    R.id.button_unlock_langValues_close);
+            closeButton.setText(jsonViewModel.getCloseByLangValues());
+            closeButton.setVisibility(View.GONE);
+
+            final KeyViewModel keyViewModel = new KeyViewModel();
+
+            unlockButton.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    String password = passwordEditText.getText().toString();
+                    if (password == null || password.isEmpty()) {
+                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                jsonViewModel.getErrorTitleByLangValues(),
+                                jsonViewModel.getEnterApasswordByLangValues());
+                        return;
+                    }
+
+                    final String trimmedPassword = password.trim();
+
+                    try {
+                        String passwordSHA256 = PrefConnect.getSha256Hash(trimmedPassword);
+                        String storedHash = keyViewModel.decryptDataByString(
+                                HomeActivity.this, PrefConnect.WALLET_KEY_PASSWORD, trimmedPassword);
+                        if (!passwordSHA256.equalsIgnoreCase(storedHash)) {
+                            GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                    jsonViewModel.getErrorTitleByLangValues(),
+                                    jsonViewModel.getWalletPasswordMismatchByErrors());
+                            return;
+                        }
+                    } catch (Exception e) {
+                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                jsonViewModel.getErrorTitleByLangValues(),
+                                jsonViewModel.getWalletPasswordMismatchByErrors());
+                        return;
+                    }
+
+                    unlockButton.setEnabled(false);
+                    passwordEditText.setEnabled(false);
+                    unlockButton.setText("...");
+
+                    new Thread(new Runnable() {
+                        public void run() {
+                            try {
+                                migrateOldDataToSecureStorage(trimmedPassword);
+
+                                SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                                Map<String, String>[] maps = secureStorage.buildWalletMaps(
+                                        getApplicationContext());
+                                PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP = maps[0];
+                                PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP = maps[1];
+                                PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE =
+                                        PrefConnect.readString(getApplicationContext(),
+                                                PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_KEY, "0");
+                                loadWalletHasSeedMap();
+
+                                runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        getCurrentWallet(PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE);
+                                        lastUnlockTimestamp = System.currentTimeMillis();
+                                        unlockDialogShowing = false;
+                                        dialog.dismiss();
+                                        if (onSuccess != null) {
+                                            onSuccess.run();
+                                        }
+                                    }
+                                });
+                            } catch (Exception e) {
+                                android.util.Log.e(TAG, "Migration failed", e);
+                                runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        unlockButton.setEnabled(true);
+                                        passwordEditText.setEnabled(true);
+                                        unlockButton.setText(jsonViewModel.getUnlockByLangValues());
+                                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                                jsonViewModel.getErrorTitleByLangValues(),
+                                                "Migration failed: " + e.getMessage());
+                                    }
+                                });
+                            }
+                        }
+                    }).start();
+                }
+            });
+        } catch (Exception e) {
+            unlockDialogShowing = false;
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    private void loadWalletHasSeedMap() {
+        PrefConnect.WALLET_INDEX_HAS_SEED_MAP.clear();
+        for (String indexKey : PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.keySet()) {
+            boolean hasSeed = PrefConnect.readBoolean(getApplicationContext(),
+                    PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, true);
+            PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
+        }
+    }
+
+    private void migrateOldDataToSecureStorage(String password) throws Exception {
+        SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+        KeyViewModel keyViewModel = new KeyViewModel();
+
+        secureStorage.createMainKey(getApplicationContext(), password);
+
+        Map<String, String> oldAddressToIndex = PrefConnect.loadHashMap(getApplicationContext(),
+                PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX);
+        Map<String, String> oldIndexToAddress = PrefConnect.loadHashMap(getApplicationContext(),
+                PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_INDEX_ADDRESS);
+
+        int maxIndex = -1;
+        for (Map.Entry<String, String> entry : oldIndexToAddress.entrySet()) {
+            int index = Integer.parseInt(entry.getKey());
+            String address = entry.getValue();
+
+            String[] walletData = keyViewModel.decryptDataByAccount(
+                    getApplicationContext(), address, password);
+            String privKeyBase64 = walletData[0];
+            String pubKeyBase64 = walletData[1];
+            String seedWords = walletData.length > 2 ? walletData[2] : "";
+
+            JSONObject walletJson = new JSONObject();
+            walletJson.put("address", address);
+            walletJson.put("privateKey", privKeyBase64);
+            walletJson.put("publicKey", pubKeyBase64);
+            walletJson.put("seed", seedWords);
+
+            secureStorage.saveWallet(getApplicationContext(), index, walletJson.toString());
+
+            boolean hasSeed = seedWords != null && !seedWords.isEmpty();
+            String indexKey = String.valueOf(index);
+            PrefConnect.writeBoolean(getApplicationContext(),
+                    PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, hasSeed);
+            PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
+
+            if (index > maxIndex) maxIndex = index;
+        }
+        secureStorage.setMaxWalletIndex(getApplicationContext(), maxIndex);
+
+        for (String address : oldAddressToIndex.keySet()) {
+            String fileName = address.toLowerCase().substring(2);
+            File f = new File(getApplicationContext().getFilesDir(), fileName);
+            if (f.exists()) f.delete();
+        }
+        String passwordFileName = PrefConnect.WALLET_KEY_PASSWORD.toLowerCase();
+        File passwordFile = new File(getApplicationContext().getFilesDir(), passwordFileName);
+        if (passwordFile.exists()) passwordFile.delete();
+
+        PrefConnect.getEditor(getApplicationContext())
+                .remove(PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX)
+                .remove(PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_INDEX_ADDRESS)
+                .commit();
     }
 
     private void beginTransaction(Fragment fragment, Bundle bundle) {
@@ -566,6 +896,7 @@ public class HomeActivity extends FragmentActivity implements
                     bottomNavigationView.setVisibility(View.VISIBLE);
                     centerRelativeLayout.setVisibility(View.VISIBLE);
                     blockChainNetworkTextView.setVisibility(View.VISIBLE);
+                    deselectAllNavItems();
                     break;
                 case 1:
                     screenHeight = (Utility.calculateScreenWidthDp(getApplicationContext()) * 30 / 100);
@@ -588,7 +919,16 @@ public class HomeActivity extends FragmentActivity implements
         }
     }
 
+    private void deselectAllNavItems() {
+        bottomNavigationView.getMenu().setGroupCheckable(0, true, false);
+        for (int i = 0; i < bottomNavigationView.getMenu().size(); i++) {
+            bottomNavigationView.getMenu().getItem(i).setChecked(false);
+        }
+        bottomNavigationView.getMenu().setGroupCheckable(0, true, true);
+    }
+
     private void getCurrentWallet(String indexKey) {
+        String previousAddress = walletAddress;
         if(PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP != null) {
             for (Map.Entry<String, String> entry : PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.entrySet()) {
                 if (Objects.equals(indexKey, entry.getKey())) {
@@ -597,6 +937,11 @@ public class HomeActivity extends FragmentActivity implements
                     break;
                 }
             }
+        }
+        // Invalidate token cache whenever the active wallet changed.
+        if (!Objects.equals(previousAddress, walletAddress)) {
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
         }
         bundle.putString("walletAddress", walletAddress);
         walletAddressTextView.setText(walletAddress);
@@ -622,9 +967,7 @@ public class HomeActivity extends FragmentActivity implements
                     public void onFinished(BalanceResponse balanceResponse) throws ServiceException {
                         if (balanceResponse.getResult().getBalance() != null) {
                             String value = balanceResponse.getResult().getBalance().toString();
-
-                            KeyViewModel keyViewModel = new KeyViewModel();
-                            String quantity = (String) keyViewModel.getWeiToDogeProtocol(value);
+                            String quantity = CoinUtils.formatWei(value);
 
                             balanceValueTextView.setText(quantity);
                         }
@@ -690,8 +1033,7 @@ public class HomeActivity extends FragmentActivity implements
                                 public void onFinished(BalanceResponse balanceResponse) throws ServiceException {
                                     if (balanceResponse.getResult().getBalance() != null) {
                                         String value = balanceResponse.getResult().getBalance().toString();
-                                        KeyViewModel keyViewModel = new KeyViewModel();
-                                        currentQuantity[0] = (String) keyViewModel.getWeiToDogeProtocol(value);
+                                        currentQuantity[0] = CoinUtils.formatWei(value);
                                         if (previewsQuantity[0] != null) {
                                             if (!previewsQuantity[0].equals(currentQuantity[0])) {
                                                 balanceValueTextView.setText(currentQuantity[0]);

@@ -74,7 +74,11 @@ public class BlockchainNetworkAddFragment extends Fragment  {
 
             ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_blockchain_network_add);
 
-            blockchainNetworkAddNetworkEditText.setText(makeJSON().toString());
+            try {
+                blockchainNetworkAddNetworkEditText.setText(makeJSON().toString(2));
+            } catch (Exception e) {
+                blockchainNetworkAddNetworkEditText.setText(makeJSON().toString());
+            }
 
             blockchainNetworkAddNetworkTextView.setText(jsonViewModel.getAddNetworkByLangValues());
             blockchainNetworkEnterNetworkJsonTextView.setText(jsonViewModel.getEnterNetworkJsonByLangValues());
@@ -92,15 +96,22 @@ public class BlockchainNetworkAddFragment extends Fragment  {
                     try {
                         JSONObject obj = new JSONObject(blockchainNetworkAddNetworkEditText.getText().toString());
                         String scanApiDomain = (String) obj.get("scanApiDomain");
-                        String txnApiDomain = (String) obj.get("txnApiDomain");
+                        String rpcEndpoint = (String) obj.get("rpcEndpoint");
                         String blockExplorerDomain = (String) obj.get("blockExplorerDomain");
                         String blockchainName = (String) obj.get("blockchainName");
                         String networkId = String.valueOf(obj.get("networkId"));
 
+                        if (!rpcEndpoint.startsWith("http://") && !rpcEndpoint.startsWith("https://")) {
+                            Toast.makeText(getContext(), "RPC Endpoint must start with http:// or https://",
+                                    Toast.LENGTH_SHORT).show();
+                            progressBar.setVisibility(View.GONE);
+                            return;
+                        }
+
                         List<BlockchainNetwork> blockchainNetworkList = GlobalMethods.BlockChainNetworkRead(getContext());
                         BlockchainNetwork blockchainNetwork = new BlockchainNetwork();
                         blockchainNetwork.setScanApiDomain(scanApiDomain);
-                        blockchainNetwork.setTxnApiDomain(txnApiDomain);
+                        blockchainNetwork.setRpcEndpoint(rpcEndpoint);
                         blockchainNetwork.setBlockExplorerDomain(blockExplorerDomain);
                         blockchainNetwork.setBlockchainName(blockchainName);
                         blockchainNetwork.setNetworkId(networkId);
@@ -114,7 +125,7 @@ public class BlockchainNetworkAddFragment extends Fragment  {
                                 jsonString = jsonString + ",";
                             }
                             jsonString = jsonString + "{'scanApiDomain': '" +  blockchainNetwork1.getScanApiDomain() + "'," +
-                                    "'txnApiDomain': '" +  blockchainNetwork1.getTxnApiDomain() + "'," +
+                                    "'rpcEndpoint': '" +  blockchainNetwork1.getRpcEndpoint() + "'," +
                                     "'blockExplorerDomain': '" +  blockchainNetwork1.getBlockExplorerDomain() + "'," +
                                     "'blockchainName': '" +  blockchainNetwork1.getBlockchainName() + "'," +
                                     "'networkId': " +  blockchainNetwork1.getNetworkId() + "}";
@@ -165,11 +176,11 @@ public class BlockchainNetworkAddFragment extends Fragment  {
     public JSONObject makeJSON() {
         JSONObject jObj = new JSONObject();
         try {
-            jObj.put("scanApiDomain", "scan-example.dpapi.org");
-            jObj.put("txnApiDomain",  "txn-example.dpapi.org");
-            jObj.put("blockExplorerDomain",  "explorer-example.dpscan.app");
-            jObj.put("blockchainName",  "EXAMPLE NET");
-            jObj.put("networkId",  312354);
+            jObj.put("scanApiDomain", "app.readrelay.quantumcoinapi.com");
+            jObj.put("rpcEndpoint",  "https://public.rpc.quantumcoinapi.com");
+            jObj.put("blockExplorerDomain",  "quantumscan.com");
+            jObj.put("blockchainName",  "MAINNET");
+            jObj.put("networkId",  123123);
         } catch (Exception e) {
             System.out.println("Error:" + e);
         }

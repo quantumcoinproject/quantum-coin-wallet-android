@@ -35,9 +35,9 @@ public class BlockchainNetworkViewModel extends ViewModel{
         }
         return null;
     }
-    public String getTxnApiDomain() {
+    public String getRpcEndpoint() {
         try {
-            return _blockchainNetworkInteract.getTxnApiDomain();
+            return _blockchainNetworkInteract.getRpcEndpoint();
         } catch (JSONException e) {
             e.printStackTrace();
         }

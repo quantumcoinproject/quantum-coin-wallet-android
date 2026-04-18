@@ -28,6 +28,7 @@ import java.io.IOException;
 
 
 import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummaryResponse;
+import com.quantumcoinwallet.app.api.read.model.AccountTokenListResponse;
 import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummaryResponse;
 import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
 
@@ -68,7 +69,7 @@ public class AccountsApi {
         Object localVarPostBody = new Object();
 
         // create path and map variables
-        String localVarPath = "/api/accounts/{address}/balance"
+        String localVarPath = "/account/{address}"
             .replaceAll("\\{" + "address" + "\\}", apiClient.escapeString(address.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -191,7 +192,7 @@ public class AccountsApi {
         Object localVarPostBody = new Object();
 
         // create path and map variables
-        String localVarPath = "/api/accounts/{address}/pending/txn/page/{pageIndex}"
+        String localVarPath = "/account/{address}/transactions/pending/{pageIndex}"
             .replaceAll("\\{" + "address" + "\\}", apiClient.escapeString(address.toString()))
             .replaceAll("\\{" + "pageIndex" + "\\}", apiClient.escapeString(pageIndex.toString()));
 
@@ -323,7 +324,7 @@ public class AccountsApi {
         Object localVarPostBody = new Object();
 
         // create path and map variables
-        String localVarPath = "/api/accounts/{address}/txn/page/{pageIndex}"
+        String localVarPath = "/account/{address}/transactions/{pageIndex}"
             .replaceAll("\\{" + "address" + "\\}", apiClient.escapeString(address.toString()))
             .replaceAll("\\{" + "pageIndex" + "\\}", apiClient.escapeString(pageIndex.toString()));
 
@@ -439,6 +440,102 @@ public class AccountsApi {
 
         okhttp3.Call call = listAccountTransactionsValidateBeforeCall(address, pageIndex, progressListener, progressRequestListener);
         Type localVarReturnType = new TypeToken<AccountTransactionSummaryResponse>(){}.getType();
+        apiClient.executeAsync(call, localVarReturnType, callback);
+        return call;
+    }
+
+    /**
+     * Build call for listAccountTokens. GET /account/{address}/tokens/{pageIndex}.
+     */
+    public okhttp3.Call listAccountTokensCall(String address, Integer pageIndex, final ProgressResponseBody.ProgressListener progressListener, final ProgressRequestBody.ProgressRequestListener progressRequestListener) throws ApiException {
+        Object localVarPostBody = new Object();
+
+        String localVarPath = "/account/{address}/tokens/{pageIndex}"
+            .replaceAll("\\{" + "address" + "\\}", apiClient.escapeString(address.toString()))
+            .replaceAll("\\{" + "pageIndex" + "\\}", apiClient.escapeString(pageIndex.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+
+        };
+        final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        if (progressListener != null) {
+            apiClient.setHttpClient(apiClient.getHttpClient().newBuilder().addNetworkInterceptor(new okhttp3.Interceptor() {
+                @Override
+                public okhttp3.Response intercept(okhttp3.Interceptor.Chain chain) throws IOException {
+                    okhttp3.Response originalResponse = chain.proceed(chain.request());
+                    return originalResponse.newBuilder()
+                            .body(new ProgressResponseBody(originalResponse.body(), progressListener))
+                            .build();
+                }
+            }).build());
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return apiClient.buildCall(localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarFormParams, localVarAuthNames, progressRequestListener);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call listAccountTokensValidateBeforeCall(String address, Integer pageIndex, final ProgressResponseBody.ProgressListener progressListener, final ProgressRequestBody.ProgressRequestListener progressRequestListener) throws ApiException {
+        if (address == null) {
+            throw new ApiException("Missing the required parameter 'address' when calling listAccountTokens(Async)");
+        }
+        if (pageIndex == null) {
+            throw new ApiException("Missing the required parameter 'pageIndex' when calling listAccountTokens(Async)");
+        }
+        return listAccountTokensCall(address, pageIndex, progressListener, progressRequestListener);
+    }
+
+    /**
+     * List account tokens info by page. Returns null in-response if the scan API
+     * returns 404 or an empty payload.
+     */
+    public AccountTokenListResponse listAccountTokens(String address, Integer pageIndex) throws ApiException {
+        ApiResponse<AccountTokenListResponse> resp = listAccountTokensWithHttpInfo(address, pageIndex);
+        return resp.getData();
+    }
+
+    public ApiResponse<AccountTokenListResponse> listAccountTokensWithHttpInfo(String address, Integer pageIndex) throws ApiException {
+        okhttp3.Call call = listAccountTokensValidateBeforeCall(address, pageIndex, null, null);
+        Type localVarReturnType = new TypeToken<AccountTokenListResponse>(){}.getType();
+        return apiClient.execute(call, localVarReturnType);
+    }
+
+    public okhttp3.Call listAccountTokensAsync(String address, Integer pageIndex, final ApiCallback<AccountTokenListResponse> callback) throws ApiException {
+        ProgressResponseBody.ProgressListener progressListener = null;
+        ProgressRequestBody.ProgressRequestListener progressRequestListener = null;
+
+        if (callback != null) {
+            progressListener = new ProgressResponseBody.ProgressListener() {
+                @Override
+                public void update(long bytesRead, long contentLength, boolean done) {
+                    callback.onDownloadProgress(bytesRead, contentLength, done);
+                }
+            };
+
+            progressRequestListener = new ProgressRequestBody.ProgressRequestListener() {
+                @Override
+                public void onRequestProgress(long bytesWritten, long contentLength, boolean done) {
+                    callback.onUploadProgress(bytesWritten, contentLength, done);
+                }
+            };
+        }
+
+        okhttp3.Call call = listAccountTokensValidateBeforeCall(address, pageIndex, progressListener, progressRequestListener);
+        Type localVarReturnType = new TypeToken<AccountTokenListResponse>(){}.getType();
         apiClient.executeAsync(call, localVarReturnType, callback);
         return call;
     }

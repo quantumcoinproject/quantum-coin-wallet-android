@@ -26,7 +26,7 @@ import org.threeten.bp.OffsetDateTime;
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T20:27:13.465275500-07:00[America/Los_Angeles]")
 public class Balance {
-  public static final String SERIALIZED_NAME_BALANCE = "_Balance";
+  public static final String SERIALIZED_NAME_BALANCE = "balance";
   @SerializedName(SERIALIZED_NAME_BALANCE)
   private Object _Balance = null;
 

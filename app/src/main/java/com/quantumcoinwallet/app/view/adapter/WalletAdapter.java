@@ -44,6 +44,8 @@ public class WalletAdapter extends
         TextView textViewAddress;
         ImageView imageViewExplore;
         ImageView imageViewRevealSeed;
+        ImageView imageViewExport;
+        View revealSeedContainer;
 
         public DataObjectHolder(View itemView) {
             super(itemView);
@@ -51,6 +53,8 @@ public class WalletAdapter extends
                 this.textViewAddress = (TextView) itemView.findViewById(R.id.textView_waller_adapter_address);
                 this.imageViewExplore = (ImageView) itemView.findViewById(R.id.imageView_wallet_adapter_explore);
                 this.imageViewRevealSeed = (ImageView) itemView.findViewById(R.id.imageView_wallet_adapter_reveal_seed);
+                this.imageViewExport = (ImageView) itemView.findViewById(R.id.imageView_wallet_adapter_export);
+                this.revealSeedContainer = (View) this.imageViewRevealSeed.getParent();
             } catch(Exception ex){
                 GlobalMethods.ExceptionError(context, TAG, ex);
             }
@@ -104,6 +108,25 @@ public class WalletAdapter extends
                 }
             });
 
+            String indexKey = String.valueOf(position);
+            Boolean hasSeedBoxed = com.quantumcoinwallet.app.utils.PrefConnect
+                    .WALLET_INDEX_HAS_SEED_MAP.get(indexKey);
+            boolean hasSeed = hasSeedBoxed == null ? true : hasSeedBoxed;
+            if (holder.revealSeedContainer != null) {
+                holder.revealSeedContainer.setVisibility(hasSeed ? View.VISIBLE : View.INVISIBLE);
+            }
+
+            if (holder.imageViewExport != null) {
+                holder.imageViewExport.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        if (clickListener != null) {
+                            clickListener.onWalletExportClick(v, position);
+                        }
+                    }
+                });
+            }
+
         }catch(Exception ex){
             GlobalMethods.ExceptionError(context, TAG, ex);
         }
@@ -123,5 +146,6 @@ public class WalletAdapter extends
     public interface OnWalletItemClickListener {
         public void onWalletItemClick(View view, int position);
         public void onWalletRevealClick(View view, int position);
+        public void onWalletExportClick(View view, int position);
     }
 }

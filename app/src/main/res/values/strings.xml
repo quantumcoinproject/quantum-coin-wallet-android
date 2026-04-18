@@ -57,14 +57,14 @@
     <string name="home_safety_quiz_description_1">What coins or tokens can you send to this wallet?</string>
     <string name="home_safety_quiz_option_1_1">Ethereum</string>
     <string name="home_safety_quiz_option_2_1"> DogeP ERC20 Tokens</string>
-    <string name="home_safety_quiz_option_3_1">DP Mainnet Coins</string>
+    <string name="home_safety_quiz_option_3_1">Quantum Coin Mainnet Coins</string>
     <string name="home_safety_quiz_option_4_1">All the above</string>
     <string name="home_safety_quiz_button_next_1">Next</string>
 
     <string name="home_safety_quiz_title_2">Safety Quiz 2 OF 2</string>
     <string name="home_safety_quiz_sub_title_2">Lost wallet or password</string>
     <string name="home_safety_quiz_description_2">If you lost your wallet or password, who can help recover?</string>
-    <string name="home_safety_quiz_option_1_2">Doge Protocol Community</string>
+    <string name="home_safety_quiz_option_1_2">Quantum Coin Community</string>
     <string name="home_safety_quiz_option_2_2">Customer Support Team</string>
     <string name="home_safety_quiz_option_3_2">Dev</string>
     <string name="home_safety_quiz_option_4_2">No one</string>
@@ -72,7 +72,7 @@
 
     <string name="home_safety_quiz_message">Please select an option.</string>string>
 
-    <string name="home_safety_quiz_message_correct_1">This is correct. You should only send DP Mainnet coins to this wallet.</string>string>
+    <string name="home_safety_quiz_message_correct_1">This is correct. You should only send QuantumCoin to this wallet.</string>string>
     <string name="home_safety_quiz_quiz_message_wrong_1">That is wrong! Please read the question carefully and try again.</string>
 
     <string name="home_safety_quiz_message_correct_2">This is correct. No one can help you recover your wallet or password.</string>string>
@@ -112,7 +112,7 @@
 
     <!-- Home import wallet fragment -->
     <string name="home_import_wallet_title">Import Wallet</string>
-    <string name="home_import_wallet_description">You can import only Doge Protocol Testnet wallet. Do not import your Ethereum or DogeP token or other wallets!</string>
+    <string name="home_import_wallet_description">You can import only Quantum Coin wallet. Do not import your Ethereum or DogeP token or other wallets!</string>
     <string name="home_import_wallet_password_title">Password</string>
     <string name="home_import_wallet_password_description">Enter the wallet password</string>
     <string name="home_import_wallet_file_title">Select a wallet file</string>
@@ -162,7 +162,7 @@
 
     <!-- Receive fragment -->
     <string name="receive_title">Receive Coins</string>
-    <string name="receive_warning_message">Do not send Ethereum or DogeP tokens! Send only DP Testnet coins.</string>
+    <string name="receive_warning_message">Do not send Ethereum or DogeP tokens! Send only QuantumCoins.</string>
 
     <!-- qr code dialog fragment -->
     <string name="qr_code_dialog_close">CLOSE</string>
@@ -257,11 +257,11 @@
     <string name="downloadAgain">Download Again</string>
 
     <!-- notification -->
-    <string name="notification_channel_id">DPWallet</string>
-    <string name="notification_channel_name">DP Wallet</string>
+    <string name="notification_channel_id">QuantumCoinWallet</string>
+    <string name="notification_channel_name">Quantum Coin Wallet</string>
     <string name="notification_channel_description">You are about to create to a quantum resistant wallet.</string>
 
-    <string name="notification_title">Doge Protocol</string>
+    <string name="notification_title">Quantum Coin</string>
     <string name="notification_description">Balance changed in wallet</string>
 
 </resources>
