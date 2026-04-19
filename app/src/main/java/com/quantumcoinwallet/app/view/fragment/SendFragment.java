@@ -300,6 +300,11 @@ public class SendFragment extends Fragment  {
                             R.layout.unlock_dialog_fragment).create();
             dialog.dismiss();
             dialog.setCancelable(false);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(
+                                android.graphics.Color.TRANSPARENT));
+            }
             dialog.show();
 
             TextView unlockWalletTextView = (TextView) dialog.findViewById(R.id.textView_unlock_langValues_unlock_wallet);
@@ -319,23 +324,57 @@ public class SendFragment extends Fragment  {
 
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    String password = passwordEditText.getText().toString();
+                    final String password = passwordEditText.getText().toString();
                     if (password == null || password.isEmpty()) {
                         messageDialogFragment(languageKey, jsonViewModel.getEnterApasswordByLangValues());
                         return;
                     }
-                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-                    if (!secureStorage.verifyPassword(getContext(), password.trim())) {
-                        messageDialogFragment(languageKey,
-                                jsonViewModel.getWalletPasswordMismatchByErrors());
-                        return;
-                    }
-                    if (sendButtonStatus == 1) {
-                        dialog.dismiss();
-                        sendTransaction(getContext(), progressBarSendCoins,
-                                walletAddress, toAddress, quantity, languageKey);
-                    }
-                    sendButtonStatus = 2;
+                    unlockButton.setEnabled(false);
+                    closeButton.setEnabled(false);
+                    passwordEditText.setEnabled(false);
+
+                    final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                            .show(getContext(), jsonViewModel.getWaitUnlockByLangValues());
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            boolean ok = false;
+                            try {
+                                SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                                ok = secureStorage.unlock(getContext(), password.trim());
+                            } catch (Exception e) {
+                                android.util.Log.e(TAG, "unlock failed", e);
+                            }
+                            final boolean unlocked = ok;
+                            if (getActivity() == null) return;
+                            getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try { if (waitDlg != null) waitDlg.dismiss(); } catch (Throwable ignore) { }
+                                    if (!unlocked) {
+                                        unlockButton.setEnabled(true);
+                                        closeButton.setEnabled(true);
+                                        passwordEditText.setEnabled(true);
+                                        passwordEditText.setText("");
+                                        passwordEditText.requestFocus();
+                                        android.content.Context ctx = getContext();
+                                        if (ctx != null) {
+                                            GlobalMethods.ShowErrorDialog(ctx,
+                                                    jsonViewModel.getErrorTitleByLangValues(),
+                                                    jsonViewModel.getWalletPasswordMismatchByErrors());
+                                        }
+                                        return;
+                                    }
+                                    if (sendButtonStatus == 1) {
+                                        dialog.dismiss();
+                                        sendTransaction(getContext(), progressBarSendCoins,
+                                                walletAddress, toAddress, quantity, languageKey);
+                                    }
+                                    sendButtonStatus = 2;
+                                }
+                            });
+                        }
+                    }).start();
                 }
             });
 

@@ -1534,6 +1534,14 @@ public class JsonViewModel extends ViewModel{
         }
         return null;
     }
+    public String getInvalidNetworkJsonByErrors() {
+        try {
+            return _jsonInteract.getInvalidNetworkJsonByErrors();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
     public String getInvalidApiResponse() {
         try {
             return _jsonInteract.getInvalidApiResponse();
@@ -1665,6 +1673,14 @@ public class JsonViewModel extends ViewModel{
     public String getUnexpectedError() {
         try {
             return _jsonInteract.getUnexpectedError();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public String getWalletPasswordNotSetByErrors() {
+        try {
+            return _jsonInteract.getWalletPasswordNotSetByErrors();
         } catch (JSONException e) {
             e.printStackTrace();
         }

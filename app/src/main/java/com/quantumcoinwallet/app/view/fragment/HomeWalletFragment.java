@@ -3,7 +3,7 @@ package com.quantumcoinwallet.app.view.fragment;
 import static android.content.Context.CLIPBOARD_SERVICE;
 import static androidx.core.content.ContextCompat.getSystemService;
 
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -196,7 +196,7 @@ public class HomeWalletFragment extends Fragment {
                                         }
                                     });
                                 } catch (final Exception e) {
-                                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                                    android.util.Log.e(TAG, "backup export failed", e);
                                     getActivity().runOnUiThread(new Runnable() {
                                         @Override
                                         public void run() {
@@ -204,8 +204,8 @@ public class HomeWalletFragment extends Fragment {
                                             String msg = tmpl != null
                                                     ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
                                                     : ("Backup failed: " + e.getMessage());
-                                            android.widget.Toast.makeText(getContext(), msg,
-                                                    android.widget.Toast.LENGTH_LONG).show();
+                                            GlobalMethods.ShowErrorDialog(getContext(),
+                                                    jsonViewModel.getErrorTitleByLangValues(), msg);
                                         }
                                     });
                                 } finally {
@@ -245,8 +245,7 @@ public class HomeWalletFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        walletPassword = getArguments().getString("walletPassword");
-        getArguments().remove("walletPassword");
+        walletPassword = null;
         String languageKey = getArguments().getString("languageKey");
 
         tempSeedWords = null;
@@ -351,7 +350,9 @@ public class HomeWalletFragment extends Fragment {
 
         ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_home_wallet);
 
-        if (walletPassword==null || walletPassword.isEmpty()) {
+        final boolean firstTimeSetup = !KeyViewModel.getSecureStorage().isInitialized(getContext());
+
+        if (firstTimeSetup) {
             homeSetWalletLinearLayout.setVisibility(View.VISIBLE);
             SetWalletView(homeSetWalletTitleTextView, homeSetWalletDescriptionTextView, homeSetWalletPasswordTitleTextView,
                     homeSetWalletPasswordEditText, homeSetWalletRetypePasswordTitleTextView, homeSetWalletRetypePasswordEditText, homeSetWalletNextButton);
@@ -400,7 +401,7 @@ public class HomeWalletFragment extends Fragment {
                         return;
                     }
                     if (homeCreateRestoreWalletLinearLayout.getVisibility()==View.VISIBLE) {
-                        if (walletPassword==null || walletPassword.isEmpty()) {
+                        if (firstTimeSetup) {
                             homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
                             homeSetWalletTopLinearLayout.setVisibility(View.GONE);
                             homeSetWalletLinearLayout.setVisibility(View.VISIBLE);
@@ -753,6 +754,12 @@ public class HomeWalletFragment extends Fragment {
         super.onStop();
     }
 
+    @Override
+    public void onDestroyView() {
+        walletPassword = null;
+        super.onDestroyView();
+    }
+
     public static interface OnHomeWalletCompleteListener {
         public abstract void onHomeWalletCompleteByHomeMain(String indexKey);
         public abstract void onHomeWalletCompleteByWallets();
@@ -1033,13 +1040,19 @@ public class HomeWalletFragment extends Fragment {
     }
 
     private void saveWalletFromSeedWords(final String[] seedWords, final ProgressBar progressBar) {
-        progressBar.setVisibility(View.VISIBLE);
-        if (walletPassword == null || walletPassword.isEmpty()) {
-            progressBar.setVisibility(View.GONE);
-            GlobalMethods.ShowErrorDialog(getContext(), "Error", "Wallet password is not set.");
+        SecureStorage secureStorageGuard = KeyViewModel.getSecureStorage();
+        final boolean needsPassword =
+                !secureStorageGuard.isInitialized(getContext()) || !secureStorageGuard.isUnlocked();
+        if (needsPassword && (walletPassword == null || walletPassword.isEmpty())) {
+            String msg = jsonViewModel.getWalletPasswordNotSetByErrors();
+            if (msg == null || msg.isEmpty()) {
+                msg = "Wallet password is not set.";
+            }
+            GlobalMethods.ShowErrorDialog(getContext(),
+                    jsonViewModel.getErrorTitleByLangValues(), msg);
             return;
         }
-        final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+        final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                 .show(getContext(), jsonViewModel.getWaitWalletSaveByLangValues());
         new Thread(new Runnable() {
             public void run() {
@@ -1070,7 +1083,6 @@ public class HomeWalletFragment extends Fragment {
                         getActivity().runOnUiThread(new Runnable() {
                             public void run() {
                                 if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                                progressBar.setVisibility(View.GONE);
                                 showDuplicateWalletDialog(existingAddress);
                             }
                         });
@@ -1099,6 +1111,8 @@ public class HomeWalletFragment extends Fragment {
                     secureStorage.saveWallet(getContext(), newIndex, walletJson.toString());
                     secureStorage.setMaxWalletIndex(getContext(), newIndex);
 
+                    walletPassword = null;
+
                     PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.put(address, walletIndexKey);
                     PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.put(walletIndexKey, address);
                     PrefConnect.writeBoolean(getContext(),
@@ -1110,7 +1124,6 @@ public class HomeWalletFragment extends Fragment {
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            progressBar.setVisibility(View.GONE);
                             showBackupOptionsScreen();
                         }
                     });
@@ -1120,7 +1133,6 @@ public class HomeWalletFragment extends Fragment {
                         getActivity().runOnUiThread(new Runnable() {
                             public void run() {
                                 if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                                progressBar.setVisibility(View.GONE);
                                 GlobalMethods.ShowErrorDialog(getContext(), "Error", errorMsg);
                             }
                         });
@@ -1288,15 +1300,15 @@ public class HomeWalletFragment extends Fragment {
                         public void run() { flagCloudBackupSaved(); }
                     });
                 } catch (final Exception e) {
-                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    android.util.Log.e(TAG, "cloud backup write failed", e);
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             String tmpl = jsonViewModel.getBackupFailedByLangValues();
                             String msg = tmpl != null
                                     ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
                                     : ("Backup failed: " + e.getMessage());
-                            android.widget.Toast.makeText(getContext(), msg,
-                                    android.widget.Toast.LENGTH_LONG).show();
+                            GlobalMethods.ShowErrorDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(), msg);
                         }
                     });
                 }
@@ -1342,7 +1354,7 @@ public class HomeWalletFragment extends Fragment {
 
     private void BackupPasswordDialogShow(final BackupPasswordReceiver receiver) {
         com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.show(
-                getContext(), jsonViewModel, walletPassword,
+                getContext(), jsonViewModel, null,
                 new com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.OnBackupPasswordListener() {
                     @Override
                     public void onPasswordSelected(String password) {
@@ -1354,9 +1366,7 @@ public class HomeWalletFragment extends Fragment {
     }
 
     private void encryptWalletForBackup(final String backupPassword, final EncryptedReady onReady) {
-        final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_home_wallet);
-        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
-        final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+        final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                 .show(getContext(), jsonViewModel.getWaitWalletSaveByLangValues());
         new Thread(new Runnable() {
             @Override
@@ -1368,22 +1378,20 @@ public class HomeWalletFragment extends Fragment {
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            if (progressBar != null) progressBar.setVisibility(View.GONE);
                             onReady.onReady(enc.json, enc.address);
                         }
                     });
                 } catch (final Exception e) {
-                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    android.util.Log.e(TAG, "encryptWalletForBackup failed", e);
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            if (progressBar != null) progressBar.setVisibility(View.GONE);
                             String tmpl = jsonViewModel.getBackupFailedByLangValues();
                             String msg = tmpl != null
                                     ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
                                     : ("Backup failed: " + e.getMessage());
-                            android.widget.Toast.makeText(getContext(), msg,
-                                    android.widget.Toast.LENGTH_LONG).show();
+                            GlobalMethods.ShowErrorDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(), msg);
                         }
                     });
                 }
@@ -1566,9 +1574,9 @@ public class HomeWalletFragment extends Fragment {
         final java.util.List<androidx.documentfile.provider.DocumentFile> files =
                 com.quantumcoinwallet.app.backup.CloudBackupManager.listBackupFiles(getContext(), folderUri);
         if (files == null || files.isEmpty()) {
-            android.widget.Toast.makeText(getContext(),
-                    jsonViewModel.getRestoreNoBackupsFoundByLangValues(),
-                    android.widget.Toast.LENGTH_LONG).show();
+            GlobalMethods.ShowErrorDialog(getContext(),
+                    jsonViewModel.getErrorTitleByLangValues(),
+                    jsonViewModel.getRestoreNoBackupsFoundByLangValues());
             return;
         }
         final String[] names = new String[files.size()];
@@ -1591,11 +1599,12 @@ public class HomeWalletFragment extends Fragment {
 
     private void handleRestoreFromUri(final Uri fileUri) {
         final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_home_wallet);
-        com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.show(getContext(), jsonViewModel, walletPassword, true,
-                new com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.OnBackupPasswordListener() {
+        com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.showRestore(getContext(), jsonViewModel,
+                new com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.OnPasswordAttemptListener() {
                     @Override
-                    public void onPasswordSelected(final String backupPassword) {
-                        performRestoreFromUri(fileUri, backupPassword, progressBar);
+                    public void onAttempt(String password,
+                                          com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.PasswordDialogControl control) {
+                        performRestoreFromUri(fileUri, password, progressBar, control);
                     }
                     @Override
                     public void onCanceled() { }
@@ -1603,9 +1612,9 @@ public class HomeWalletFragment extends Fragment {
     }
 
     private void performRestoreFromUri(final Uri fileUri, final String backupPassword,
-                                       final ProgressBar progressBar) {
-        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
-        final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                                       final ProgressBar progressBar,
+                                       final com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.PasswordDialogControl control) {
+        final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                 .show(getContext(), jsonViewModel.getWaitWalletOpenByLangValues());
         new Thread(new Runnable() {
             @Override
@@ -1625,7 +1634,7 @@ public class HomeWalletFragment extends Fragment {
                         getActivity().runOnUiThread(new Runnable() {
                             public void run() {
                                 if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                                if (progressBar != null) progressBar.setVisibility(View.GONE);
+                                if (control != null) control.dismiss();
                                 showDuplicateWalletDialog(existingAddress);
                             }
                         });
@@ -1633,7 +1642,7 @@ public class HomeWalletFragment extends Fragment {
                     }
                     SecureStorage secureStorage = KeyViewModel.getSecureStorage();
                     if (!secureStorage.isUnlocked()) {
-                        secureStorage.unlock(getContext(), walletPassword);
+                        throw new IllegalStateException("SecureStorage is locked");
                     }
                     int newIndex = secureStorage.getMaxWalletIndex(getContext()) + 1;
                     final String indexKey = String.valueOf(newIndex);
@@ -1663,7 +1672,7 @@ public class HomeWalletFragment extends Fragment {
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            if (progressBar != null) progressBar.setVisibility(View.GONE);
+                            if (control != null) control.dismiss();
                             markActivityUnlocked();
                             if (mHomeWalletListener != null) {
                                 mHomeWalletListener.onHomeWalletCompleteByHomeMain(indexKey);
@@ -1671,15 +1680,17 @@ public class HomeWalletFragment extends Fragment {
                         }
                     });
                 } catch (final Exception e) {
-                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    android.util.Log.e(TAG, "Restore decrypt failed", e);
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            if (progressBar != null) progressBar.setVisibility(View.GONE);
+                            if (control != null) control.onFailure();
                             String tmpl = jsonViewModel.getRestoreDecryptFailedByLangValues();
-                            String msg = tmpl != null ? tmpl : ("Restore failed: " + e.getMessage());
-                            android.widget.Toast.makeText(getContext(), msg,
-                                    android.widget.Toast.LENGTH_LONG).show();
+                            String msg = (tmpl != null && !tmpl.isEmpty())
+                                    ? tmpl
+                                    : "Unable to decrypt. Enter a different password or skip this file.";
+                            GlobalMethods.ShowErrorDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(), msg);
                         }
                     });
                 }

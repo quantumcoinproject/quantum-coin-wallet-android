@@ -38,7 +38,7 @@ public class CloudBackupManager {
     private static final String TAG = "CloudBackupManager";
 
     public static final String BACKUP_FILE_EXTENSION = ".wallet";
-    public static final String BACKUP_MIME_TYPE = "application/json";
+    public static final String BACKUP_MIME_TYPE = "application/octet-stream";
 
     public static class DecryptedWallet {
         public String address;
@@ -146,7 +146,11 @@ public class CloudBackupManager {
             if (!f.isFile()) continue;
             String name = f.getName();
             if (name == null) continue;
-            if (name.toLowerCase(Locale.US).endsWith(BACKUP_FILE_EXTENSION)) {
+            String lower = name.toLowerCase(Locale.US);
+            boolean isDotWallet = lower.endsWith(BACKUP_FILE_EXTENSION);
+            int dotIdx = name.lastIndexOf('.');
+            boolean hasNoExt = dotIdx <= 0;
+            if (isDotWallet || hasNoExt) {
                 out.add(f);
             }
         }

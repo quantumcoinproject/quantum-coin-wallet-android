@@ -91,18 +91,18 @@
                 android:layout_width="35dp"
                 android:layout_height="35dp"
                 android:layout_gravity="center"
-                app:cardBackgroundColor="#FF00DB"
+                app:cardBackgroundColor="#3B82F6"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="12dp">
 
                 <ImageView
-                    android:id="@+id/imageView_wallet_adapter_reveal_seed"
+                    android:id="@+id/imageView_wallet_adapter_export"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:padding="10dp"
+                    android:padding="7dp"
                     android:gravity="center"
                     android:background="@drawable/image_selector"
-                    android:src="@drawable/show_password_selector"/>
+                    android:src="@drawable/backup_outline"/>
 
             </androidx.cardview.widget.CardView>
 
@@ -126,18 +126,18 @@
                 android:layout_width="35dp"
                 android:layout_height="35dp"
                 android:layout_gravity="center"
-                app:cardBackgroundColor="#3B82F6"
+                app:cardBackgroundColor="#FF00DB"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="12dp">
 
                 <ImageView
-                    android:id="@+id/imageView_wallet_adapter_export"
+                    android:id="@+id/imageView_wallet_adapter_reveal_seed"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:padding="7dp"
+                    android:padding="10dp"
                     android:gravity="center"
                     android:background="@drawable/image_selector"
-                    android:src="@drawable/backup_outline"/>
+                    android:src="@drawable/show_password_selector"/>
 
             </androidx.cardview.widget.CardView>
 

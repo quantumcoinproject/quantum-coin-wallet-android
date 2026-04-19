@@ -207,7 +207,7 @@
       "disabled": "Disabled",
       "backup": "Backup",
       "backup-prompt": "Do you want to allow wallets to be backed up as part of phone backups?",
-      "backup-description": "When enabled, encrypted wallet data will be included in phone backups and device transfers",
+      "backup-description": "When enabled, encrypted wallet data will be included in phone backups and device transfers. Unless your phone actually is backed up, this setting will have no effect.",
       "phone-backup": "Phone Backup",
       "cloud-backup": "Cloud Backup",
       "cloud-backup-prompt": "Do you want wallets to be automatically backed up to a cloud folder (e.g. Google Drive)?",
@@ -294,6 +294,7 @@
       "quantumAddr": "Please enter a valid address.",
       "noMoreTxns": "There are no transactions to show.",
       "internetDisconnected": "The server might be busy or your internet connection may be having problems. Please check your internet connection and try again after a few minutes.",
-      "unexpectedError":  "An unexpected error occurred."
+      "unexpectedError":  "An unexpected error occurred.",
+      "wallet-password-not-set": "Wallet password is not set."
     }
 }

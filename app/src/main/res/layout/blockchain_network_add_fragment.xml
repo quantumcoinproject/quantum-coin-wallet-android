@@ -103,13 +103,21 @@
                             android:alpha="0.2"
                             android:background="@drawable/line_2_shape" />
 
-                        <EditText
-                            android:id="@+id/editText_blockchain_network_add_langValues_add_network"
+                        <HorizontalScrollView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="textMultiLine"
-                            android:minLines="6"
-                            android:gravity="top|start" />
+                            android:scrollbars="horizontal"
+                            android:fillViewport="true">
+
+                            <EditText
+                                android:id="@+id/editText_blockchain_network_add_langValues_add_network"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:inputType="textMultiLine|textNoSuggestions"
+                                android:minLines="6"
+                                android:scrollHorizontally="true"
+                                android:gravity="top|start" />
+                        </HorizontalScrollView>
 
                         <Button
                             android:id="@+id/button_blockchain_network_add_langValues_add"

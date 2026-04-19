@@ -259,22 +259,22 @@ public class HomeActivity extends FragmentActivity implements
 
             sendImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
+                    beginTransactionNow(SendFragment.newInstance(), bundle);
                     screenViewType(1);
-                    beginTransaction(SendFragment.newInstance(), bundle);
                 }
             });
 
             receiveImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
+                    beginTransactionNow(ReceiveFragment.newInstance(), bundle);
                     screenViewType(1);
-                    beginTransaction(ReceiveFragment.newInstance(), bundle);
                 }
             });
 
             transactionsImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
+                    beginTransactionNow(AccountTransactionsFragment.newInstance(), bundle);
                     screenViewType(1);
-                    beginTransaction(AccountTransactionsFragment.newInstance(), bundle);
                 }
             });
 
@@ -355,20 +355,24 @@ public class HomeActivity extends FragmentActivity implements
     }
 
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            onBackPressed();
-            return true;
-        }
-        return super.onKeyDown(keyCode, event);
-    }
-
-    @Override
     public void onBackPressed() {
+        if (unlockDialogShowing) {
+            return;
+        }
+        Fragment current = getSupportFragmentManager().findFragmentById(R.id.frame_home_container_id);
+        if (current instanceof SettingsFragment
+                || current instanceof ReceiveFragment
+                || current instanceof SendFragment
+                || current instanceof AccountTransactionsFragment
+                || current instanceof RevealWalletFragment
+                || current instanceof BlockchainNetworkFragment
+                || current instanceof BlockchainNetworkAddFragment
+                || current instanceof WalletsFragment) {
+            screenViewType(0);
+            beginTransactionNow(HomeMainFragment.newInstance(), bundle);
+            return;
+        }
         super.onBackPressed();
-        Intent intent = getIntent();
-        finish();
-        startActivity(intent);
     }
 
     @Override
@@ -500,14 +504,13 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void  onWalletsCompleteByBackArrow(){
         screenViewType(0);
-        beginTransaction(HomeMainFragment.newInstance(), bundle);
+        beginTransactionNow(HomeMainFragment.newInstance(), bundle);
     }
 
     @Override
-    public void  onWalletsCompleteByCreateOrRestore(String walletPassword){
+    public void  onWalletsCompleteByCreateOrRestore(){
         screenViewType(1);
-        bundle.putString("walletPassword", "SECURE_STORAGE");
-        beginTransaction(HomeWalletFragment.newInstance(), bundle);
+        beginTransactionNow(HomeWalletFragment.newInstance(), bundle);
     }
 
     @Override
@@ -518,7 +521,7 @@ public class HomeActivity extends FragmentActivity implements
     }
 
     @Override
-    public void onWalletsCompleteByReveal(String walletAddress, String walletPassword){
+    public void onWalletsCompleteByReveal(String walletAddress){
         screenViewType(1);
         bundle.putString("walletAddress", walletAddress);
         beginTransaction(RevealWalletFragment.newInstance(), bundle);
@@ -609,6 +612,11 @@ public class HomeActivity extends FragmentActivity implements
                     }
                 });
             }
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(
+                                android.graphics.Color.TRANSPARENT));
+            }
             dialog.show();
 
             TextView unlockWalletTextView = (TextView) dialog.findViewById(
@@ -646,6 +654,8 @@ public class HomeActivity extends FragmentActivity implements
                     unlockButton.setText("...");
 
                     final String trimmedPassword = password.trim();
+                    final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                            .show(HomeActivity.this, jsonViewModel.getWaitUnlockByLangValues());
                     new Thread(new Runnable() {
                         public void run() {
                             try {
@@ -655,6 +665,7 @@ public class HomeActivity extends FragmentActivity implements
                                 if (!unlocked) {
                                     runOnUiThread(new Runnable() {
                                         public void run() {
+                                            try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                                             unlockButton.setEnabled(true);
                                             passwordEditText.setEnabled(true);
                                             unlockButton.setText(jsonViewModel.getUnlockByLangValues());
@@ -676,6 +687,7 @@ public class HomeActivity extends FragmentActivity implements
 
                                 runOnUiThread(new Runnable() {
                                     public void run() {
+                                        try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                                         getCurrentWallet(PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE);
                                         lastUnlockTimestamp = System.currentTimeMillis();
                                         unlockDialogShowing = false;
@@ -688,6 +700,7 @@ public class HomeActivity extends FragmentActivity implements
                             } catch (Exception e) {
                                 runOnUiThread(new Runnable() {
                                     public void run() {
+                                        try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                                         unlockButton.setEnabled(true);
                                         passwordEditText.setEnabled(true);
                                         unlockButton.setText(jsonViewModel.getUnlockByLangValues());
@@ -733,6 +746,11 @@ public class HomeActivity extends FragmentActivity implements
                     .setView((int) R.layout.unlock_dialog_fragment)
                     .create();
             dialog.setCancelable(false);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(
+                                android.graphics.Color.TRANSPARENT));
+            }
             dialog.show();
 
             TextView unlockWalletTextView = (TextView) dialog.findViewById(
@@ -756,8 +774,6 @@ public class HomeActivity extends FragmentActivity implements
             closeButton.setText(jsonViewModel.getCloseByLangValues());
             closeButton.setVisibility(View.GONE);
 
-            final KeyViewModel keyViewModel = new KeyViewModel();
-
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     String password = passwordEditText.getText().toString();
@@ -769,27 +785,12 @@ public class HomeActivity extends FragmentActivity implements
                     }
 
                     final String trimmedPassword = password.trim();
-
-                    try {
-                        String passwordSHA256 = PrefConnect.getSha256Hash(trimmedPassword);
-                        String storedHash = keyViewModel.decryptDataByString(
-                                HomeActivity.this, PrefConnect.WALLET_KEY_PASSWORD, trimmedPassword);
-                        if (!passwordSHA256.equalsIgnoreCase(storedHash)) {
-                            GlobalMethods.ShowErrorDialog(HomeActivity.this,
-                                    jsonViewModel.getErrorTitleByLangValues(),
-                                    jsonViewModel.getWalletPasswordMismatchByErrors());
-                            return;
-                        }
-                    } catch (Exception e) {
-                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
-                                jsonViewModel.getErrorTitleByLangValues(),
-                                jsonViewModel.getWalletPasswordMismatchByErrors());
-                        return;
-                    }
-
                     unlockButton.setEnabled(false);
                     passwordEditText.setEnabled(false);
                     unlockButton.setText("...");
+
+                    final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                            .show(HomeActivity.this, jsonViewModel.getWaitUnlockByLangValues());
 
                     new Thread(new Runnable() {
                         public void run() {
@@ -808,6 +809,7 @@ public class HomeActivity extends FragmentActivity implements
 
                                 runOnUiThread(new Runnable() {
                                     public void run() {
+                                        try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                                         getCurrentWallet(PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE);
                                         lastUnlockTimestamp = System.currentTimeMillis();
                                         unlockDialogShowing = false;
@@ -819,14 +821,19 @@ public class HomeActivity extends FragmentActivity implements
                                 });
                             } catch (Exception e) {
                                 android.util.Log.e(TAG, "Migration failed", e);
+                                try {
+                                    SecureStorage s = KeyViewModel.getSecureStorage();
+                                    if (s != null) s.lock();
+                                } catch (Exception ignore) { }
                                 runOnUiThread(new Runnable() {
                                     public void run() {
+                                        try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                                         unlockButton.setEnabled(true);
                                         passwordEditText.setEnabled(true);
                                         unlockButton.setText(jsonViewModel.getUnlockByLangValues());
                                         GlobalMethods.ShowErrorDialog(HomeActivity.this,
                                                 jsonViewModel.getErrorTitleByLangValues(),
-                                                "Migration failed: " + e.getMessage());
+                                                jsonViewModel.getWalletPasswordMismatchByErrors());
                                     }
                                 });
                             }
@@ -894,13 +901,18 @@ public class HomeActivity extends FragmentActivity implements
             File f = new File(getApplicationContext().getFilesDir(), fileName);
             if (f.exists()) f.delete();
         }
-        String passwordFileName = PrefConnect.WALLET_KEY_PASSWORD.toLowerCase();
-        File passwordFile = new File(getApplicationContext().getFilesDir(), passwordFileName);
-        if (passwordFile.exists()) passwordFile.delete();
+        File pwdFile1 = new File(getApplicationContext().getFilesDir(),
+                PrefConnect.WALLET_KEY_PASSWORD.toLowerCase());
+        if (pwdFile1.exists()) pwdFile1.delete();
+        File pwdFile2 = new File(getApplicationContext().getFilesDir(), "wallet_password");
+        if (pwdFile2.exists()) pwdFile2.delete();
+        File pwdFile3 = new File(getApplicationContext().getFilesDir(), "llet_password");
+        if (pwdFile3.exists()) pwdFile3.delete();
 
         PrefConnect.getEditor(getApplicationContext())
                 .remove(PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX)
                 .remove(PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_INDEX_ADDRESS)
+                .remove(PrefConnect.WALLET_KEY_PASSWORD)
                 .commit();
     }
 
@@ -915,6 +927,34 @@ public class HomeActivity extends FragmentActivity implements
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
+    }
+
+    private void beginTransactionNow(Fragment fragment, Bundle bundle) {
+        try {
+            linerLayoutOffline.setVisibility(View.GONE);
+
+            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+            fragment.setArguments(bundle);
+            transaction.replace(R.id.frame_home_container_id, fragment);
+            transaction.commitNow();
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    /**
+     * Public helper for fragments to forcibly lock SecureStorage and re-show the global
+     * unlock dialog. Used when a wallet-password re-prompt (reveal / backup / send) fails;
+     * callers rely on this to hand control back to the canonical unlock flow.
+     */
+    public void forceUnlockPrompt() {
+        try {
+            SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+            if (secureStorage != null) {
+                try { secureStorage.lock(); } catch (Exception ignore) { }
+            }
+        } catch (Exception ignore) { }
+        showUnlockDialog(null);
     }
 
     private void screenViewType(int status) {

@@ -170,7 +170,8 @@ public class GlobalMethods {
 
     //api exception error
     public static void ExceptionError(Context context, String tag, Exception e) {
-        ShowToast(context, tag + " : " + e.getMessage());
+        String message = e != null && e.getMessage() != null ? e.getMessage() : "";
+        ShowErrorDialog(context, tag, message);
         //Firebase.CrashLogcat(tag, e.toString());
     }
 

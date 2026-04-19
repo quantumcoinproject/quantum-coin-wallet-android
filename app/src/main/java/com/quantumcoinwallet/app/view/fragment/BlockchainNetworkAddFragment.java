@@ -69,15 +69,16 @@ public class BlockchainNetworkAddFragment extends Fragment  {
             TextView blockchainNetworkAddNetworkTextView = (TextView) getView().findViewById(R.id.textview_blockchain_network_add_langValues_add_network);
             TextView blockchainNetworkEnterNetworkJsonTextView = (TextView) getView().findViewById(R.id.textview_blockchain_network_add_langValues_enter_network_json);
             EditText blockchainNetworkAddNetworkEditText = (EditText) getView().findViewById(R.id.editText_blockchain_network_add_langValues_add_network);
+            blockchainNetworkAddNetworkEditText.setHorizontallyScrolling(true);
 
             Button blockchainNetworkAddNetworkButton = (Button) getView().findViewById(R.id.button_blockchain_network_add_langValues_add);
 
             ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_blockchain_network_add);
 
             try {
-                blockchainNetworkAddNetworkEditText.setText(makeJSON().toString(2));
+                blockchainNetworkAddNetworkEditText.setText(makeJSON().toString(2).replace("\\/", "/"));
             } catch (Exception e) {
-                blockchainNetworkAddNetworkEditText.setText(makeJSON().toString());
+                blockchainNetworkAddNetworkEditText.setText(makeJSON().toString().replace("\\/", "/"));
             }
 
             blockchainNetworkAddNetworkTextView.setText(jsonViewModel.getAddNetworkByLangValues());
@@ -93,8 +94,20 @@ public class BlockchainNetworkAddFragment extends Fragment  {
             blockchainNetworkAddNetworkButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     progressBar.setVisibility(View.VISIBLE);
+                    JSONObject obj;
                     try {
-                        JSONObject obj = new JSONObject(blockchainNetworkAddNetworkEditText.getText().toString());
+                        obj = new JSONObject(blockchainNetworkAddNetworkEditText.getText().toString());
+                    } catch (org.json.JSONException je) {
+                        progressBar.setVisibility(View.GONE);
+                        String invalidMsg = jsonViewModel.getInvalidNetworkJsonByErrors();
+                        if (invalidMsg == null || invalidMsg.isEmpty()) {
+                            invalidMsg = "The JSON is invalid.";
+                        }
+                        GlobalMethods.ShowErrorDialog(getContext(),
+                                jsonViewModel.getErrorTitleByLangValues(), invalidMsg);
+                        return;
+                    }
+                    try {
                         String scanApiDomain = (String) obj.get("scanApiDomain");
                         String rpcEndpoint = (String) obj.get("rpcEndpoint");
                         String blockExplorerDomain = (String) obj.get("blockExplorerDomain");
@@ -102,8 +115,9 @@ public class BlockchainNetworkAddFragment extends Fragment  {
                         String networkId = String.valueOf(obj.get("networkId"));
 
                         if (!rpcEndpoint.startsWith("http://") && !rpcEndpoint.startsWith("https://")) {
-                            Toast.makeText(getContext(), "RPC Endpoint must start with http:// or https://",
-                                    Toast.LENGTH_SHORT).show();
+                            GlobalMethods.ShowErrorDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(),
+                                    "RPC Endpoint must start with http:// or https://");
                             progressBar.setVisibility(View.GONE);
                             return;
                         }
