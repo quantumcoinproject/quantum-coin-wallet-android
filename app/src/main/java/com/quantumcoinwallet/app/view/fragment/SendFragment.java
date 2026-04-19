@@ -319,23 +319,55 @@ public class SendFragment extends Fragment  {
 
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    String password = passwordEditText.getText().toString();
+                    final String password = passwordEditText.getText().toString();
                     if (password == null || password.isEmpty()) {
                         messageDialogFragment(languageKey, jsonViewModel.getEnterApasswordByLangValues());
                         return;
                     }
-                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-                    if (!secureStorage.verifyPassword(getContext(), password.trim())) {
-                        messageDialogFragment(languageKey,
-                                jsonViewModel.getWalletPasswordMismatchByErrors());
-                        return;
-                    }
-                    if (sendButtonStatus == 1) {
-                        dialog.dismiss();
-                        sendTransaction(getContext(), progressBarSendCoins,
-                                walletAddress, toAddress, quantity, languageKey);
-                    }
-                    sendButtonStatus = 2;
+                    unlockButton.setEnabled(false);
+                    closeButton.setEnabled(false);
+                    passwordEditText.setEnabled(false);
+
+                    final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                            .show(getContext(), jsonViewModel.getWaitUnlockByLangValues());
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            boolean ok = false;
+                            try {
+                                SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                                ok = secureStorage.unlock(getContext(), password.trim());
+                            } catch (Exception e) {
+                                android.util.Log.e(TAG, "unlock failed", e);
+                            }
+                            final boolean unlocked = ok;
+                            if (getActivity() == null) return;
+                            getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try { if (waitDlg != null) waitDlg.dismiss(); } catch (Throwable ignore) { }
+                                    if (!unlocked) {
+                                        try { dialog.dismiss(); } catch (Throwable ignore) { }
+                                        sendButtonStatus = 0;
+                                        android.app.Activity act = getActivity();
+                                        if (act instanceof com.quantumcoinwallet.app.view.activities.HomeActivity) {
+                                            ((com.quantumcoinwallet.app.view.activities.HomeActivity) act).forceUnlockPrompt();
+                                        } else {
+                                            messageDialogFragment(languageKey,
+                                                    jsonViewModel.getWalletPasswordMismatchByErrors());
+                                        }
+                                        return;
+                                    }
+                                    if (sendButtonStatus == 1) {
+                                        dialog.dismiss();
+                                        sendTransaction(getContext(), progressBarSendCoins,
+                                                walletAddress, toAddress, quantity, languageKey);
+                                    }
+                                    sendButtonStatus = 2;
+                                }
+                            });
+                        }
+                    }).start();
                 }
             });
 

@@ -3,9 +3,9 @@ package com.quantumcoinwallet.app.view.dialog;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.text.InputType;
+import android.text.method.PasswordTransformationMethod;
 import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -33,10 +33,25 @@ public class BackupPasswordDialog {
         void onCanceled();
     }
 
+    /**
+     * Controls given to the caller of {@link #showRestore}, so the caller can keep the
+     * dialog open on failure (wrong backup password) and only close it when decryption
+     * succeeds. The dialog retains the typed password and stays on screen for retry.
+     */
+    public interface PasswordDialogControl {
+        void dismiss();
+        void onFailure();
+    }
+
+    public interface OnPasswordAttemptListener {
+        void onAttempt(String password, PasswordDialogControl control);
+        void onCanceled();
+    }
+
     public static void show(final Context ctx, final JsonViewModel vm,
                             final String currentPassword,
                             final OnBackupPasswordListener listener) {
-        show(ctx, vm, currentPassword, false, listener);
+        showCreateMode(ctx, vm, currentPassword, listener);
     }
 
     public static void show(final Context ctx, final JsonViewModel vm,
@@ -44,7 +59,17 @@ public class BackupPasswordDialog {
                             final boolean restoreMode,
                             final OnBackupPasswordListener listener) {
         if (restoreMode) {
-            showRestoreMode(ctx, vm, listener);
+            showRestore(ctx, vm, new OnPasswordAttemptListener() {
+                @Override
+                public void onAttempt(String password, PasswordDialogControl control) {
+                    control.dismiss();
+                    listener.onPasswordSelected(password);
+                }
+                @Override
+                public void onCanceled() {
+                    listener.onCanceled();
+                }
+            });
         } else {
             showCreateMode(ctx, vm, currentPassword, listener);
         }
@@ -86,17 +111,35 @@ public class BackupPasswordDialog {
         diffContainer.setVisibility(ViewGroup.GONE);
         diffContainer.setPadding(0, dp(ctx, 8), 0, 0);
 
-        final EditText pwd = new EditText(ctx);
+        final TextInputLayout pwdLayout = new TextInputLayout(ctx);
+        pwdLayout.setHintEnabled(false);
+        pwdLayout.setPasswordVisibilityToggleEnabled(true);
+        try {
+            pwdLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+        } catch (Throwable ignore) { }
+        final TextInputEditText pwd = new TextInputEditText(ctx);
         pwd.setHint(safe(vm.getPasswordByLangValues(), "Password"));
-        pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         pwd.setSingleLine(true);
-        diffContainer.addView(pwd);
+        pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        pwd.setTransformationMethod(PasswordTransformationMethod.getInstance());
+        pwd.setBackground(null);
+        pwdLayout.addView(pwd);
+        diffContainer.addView(pwdLayout);
 
-        final EditText confirm = new EditText(ctx);
+        final TextInputLayout confirmLayout = new TextInputLayout(ctx);
+        confirmLayout.setHintEnabled(false);
+        confirmLayout.setPasswordVisibilityToggleEnabled(true);
+        try {
+            confirmLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+        } catch (Throwable ignore) { }
+        final TextInputEditText confirm = new TextInputEditText(ctx);
         confirm.setHint(safe(vm.getConfirmBackupPasswordByLangValues(), "Confirm password"));
-        confirm.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         confirm.setSingleLine(true);
-        diffContainer.addView(confirm);
+        confirm.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        confirm.setTransformationMethod(PasswordTransformationMethod.getInstance());
+        confirm.setBackground(null);
+        confirmLayout.addView(confirm);
+        diffContainer.addView(confirmLayout);
 
         root.addView(diffContainer);
 
@@ -123,6 +166,11 @@ public class BackupPasswordDialog {
         dialog.setOnShowListener(d -> {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
                 if (useCurrent.isChecked()) {
+                    if (currentPassword == null || currentPassword.isEmpty()) {
+                        Toast.makeText(ctx, safe(vm.getEnterApasswordByLangValues(),
+                                "Enter a password"), Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     dialog.dismiss();
                     listener.onPasswordSelected(currentPassword);
                     return;
@@ -160,8 +208,15 @@ public class BackupPasswordDialog {
         }
     }
 
-    private static void showRestoreMode(final Context ctx, final JsonViewModel vm,
-                                        final OnBackupPasswordListener listener) {
+    /**
+     * Restore-mode dialog with a retry-capable contract. The caller runs the (potentially
+     * failing) decrypt attempt in its own thread and then calls either
+     * {@link PasswordDialogControl#dismiss()} on success, or
+     * {@link PasswordDialogControl#onFailure()} on failure (wrong password / corrupt file)
+     * to re-enable the OK/Cancel buttons so the user can retry without re-typing.
+     */
+    public static void showRestore(final Context ctx, final JsonViewModel vm,
+                                   final OnPasswordAttemptListener listener) {
         final int pad = dp(ctx, 16);
         final String title = safe(vm.getEnterBackupPasswordTitleByLangValues(),
                 "Enter password of the backup");
@@ -171,15 +226,18 @@ public class BackupPasswordDialog {
         root.setPadding(pad, pad, pad, pad);
 
         final TextInputLayout pwdLayout = new TextInputLayout(ctx);
-        pwdLayout.setHint(safe(vm.getPasswordByLangValues(), "Password"));
+        pwdLayout.setHintEnabled(false);
         pwdLayout.setPasswordVisibilityToggleEnabled(true);
         try {
             pwdLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
 
         final TextInputEditText pwd = new TextInputEditText(ctx);
-        pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        pwd.setHint(safe(vm.getPasswordByLangValues(), "Password"));
         pwd.setSingleLine(true);
+        pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        pwd.setTransformationMethod(PasswordTransformationMethod.getInstance());
+        pwd.setBackground(null);
         pwdLayout.addView(pwd);
         root.addView(pwdLayout);
 
@@ -192,18 +250,42 @@ public class BackupPasswordDialog {
                 .create();
 
         dialog.setOnShowListener(d -> {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            final android.widget.Button okButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            final android.widget.Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            final CharSequence okLabel = okButton.getText();
+
+            final PasswordDialogControl control = new PasswordDialogControl() {
+                @Override
+                public void dismiss() {
+                    try { dialog.dismiss(); } catch (Throwable ignore) { }
+                }
+                @Override
+                public void onFailure() {
+                    try {
+                        okButton.setEnabled(true);
+                        cancelButton.setEnabled(true);
+                        okButton.setText(okLabel);
+                        pwd.setEnabled(true);
+                        pwd.requestFocus();
+                    } catch (Throwable ignore) { }
+                }
+            };
+
+            okButton.setOnClickListener(v -> {
                 String p = pwd.getText() == null ? "" : pwd.getText().toString();
                 if (p.isEmpty()) {
-                    Toast.makeText(ctx, safe(vm.getPasswordByLangValues(), "Password"),
-                            Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ctx, safe(vm.getEnterApasswordByLangValues(),
+                            "Enter a password"), Toast.LENGTH_SHORT).show();
                     return;
                 }
-                dialog.dismiss();
-                listener.onPasswordSelected(p);
+                okButton.setEnabled(false);
+                cancelButton.setEnabled(false);
+                pwd.setEnabled(false);
+                okButton.setText("...");
+                listener.onAttempt(p, control);
             });
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
-                dialog.dismiss();
+            cancelButton.setOnClickListener(v -> {
+                try { dialog.dismiss(); } catch (Throwable ignore) { }
                 listener.onCanceled();
             });
         });

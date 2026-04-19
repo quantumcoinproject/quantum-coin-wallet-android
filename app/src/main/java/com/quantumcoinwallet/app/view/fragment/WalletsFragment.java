@@ -191,7 +191,6 @@ public class WalletsFragment extends Fragment  {
         this.recycler = view.findViewById(R.id.recycler_wallets);
 
         String languageKey = getArguments().getString("languageKey");
-        String walletPassword = getArguments().getString("walletPassword");
 
         keyViewModel = new KeyViewModel();
 
@@ -245,11 +244,7 @@ public class WalletsFragment extends Fragment  {
 
         walletCreateOrRestoreTextView.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (walletPassword==null || walletPassword.isEmpty()) {
-                     unlockDialogFragment(progressBar, 0, null, languageKey);
-                } else {
-                    VerifyPassword(null, progressBar, walletPassword, 0, null, languageKey);
-                }
+                mWalletsListener.onWalletsCompleteByCreateOrRestore();
             }
         });
 
@@ -266,11 +261,7 @@ public class WalletsFragment extends Fragment  {
                         if (Objects.equals(indexKey, entry.getKey())) {
                             PrefConnect.writeString(getContext(), PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_KEY, indexKey);
                             String walletAddress = entry.getValue();
-                            if (walletPassword==null || walletPassword.isEmpty()) {
-                                unlockDialogFragment(progressBar, 1, walletAddress, languageKey);
-                            } else {
-                                VerifyPassword(null, progressBar, walletPassword, 1, walletAddress, languageKey);
-                            }
+                            unlockDialogFragment(progressBar, 1, walletAddress, languageKey);
                             break;
                         }
                     }
@@ -281,11 +272,7 @@ public class WalletsFragment extends Fragment  {
                 String indexKey = String.valueOf(position);
                 String walletAddress = PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.get(indexKey);
                 if (walletAddress == null) return;
-                if (walletPassword == null || walletPassword.isEmpty()) {
-                    unlockDialogFragment(progressBar, 2, walletAddress, languageKey);
-                } else {
-                    VerifyPassword(null, progressBar, walletPassword, 2, walletAddress, languageKey);
-                }
+                unlockDialogFragment(progressBar, 2, walletAddress, languageKey);
             }
         });
 
@@ -304,9 +291,9 @@ public class WalletsFragment extends Fragment  {
     public static interface OnWalletsCompleteListener {
         //public abstract void onWalletsComplete(int status, String password, String indexKey);
         public abstract void onWalletsCompleteByBackArrow();
-        public abstract void onWalletsCompleteByCreateOrRestore(String walletPassword);
+        public abstract void onWalletsCompleteByCreateOrRestore();
         public abstract void onWalletsCompleteBySwitchAddress(String walletAddress);
-        public abstract void onWalletsCompleteByReveal(String walletAddress, String walletPassword);
+        public abstract void onWalletsCompleteByReveal(String walletAddress);
     }
 
     public void onAttach(Context context) {
@@ -346,9 +333,13 @@ public class WalletsFragment extends Fragment  {
                     String walletPassword = passwordEditText.getText().toString();
                     if (walletPassword==null || walletPassword.isEmpty()) {
                         messageDialogFragment(languageKey, jsonViewModel.getEnterApasswordByLangValues());
-                    } else {
-                        VerifyPassword(dialog, progressBar, walletPassword, listenerStatus, walletAddress, languageKey);
+                        return;
                     }
+                    unlockButton.setEnabled(false);
+                    closeButton.setEnabled(false);
+                    passwordEditText.setEnabled(false);
+                    VerifyPassword(dialog, unlockButton, closeButton, passwordEditText,
+                            walletPassword, listenerStatus, walletAddress, languageKey);
                 }
             });
             closeButton.setOnClickListener(new View.OnClickListener() {
@@ -378,28 +369,59 @@ public class WalletsFragment extends Fragment  {
         }
     }
 
-    private void VerifyPassword(AlertDialog dialog, ProgressBar progressBar, String walletPassword, int listenerStatus, String walletAddress, String languageKey)  {
-        try {
-            SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-            if (secureStorage.verifyPassword(getContext(), walletPassword)) {
-               if (dialog != null) dialog.dismiss();
-               switch (listenerStatus) {
-                   case 0:
-                       mWalletsListener.onWalletsCompleteByCreateOrRestore(walletPassword);
-                       break;
-                   case 1:
-                       mWalletsListener.onWalletsCompleteByReveal(walletAddress, walletPassword);
-                       break;
-                   case 2:
-                       showBackupChoiceDialog(walletAddress, walletPassword);
-                       break;
-               }
-            } else {
-                messageDialogFragment(languageKey, jsonViewModel.getWalletPasswordMismatchByErrors());
+    private void VerifyPassword(final AlertDialog dialog,
+                                final Button unlockButton,
+                                final Button closeButton,
+                                final EditText passwordEditText,
+                                final String walletPassword,
+                                final int listenerStatus,
+                                final String walletAddress,
+                                final String languageKey) {
+        final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                .show(getContext(), jsonViewModel.getWaitUnlockByLangValues());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                boolean unlocked = false;
+                try {
+                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                    unlocked = secureStorage.unlock(getContext(), walletPassword);
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "unlock failed", e);
+                }
+                final boolean ok = unlocked;
+                if (getActivity() == null) return;
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try { if (waitDlg != null) waitDlg.dismiss(); } catch (Throwable ignore) { }
+                        if (!ok) {
+                            if (unlockButton != null) unlockButton.setEnabled(true);
+                            if (closeButton != null) closeButton.setEnabled(true);
+                            if (passwordEditText != null) passwordEditText.setEnabled(true);
+                            try { if (dialog != null) dialog.dismiss(); } catch (Throwable ignore) { }
+                            android.app.Activity act = getActivity();
+                            if (act instanceof com.quantumcoinwallet.app.view.activities.HomeActivity) {
+                                ((com.quantumcoinwallet.app.view.activities.HomeActivity) act).forceUnlockPrompt();
+                            } else {
+                                messageDialogFragment(languageKey,
+                                        jsonViewModel.getWalletPasswordMismatchByErrors());
+                            }
+                            return;
+                        }
+                        if (dialog != null) dialog.dismiss();
+                        switch (listenerStatus) {
+                            case 1:
+                                mWalletsListener.onWalletsCompleteByReveal(walletAddress);
+                                break;
+                            case 2:
+                                showBackupChoiceDialog(walletAddress, walletPassword);
+                                break;
+                        }
+                    }
+                });
             }
-        } catch (Exception e) {
-            messageDialogFragment(languageKey, jsonViewModel.getWalletOpenErrorByErrors());
-        }
+        }).start();
     }
 
     private void startExportFlow(final String walletAddress, final String walletPassword) {
@@ -417,8 +439,6 @@ public class WalletsFragment extends Fragment  {
     private void encryptAndPickExportLocation(final String walletAddress,
                                               final String unlockPassword,
                                               final String backupPassword) {
-        final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_wallets);
-        progressBar.setVisibility(View.VISIBLE);
         final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                 .show(getContext(), jsonViewModel.getWaitWalletSaveByLangValues());
         new Thread(new Runnable() {
@@ -438,17 +458,15 @@ public class WalletsFragment extends Fragment  {
                         @Override
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            progressBar.setVisibility(View.GONE);
                             launchExportSavePicker(enc.json, enc.address, filename);
                         }
                     });
                 } catch (final Exception e) {
-                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    android.util.Log.e(TAG, "encryptAndPickExportLocation failed", e);
                     getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            progressBar.setVisibility(View.GONE);
                             String tmpl = jsonViewModel.getBackupFailedByLangValues();
                             String msg = tmpl != null
                                     ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
@@ -491,21 +509,58 @@ public class WalletsFragment extends Fragment  {
     private void showBackupChoiceDialog(final String walletAddress, final String walletPassword) {
         final String cloudLabel = jsonViewModel.getBackupToCloudByLangValues();
         final String fileLabel = jsonViewModel.getBackupToFileByLangValues();
-        final String[] items = new String[] { cloudLabel, fileLabel };
-        new AlertDialog.Builder(getContext())
+
+        LinearLayout container = new LinearLayout(getContext());
+        container.setOrientation(LinearLayout.VERTICAL);
+        int padPx = (int) (16 * getResources().getDisplayMetrics().density);
+        container.setPadding(padPx, padPx, padPx, padPx);
+
+        Button cloudBtn = new Button(getContext());
+        cloudBtn.setText(cloudLabel);
+        cloudBtn.setAllCaps(false);
+        cloudBtn.setBackgroundResource(R.drawable.button_green_selector);
+        cloudBtn.setTextColor(getResources().getColor(R.color.colorCommon7));
+        LinearLayout.LayoutParams cloudLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (int) (48 * getResources().getDisplayMetrics().density));
+        cloudLp.setMargins(0, 0, 0, padPx / 2);
+        cloudBtn.setLayoutParams(cloudLp);
+
+        Button fileBtn = new Button(getContext());
+        fileBtn.setText(fileLabel);
+        fileBtn.setAllCaps(false);
+        fileBtn.setBackgroundResource(R.drawable.button_green_selector);
+        fileBtn.setTextColor(getResources().getColor(R.color.colorCommon7));
+        LinearLayout.LayoutParams fileLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (int) (48 * getResources().getDisplayMetrics().density));
+        fileBtn.setLayoutParams(fileLp);
+
+        container.addView(cloudBtn);
+        container.addView(fileBtn);
+
+        final AlertDialog choiceDlg = new AlertDialog.Builder(getContext())
                 .setTitle(jsonViewModel.getBackupByLangValues())
-                .setItems(items, new android.content.DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(android.content.DialogInterface d, int which) {
-                        if (which == 0) {
-                            startCloudBackupFromWalletRow(walletAddress, walletPassword);
-                        } else {
-                            startExportFlow(walletAddress, walletPassword);
-                        }
-                    }
-                })
+                .setView(container)
                 .setNegativeButton(jsonViewModel.getCancelByLangValues(), null)
-                .show();
+                .create();
+
+        cloudBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                choiceDlg.dismiss();
+                startCloudBackupFromWalletRow(walletAddress, walletPassword);
+            }
+        });
+        fileBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                choiceDlg.dismiss();
+                startExportFlow(walletAddress, walletPassword);
+            }
+        });
+
+        choiceDlg.show();
     }
 
     private void startCloudBackupFromWalletRow(final String walletAddress, final String walletPassword) {
@@ -523,8 +578,6 @@ public class WalletsFragment extends Fragment  {
     private void encryptAndStartCloudBackup(final String walletAddress,
                                             final String unlockPassword,
                                             final String backupPassword) {
-        final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_wallets);
-        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
         final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                 .show(getContext(), jsonViewModel.getWaitWalletSaveByLangValues());
         new Thread(new Runnable() {
@@ -543,17 +596,15 @@ public class WalletsFragment extends Fragment  {
                         @Override
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            if (progressBar != null) progressBar.setVisibility(View.GONE);
                             dispatchCloudBackup(enc.json, enc.address);
                         }
                     });
                 } catch (final Exception e) {
-                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    android.util.Log.e(TAG, "encryptAndStartCloudBackup failed", e);
                     getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            if (progressBar != null) progressBar.setVisibility(View.GONE);
                             String tmpl = jsonViewModel.getBackupFailedByLangValues();
                             String msg = tmpl != null
                                     ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())

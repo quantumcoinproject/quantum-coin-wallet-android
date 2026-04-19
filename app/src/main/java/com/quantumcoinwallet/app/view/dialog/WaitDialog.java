@@ -2,12 +2,12 @@ package com.quantumcoinwallet.app.view.dialog;
 
 import android.app.AlertDialog;
 import android.content.Context;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+
+import com.quantumcoinwallet.app.R;
 
 /**
  * Non-cancelable wait dialog used during long scrypt-based encrypt/decrypt operations.
@@ -38,6 +38,7 @@ public final class WaitDialog {
         TextView tv = new TextView(ctx);
         tv.setText(message);
         tv.setTextSize(14);
+        tv.setTextColor(ctx.getResources().getColor(R.color.colorCommon6));
         LinearLayout.LayoutParams lpTv = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -48,9 +49,6 @@ public final class WaitDialog {
                 .setView(row)
                 .setCancelable(false)
                 .create();
-        if (dlg.getWindow() != null) {
-            dlg.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        }
         dlg.show();
         return dlg;
     }

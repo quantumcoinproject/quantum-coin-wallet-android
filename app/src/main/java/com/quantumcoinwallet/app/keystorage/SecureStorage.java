@@ -8,7 +8,6 @@ import com.quantumcoinwallet.app.utils.PrefConnect;
 
 import org.json.JSONObject;
 
-import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -30,7 +29,7 @@ public class SecureStorage {
     private static final String KEY_SALT = "SECURE_DERIVED_KEY_SALT";
     private static final String KEY_ENCRYPTED_MAIN_KEY = "SECURE_ENCRYPTED_MAIN_KEY";
     private static final String KEY_MAX_WALLET_INDEX = "SECURE_MAX_WALLET_INDEX";
-    private static final String KEY_PASSWORD_VERIFIER = "SECURE_PASSWORD_VERIFIER";
+    private static final String LEGACY_KEY_PASSWORD_VERIFIER = "SECURE_PASSWORD_VERIFIER";
     private static final String WALLET_PREFIX = "SECURE_WALLET_";
 
     private static final String CIPHER_ALGORITHM = "AES/CBC/PKCS5Padding";
@@ -78,8 +77,6 @@ public class SecureStorage {
         PrefConnect.writeString(ctx, KEY_ENCRYPTED_MAIN_KEY, encJson.toString());
 
         this.mainKey = newMainKey;
-
-        setSecureItem(ctx, KEY_PASSWORD_VERIFIER, sha256Hex(password));
     }
 
     /**
@@ -102,6 +99,14 @@ public class SecureStorage {
 
             String mainKeyBase64 = decrypt(derivedKey, payload);
             this.mainKey = Base64.decode(mainKeyBase64, Base64.NO_WRAP);
+
+            try {
+                String legacy = PrefConnect.readString(ctx, LEGACY_KEY_PASSWORD_VERIFIER, "");
+                if (legacy != null && !legacy.isEmpty()) {
+                    PrefConnect.getEditor(ctx).remove(LEGACY_KEY_PASSWORD_VERIFIER).commit();
+                }
+            } catch (Throwable ignore) { }
+
             return true;
         } catch (Exception e) {
             this.mainKey = null;
@@ -113,21 +118,6 @@ public class SecureStorage {
         if (mainKey != null) {
             Arrays.fill(mainKey, (byte) 0);
             mainKey = null;
-        }
-    }
-
-    /**
-     * Fast password verification using the stored verifier (AES decrypt only, no Scrypt).
-     * Requires SecureStorage to be unlocked (mainKey in memory).
-     */
-    public boolean verifyPassword(Context ctx, String password) {
-        if (mainKey == null) return false;
-        try {
-            String storedHash = getSecureItem(ctx, KEY_PASSWORD_VERIFIER);
-            if (storedHash == null) return false;
-            return storedHash.equals(sha256Hex(password));
-        } catch (Exception e) {
-            return false;
         }
     }
 
@@ -239,20 +229,6 @@ public class SecureStorage {
         byte[] plainBytes = cipher.doFinal(cipherBytes);
 
         return new String(plainBytes, "UTF-8");
-    }
-
-    private static String sha256Hex(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes("UTF-8"));
-            StringBuilder hex = new StringBuilder(hash.length * 2);
-            for (byte b : hash) {
-                hex.append(String.format("%02x", b & 0xFF));
-            }
-            return hex.toString();
-        } catch (Exception e) {
-            return "";
-        }
     }
 
     private static class EncryptedPayload {
