@@ -4,11 +4,8 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.text.InputType;
 import android.text.method.PasswordTransformationMethod;
-import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import com.google.android.material.textfield.TextInputEditText;
@@ -21,8 +18,9 @@ import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
  * Reusable dialog asking the user for a backup password.
  *
  * Two modes:
- *  - Create/backup mode (default): offers "Use current wallet password" or "Use a different
- *    password" (with confirm + length/trim validation).
+ *  - Create/backup mode (default): prompts the user for a new backup password with
+ *    confirm + length/trim validation. The user is always asked afresh; no password
+ *    is reused or cached.
  *  - Restore mode: a single password field with eye toggle, no confirmation, no length check;
  *    the user is entering an existing backup password, not creating one.
  */
@@ -51,7 +49,7 @@ public class BackupPasswordDialog {
     public static void show(final Context ctx, final JsonViewModel vm,
                             final String currentPassword,
                             final OnBackupPasswordListener listener) {
-        showCreateMode(ctx, vm, currentPassword, listener);
+        showCreateMode(ctx, vm, listener);
     }
 
     public static void show(final Context ctx, final JsonViewModel vm,
@@ -71,12 +69,11 @@ public class BackupPasswordDialog {
                 }
             });
         } else {
-            showCreateMode(ctx, vm, currentPassword, listener);
+            showCreateMode(ctx, vm, listener);
         }
     }
 
     private static void showCreateMode(final Context ctx, final JsonViewModel vm,
-                                       final String currentPassword,
                                        final OnBackupPasswordListener listener) {
         final int pad = dp(ctx, 16);
 
@@ -89,27 +86,6 @@ public class BackupPasswordDialog {
         header.setTextSize(16);
         header.setPadding(0, 0, 0, dp(ctx, 8));
         root.addView(header);
-
-        final RadioGroup group = new RadioGroup(ctx);
-        group.setOrientation(LinearLayout.VERTICAL);
-
-        final RadioButton useCurrent = new RadioButton(ctx);
-        useCurrent.setId(1);
-        useCurrent.setText(safe(vm.getUseCurrentPasswordByLangValues(), "Use current wallet password"));
-        useCurrent.setChecked(true);
-        group.addView(useCurrent);
-
-        final RadioButton useDifferent = new RadioButton(ctx);
-        useDifferent.setId(2);
-        useDifferent.setText(safe(vm.getUseDifferentPasswordByLangValues(), "Use a different password"));
-        group.addView(useDifferent);
-
-        root.addView(group);
-
-        final LinearLayout diffContainer = new LinearLayout(ctx);
-        diffContainer.setOrientation(LinearLayout.VERTICAL);
-        diffContainer.setVisibility(ViewGroup.GONE);
-        diffContainer.setPadding(0, dp(ctx, 8), 0, 0);
 
         final TextInputLayout pwdLayout = new TextInputLayout(ctx);
         pwdLayout.setHintEnabled(false);
@@ -124,7 +100,7 @@ public class BackupPasswordDialog {
         pwd.setTransformationMethod(PasswordTransformationMethod.getInstance());
         pwd.setBackground(null);
         pwdLayout.addView(pwd);
-        diffContainer.addView(pwdLayout);
+        root.addView(pwdLayout);
 
         final TextInputLayout confirmLayout = new TextInputLayout(ctx);
         confirmLayout.setHintEnabled(false);
@@ -139,21 +115,7 @@ public class BackupPasswordDialog {
         confirm.setTransformationMethod(PasswordTransformationMethod.getInstance());
         confirm.setBackground(null);
         confirmLayout.addView(confirm);
-        diffContainer.addView(confirmLayout);
-
-        root.addView(diffContainer);
-
-        group.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(RadioGroup g, int checkedId) {
-                if (checkedId == useDifferent.getId()) {
-                    diffContainer.setVisibility(ViewGroup.VISIBLE);
-                    pwd.requestFocus();
-                } else {
-                    diffContainer.setVisibility(ViewGroup.GONE);
-                }
-            }
-        });
+        root.addView(confirmLayout);
 
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(safe(vm.getBackupPasswordByLangValues(), "Backup password"))
@@ -166,16 +128,6 @@ public class BackupPasswordDialog {
         dialog.setOnShowListener(d -> {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
                 String errTitle = safe(vm.getErrorTitleByLangValues(), "Error");
-                if (useCurrent.isChecked()) {
-                    if (currentPassword == null || currentPassword.isEmpty()) {
-                        GlobalMethods.ShowErrorDialog(ctx, errTitle,
-                                safe(vm.getEnterApasswordByLangValues(), "Enter a password"));
-                        return;
-                    }
-                    dialog.dismiss();
-                    listener.onPasswordSelected(currentPassword);
-                    return;
-                }
                 String p = pwd.getText() == null ? "" : pwd.getText().toString();
                 String c = confirm.getText() == null ? "" : confirm.getText().toString();
                 if (p.length() < 12) {
