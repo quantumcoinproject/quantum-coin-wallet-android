@@ -18,8 +18,8 @@ import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummary;
 import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 
-import org.threeten.bp.OffsetDateTime;
-import org.threeten.bp.format.DateTimeFormatter;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 
 import java.math.BigInteger;
 import java.util.List;

@@ -1,67 +1,68 @@
 package com.quantumcoinwallet.app.asynctask.read;
 
 import android.content.Context;
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.quantumcoinwallet.app.api.read.ApiException;
 import com.quantumcoinwallet.app.api.read.api.AccountsApi;
 import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
 import com.quantumcoinwallet.app.entity.ServiceException;
 
-public class AccountBalanceRestTask extends AsyncTask<String, Void, Void> {
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-    private BalanceResponse balanceResponse;
-    private Context context;
-    private TaskListener taskListener;
-    private ApiException apiException;
+public class AccountBalanceRestTask {
 
-    public AccountBalanceRestTask(Context context,
-                                  TaskListener listener) {
+    private final Context context;
+    private final TaskListener taskListener;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    public AccountBalanceRestTask(Context context, TaskListener listener) {
         this.context = context;
         this.taskListener = listener;
     }
 
-    /* access modifiers changed from: protected */
-    @Override
-    public void onPreExecute() {
-        super.onPreExecute();
-    }
-
-    /* access modifiers changed from: protected */
-    @Override
-    public Void doInBackground(String... params) {
-        String address = params[0];
-
-        AccountsApi apiInstance = new AccountsApi();
-
-        try {
-            balanceResponse = apiInstance.getAccountBalance(address);
-        } catch (ApiException e) {
-            apiException = e;
-        }
-        return (Void)null;
-    }
-
-    /* access modifiers changed from: protected */
-    @Override
-    public void onPostExecute(Void result) {
-        super.onPostExecute(result);
-        try {
-            if(this.taskListener != null) {
-                if (apiException == null) {
-                    this.taskListener.onFinished(this.balanceResponse);
-                } else {
-                    this.taskListener.onFailure(apiException);
+    public void execute(final String... params) {
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                BalanceResponse balanceResponse = null;
+                ApiException apiException = null;
+                try {
+                    String address = params[0];
+                    AccountsApi apiInstance = new AccountsApi();
+                    balanceResponse = apiInstance.getAccountBalance(address);
+                } catch (ApiException e) {
+                    apiException = e;
                 }
-            }
-        }
-        catch (Exception e){
 
-        }
+                final BalanceResponse br = balanceResponse;
+                final ApiException ae = apiException;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            if (taskListener != null) {
+                                if (ae == null) {
+                                    taskListener.onFinished(br);
+                                } else {
+                                    taskListener.onFailure(ae);
+                                }
+                            }
+                        } catch (Exception ignore) {
+                        } finally {
+                            executor.shutdown();
+                        }
+                    }
+                });
+            }
+        });
     }
 
     public interface TaskListener {
-        public void onFinished(BalanceResponse balanceResponse) throws ServiceException;
-        public void onFailure(ApiException apiException);
+        void onFinished(BalanceResponse balanceResponse) throws ServiceException;
+        void onFailure(ApiException apiException);
     }
 }

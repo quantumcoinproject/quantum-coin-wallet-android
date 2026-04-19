@@ -1,68 +1,68 @@
 package com.quantumcoinwallet.app.asynctask.read;
 
 import android.content.Context;
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.quantumcoinwallet.app.api.read.ApiException;
 import com.quantumcoinwallet.app.api.read.api.AccountsApi;
 import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummaryResponse;
 
-public class AccountPendingTxnRestTask  extends AsyncTask<String, Void, Void> {
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-    private AccountPendingTransactionSummaryResponse accountPendingTransactionSummaryResponse;
-    private Context context;
-    private TaskListener taskListener;
-    private ApiException apiException;
+public class AccountPendingTxnRestTask {
 
-    public AccountPendingTxnRestTask(Context context,
-                           TaskListener listener) {
+    private final Context context;
+    private final TaskListener taskListener;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    public AccountPendingTxnRestTask(Context context, TaskListener listener) {
         this.context = context;
         this.taskListener = listener;
     }
 
-    /* access modifiers changed from: protected */
-    @Override
-    public void onPreExecute() {
-        super.onPreExecute();
-    }
-
-    /* access modifiers changed from: protected */
-    @Override
-    public Void doInBackground(String... params) {
-
-        String address = params[0];
-        int pageindex = Integer.valueOf(params[1]);
-
-        AccountsApi apiInstance = new AccountsApi();
-
-        try {
-            accountPendingTransactionSummaryResponse = apiInstance.listAccountPendingTransactions(
-                    address,pageindex);
-        } catch (ApiException e) {
-            apiException = e;
-        }
-        return (Void)null;
-    }
-
-    /* access modifiers changed from: protected */
-    @Override
-    public void onPostExecute(Void result) {
-        super.onPostExecute(result);
-        try {
-            if(this.taskListener != null) {
-                if (apiException == null) {
-                    this.taskListener.onFinished(this.accountPendingTransactionSummaryResponse);
-                } else {
-                    this.taskListener.onFailure(apiException);
+    public void execute(final String... params) {
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                AccountPendingTransactionSummaryResponse rsp = null;
+                ApiException apiException = null;
+                try {
+                    String address = params[0];
+                    int pageindex = Integer.parseInt(params[1]);
+                    AccountsApi apiInstance = new AccountsApi();
+                    rsp = apiInstance.listAccountPendingTransactions(address, pageindex);
+                } catch (ApiException e) {
+                    apiException = e;
                 }
+
+                final AccountPendingTransactionSummaryResponse finalRsp = rsp;
+                final ApiException ae = apiException;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            if (taskListener != null) {
+                                if (ae == null) {
+                                    taskListener.onFinished(finalRsp);
+                                } else {
+                                    taskListener.onFailure(ae);
+                                }
+                            }
+                        } catch (Exception ignore) {
+                        } finally {
+                            executor.shutdown();
+                        }
+                    }
+                });
             }
-        } catch (Exception e) {
-        }
+        });
     }
 
     public interface TaskListener {
-        public void onFinished(AccountPendingTransactionSummaryResponse accountPendingTransactionSummaryResponse);
-        public void onFailure(ApiException apiException);
-
+        void onFinished(AccountPendingTransactionSummaryResponse accountPendingTransactionSummaryResponse);
+        void onFailure(ApiException apiException);
     }
 }

@@ -89,9 +89,9 @@ public class BackupPasswordDialog {
 
         final TextInputLayout pwdLayout = new TextInputLayout(ctx);
         pwdLayout.setHintEnabled(false);
-        pwdLayout.setPasswordVisibilityToggleEnabled(true);
+        pwdLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
         try {
-            pwdLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+            pwdLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
         final TextInputEditText pwd = new TextInputEditText(ctx);
         pwd.setHint(safe(vm.getPasswordByLangValues(), "Password"));
@@ -104,9 +104,9 @@ public class BackupPasswordDialog {
 
         final TextInputLayout confirmLayout = new TextInputLayout(ctx);
         confirmLayout.setHintEnabled(false);
-        confirmLayout.setPasswordVisibilityToggleEnabled(true);
+        confirmLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
         try {
-            confirmLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+            confirmLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
         final TextInputEditText confirm = new TextInputEditText(ctx);
         confirm.setHint(safe(vm.getConfirmBackupPasswordByLangValues(), "Confirm password"));
@@ -183,9 +183,9 @@ public class BackupPasswordDialog {
 
         final TextInputLayout pwdLayout = new TextInputLayout(ctx);
         pwdLayout.setHintEnabled(false);
-        pwdLayout.setPasswordVisibilityToggleEnabled(true);
+        pwdLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
         try {
-            pwdLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+            pwdLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
 
         final TextInputEditText pwd = new TextInputEditText(ctx);

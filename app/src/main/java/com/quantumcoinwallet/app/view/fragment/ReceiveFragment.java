@@ -89,7 +89,7 @@ public class ReceiveFragment extends Fragment  {
                 ClipData clipData = ClipData.newPlainText("receiveAddress", receiveAddressTextView.getText());
                 clipBoard.setPrimaryClip(clipData);
                 receiveCopiedTextView.setVisibility(View.VISIBLE);
-                new Handler().postDelayed(new Runnable() {
+                new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         receiveCopiedTextView.setVisibility(View.GONE);

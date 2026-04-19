@@ -134,7 +134,7 @@ public class RevealWalletFragment extends Fragment {
                 clipBoard.setPrimaryClip(clipData);
                 progressBar.setVisibility(View.GONE);
                 revealSeedWordsViewCopied.setVisibility(View.VISIBLE);
-                new Handler().postDelayed(new Runnable() {
+                new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         revealSeedWordsViewCopied.setVisibility(View.GONE);

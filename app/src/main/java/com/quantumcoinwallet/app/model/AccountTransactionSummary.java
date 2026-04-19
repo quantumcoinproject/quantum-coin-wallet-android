@@ -21,7 +21,7 @@ import com.google.gson.annotations.SerializedName;
 
 import io.swagger.annotations.ApiModelProperty;
 
-import org.threeten.bp.OffsetDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * AccountTransactionSummary

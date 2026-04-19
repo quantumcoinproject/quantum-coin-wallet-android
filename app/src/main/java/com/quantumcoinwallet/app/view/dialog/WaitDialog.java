@@ -9,6 +9,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 
 import com.quantumcoinwallet.app.R;
 
@@ -42,7 +43,7 @@ public final class WaitDialog {
         TextView tv = new TextView(ctx);
         tv.setText(message);
         tv.setTextSize(14);
-        tv.setTextColor(ctx.getResources().getColor(R.color.colorCommon6));
+        tv.setTextColor(ContextCompat.getColor(ctx, R.color.colorCommon6));
         LinearLayout.LayoutParams lpTv = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);

@@ -641,7 +641,7 @@ public class HomeWalletFragment extends Fragment {
                 clipBoard.setPrimaryClip(clipData);
                 progressBar.setVisibility(View.GONE);
                 homeSeedWordsViewCopied.setVisibility(View.VISIBLE);
-                new Handler().postDelayed(new Runnable() {
+                new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         homeSeedWordsViewCopied.setVisibility(View.GONE);

@@ -17,8 +17,6 @@ import java.lang.reflect.Array;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
 
-import timber.log.Timber;
-
 public class JsonInteract {
     private JSONObject jsonObject;
 

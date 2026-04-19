@@ -1,71 +1,69 @@
 package com.quantumcoinwallet.app.asynctask.read;
 
 import android.content.Context;
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.quantumcoinwallet.app.api.read.ApiException;
 import com.quantumcoinwallet.app.api.read.api.AccountsApi;
 import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummaryResponse;
 
-public class AccountTxnRestTask  extends AsyncTask<String, Void, Void> {
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-    private AccountTransactionSummaryResponse accountTransactionSummaryResponse;
-    private Context context;
-    private TaskListener taskListener;
-    private ApiException apiException;
+public class AccountTxnRestTask {
 
-    public AccountTxnRestTask(Context context,
-                           TaskListener listener) {
+    private final Context context;
+    private final TaskListener taskListener;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    public AccountTxnRestTask(Context context, TaskListener listener) {
         this.context = context;
         this.taskListener = listener;
     }
 
-    /* access modifiers changed from: protected */
-    @Override
-    public void onPreExecute() {
-        super.onPreExecute();
-    }
-
-    /* access modifiers changed from: protected */
-    @Override
-    public Void doInBackground(String... params) {
-
-        String address = params[0];
-        int pageindex = Integer.valueOf(params[1]);
-
-        //ApiClient defaultClient = Configuration.getDefaultApiClient();
-        //((ApiKeyAuth) defaultClient.getAuthentication("signature")).setApiKey(signature);
-        //((ApiKeyAuth) defaultClient.getAuthentication("token")).setApiKey(token);
-
-        AccountsApi apiInstance = new AccountsApi();
-
-        try {
-            accountTransactionSummaryResponse = apiInstance.listAccountTransactions(
-                    address,pageindex);
-        } catch (ApiException e) {
-            apiException = e;
-        }
-        return (Void)null;
-    }
-
-    /* access modifiers changed from: protected */
-    @Override
-    public void onPostExecute(Void result) {
-        super.onPostExecute(result);
-        try {
-            if(this.taskListener != null) {
-                if (apiException == null) {
-                    this.taskListener.onFinished(this.accountTransactionSummaryResponse);
-                } else {
-                    this.taskListener.onFailure(apiException);
+    public void execute(final String... params) {
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                AccountTransactionSummaryResponse accountTransactionSummaryResponse = null;
+                ApiException apiException = null;
+                try {
+                    String address = params[0];
+                    int pageindex = Integer.parseInt(params[1]);
+                    AccountsApi apiInstance = new AccountsApi();
+                    accountTransactionSummaryResponse = apiInstance.listAccountTransactions(
+                            address, pageindex);
+                } catch (ApiException e) {
+                    apiException = e;
                 }
+
+                final AccountTransactionSummaryResponse rsp = accountTransactionSummaryResponse;
+                final ApiException ae = apiException;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            if (taskListener != null) {
+                                if (ae == null) {
+                                    taskListener.onFinished(rsp);
+                                } else {
+                                    taskListener.onFailure(ae);
+                                }
+                            }
+                        } catch (Exception ignore) {
+                        } finally {
+                            executor.shutdown();
+                        }
+                    }
+                });
             }
-        } catch (Exception e) {
-        }
+        });
     }
 
     public interface TaskListener {
-        public void onFinished(AccountTransactionSummaryResponse accountTransactionSummaryResponse);
-        public void onFailure(ApiException apiException);
+        void onFinished(AccountTransactionSummaryResponse accountTransactionSummaryResponse);
+        void onFailure(ApiException apiException);
     }
 }

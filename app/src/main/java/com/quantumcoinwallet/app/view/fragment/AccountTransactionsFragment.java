@@ -14,6 +14,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -185,11 +186,11 @@ public class AccountTransactionsFragment extends Fragment  {
             public void onClick(View v) {
                 accountTransactionCompletedToggleButton.setChecked(true);
                 accountTransactionCompletedToggleButton.setTypeface(accountTransactionCompletedToggleButton.getTypeface(), Typeface.BOLD);
-                accountTransactionCompletedToggleButton.setTextColor(getResources().getColor(R.color.colorCommon2));
+                accountTransactionCompletedToggleButton.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon2));
 
                 accountTransactionPendingToggleButton.setChecked(false);
                 accountTransactionPendingToggleButton.setTypeface(accountTransactionPendingToggleButton.getTypeface(), Typeface.NORMAL);
-                accountTransactionPendingToggleButton.setTextColor(getResources().getColor(R.color.colorCommon3));
+                accountTransactionPendingToggleButton.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon3));
 
                 transactionStatus = 0;
                 pageIndex = 1;
@@ -206,11 +207,11 @@ public class AccountTransactionsFragment extends Fragment  {
             public void onClick(View v) {
                 accountTransactionPendingToggleButton.setChecked(true);
                 accountTransactionPendingToggleButton.setTypeface(accountTransactionPendingToggleButton.getTypeface(), Typeface.BOLD);
-                accountTransactionPendingToggleButton.setTextColor(getResources().getColor(R.color.colorCommon2));
+                accountTransactionPendingToggleButton.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon2));
 
                 accountTransactionCompletedToggleButton.setChecked(false);
                 accountTransactionCompletedToggleButton.setTypeface(accountTransactionCompletedToggleButton.getTypeface(), Typeface.NORMAL);
-                accountTransactionCompletedToggleButton.setTextColor(getResources().getColor(R.color.colorCommon3));
+                accountTransactionCompletedToggleButton.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon3));
 
                 transactionStatus = 1;
                 pageIndex = 1;

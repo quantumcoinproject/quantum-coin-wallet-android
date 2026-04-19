@@ -21,15 +21,11 @@ import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 import org.json.JSONObject;
 import java.util.List;
-import butterknife.ButterKnife;
-import butterknife.Unbinder;
 
 
 public class BlockchainNetworkAddFragment extends Fragment  {
 
     private static final String TAG = "BlockchainNetworkAddFragment";
-
-    Unbinder unbinder;
 
     private BlockchainNetworkAddFragment.OnBlockchainNetworkAddCompleteListener mBlockchainNetworkAddListener;
 
@@ -56,7 +52,6 @@ public class BlockchainNetworkAddFragment extends Fragment  {
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        this.unbinder = ButterKnife.bind((Object) this, view);
         try {
             assert getArguments() != null;
 

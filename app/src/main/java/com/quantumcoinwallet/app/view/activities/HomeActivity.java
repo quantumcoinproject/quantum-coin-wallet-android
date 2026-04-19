@@ -234,7 +234,7 @@ public class HomeActivity extends FragmentActivity implements
                     ClipData clipData = ClipData.newPlainText("currentAddress", walletAddressTextView.getText());
                     clipBoard.setPrimaryClip(clipData);
                     homeCopiedTextView.setVisibility(View.VISIBLE);
-                    new Handler().postDelayed(new Runnable() {
+                    new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
                         @Override
                         public void run() {
                             homeCopiedTextView.setVisibility(View.GONE);
@@ -294,7 +294,7 @@ public class HomeActivity extends FragmentActivity implements
                         if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
                             if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
                                 screenViewType(1);
-                                beginTransaction(WalletsFragment.newInstance(), bundle);
+                                beginTransactionNow(WalletsFragment.newInstance(), bundle);
                             }
                         }
                         return true;
@@ -310,7 +310,7 @@ public class HomeActivity extends FragmentActivity implements
                         return true;
                     } else if (id == R.id.nav_settings) {
                         screenViewType(1);
-                        beginTransaction(SettingsFragment.newInstance(), bundle);
+                        beginTransactionNow(SettingsFragment.newInstance(), bundle);
                         return true;
                     }
                     return false;
