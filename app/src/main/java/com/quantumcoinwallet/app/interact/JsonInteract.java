@@ -263,6 +263,7 @@ public class JsonInteract {
     private static final String data_lang_key_noMoreTxns = "noMoreTxns";
     private static final String data_lang_key_internetDisconnected = "internetDisconnected";
     private static final String data_lang_key_unexpectedError = "unexpectedError";
+    private static final String data_lang_key_walletPasswordNotSet = "wallet-password-not-set";
 
     public JsonInteract(String jsonString) throws JSONException {
         jsonObject  = new JSONObject(jsonString);
@@ -954,6 +955,9 @@ public class JsonInteract {
     public String getInvalidNetworkJson() throws JSONException{
         return getLangValues().getString(data_lang_key_invalidNetworkJson );
     }
+    public String getInvalidNetworkJsonByErrors() throws JSONException{
+        return getErrors().getString(data_lang_key_invalidNetworkJson );
+    }
     public String getInvalidApiResponse() throws JSONException{
         return getLangValues().getString(data_lang_key_invalidApiResponse );
     }
@@ -1004,6 +1008,9 @@ public class JsonInteract {
     }
     public String getUnexpectedError() throws JSONException{
         return getLangValues().getString(data_lang_key_unexpectedError );
+    }
+    public String getWalletPasswordNotSetByErrors() throws JSONException{
+        return getErrors().getString(data_lang_key_walletPasswordNotSet);
     }
 
 

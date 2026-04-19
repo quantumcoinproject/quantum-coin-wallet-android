@@ -64,7 +64,7 @@
             android:layout_height="match_parent"
             android:layout_below="@id/linerLayout_home_offline"
             android:layout_above="@id/bottom_linear_layout_home_id"
-            android:background="@color/colorGainsboro"
+            android:background="@android:color/transparent"
             android:orientation="horizontal">
             <FrameLayout
                 android:id="@+id/frame_home_container_id"

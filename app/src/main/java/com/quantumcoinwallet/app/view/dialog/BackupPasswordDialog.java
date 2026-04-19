@@ -10,11 +10,11 @@ import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.quantumcoinwallet.app.R;
+import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 
 /**
@@ -165,10 +165,11 @@ public class BackupPasswordDialog {
 
         dialog.setOnShowListener(d -> {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String errTitle = safe(vm.getErrorTitleByLangValues(), "Error");
                 if (useCurrent.isChecked()) {
                     if (currentPassword == null || currentPassword.isEmpty()) {
-                        Toast.makeText(ctx, safe(vm.getEnterApasswordByLangValues(),
-                                "Enter a password"), Toast.LENGTH_SHORT).show();
+                        GlobalMethods.ShowErrorDialog(ctx, errTitle,
+                                safe(vm.getEnterApasswordByLangValues(), "Enter a password"));
                         return;
                     }
                     dialog.dismiss();
@@ -178,18 +179,21 @@ public class BackupPasswordDialog {
                 String p = pwd.getText() == null ? "" : pwd.getText().toString();
                 String c = confirm.getText() == null ? "" : confirm.getText().toString();
                 if (p.length() < 12) {
-                    Toast.makeText(ctx, safe(vm.getPasswordSpecByErrors(),
-                            "Password must be at least 12 characters"), Toast.LENGTH_LONG).show();
+                    GlobalMethods.ShowErrorDialog(ctx, errTitle,
+                            safe(vm.getPasswordSpecByErrors(),
+                                    "Password must be at least 12 characters"));
                     return;
                 }
                 if (!p.equals(p.trim())) {
-                    Toast.makeText(ctx, safe(vm.getPasswordSpaceByErrors(),
-                            "Password cannot start or end with spaces"), Toast.LENGTH_LONG).show();
+                    GlobalMethods.ShowErrorDialog(ctx, errTitle,
+                            safe(vm.getPasswordSpaceByErrors(),
+                                    "Password cannot start or end with spaces"));
                     return;
                 }
                 if (!p.equals(c)) {
-                    Toast.makeText(ctx, safe(vm.getRetypePasswordMismatchByErrors(),
-                            "Passwords do not match"), Toast.LENGTH_LONG).show();
+                    GlobalMethods.ShowErrorDialog(ctx, errTitle,
+                            safe(vm.getRetypePasswordMismatchByErrors(),
+                                    "Passwords do not match"));
                     return;
                 }
                 dialog.dismiss();
@@ -274,8 +278,9 @@ public class BackupPasswordDialog {
             okButton.setOnClickListener(v -> {
                 String p = pwd.getText() == null ? "" : pwd.getText().toString();
                 if (p.isEmpty()) {
-                    Toast.makeText(ctx, safe(vm.getEnterApasswordByLangValues(),
-                            "Enter a password"), Toast.LENGTH_SHORT).show();
+                    GlobalMethods.ShowErrorDialog(ctx,
+                            safe(vm.getErrorTitleByLangValues(), "Error"),
+                            safe(vm.getEnterApasswordByLangValues(), "Enter a password"));
                     return;
                 }
                 okButton.setEnabled(false);

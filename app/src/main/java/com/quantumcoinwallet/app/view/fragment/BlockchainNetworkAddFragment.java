@@ -94,8 +94,20 @@ public class BlockchainNetworkAddFragment extends Fragment  {
             blockchainNetworkAddNetworkButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     progressBar.setVisibility(View.VISIBLE);
+                    JSONObject obj;
                     try {
-                        JSONObject obj = new JSONObject(blockchainNetworkAddNetworkEditText.getText().toString());
+                        obj = new JSONObject(blockchainNetworkAddNetworkEditText.getText().toString());
+                    } catch (org.json.JSONException je) {
+                        progressBar.setVisibility(View.GONE);
+                        String invalidMsg = jsonViewModel.getInvalidNetworkJsonByErrors();
+                        if (invalidMsg == null || invalidMsg.isEmpty()) {
+                            invalidMsg = "The JSON is invalid.";
+                        }
+                        GlobalMethods.ShowErrorDialog(getContext(),
+                                jsonViewModel.getErrorTitleByLangValues(), invalidMsg);
+                        return;
+                    }
+                    try {
                         String scanApiDomain = (String) obj.get("scanApiDomain");
                         String rpcEndpoint = (String) obj.get("rpcEndpoint");
                         String blockExplorerDomain = (String) obj.get("blockExplorerDomain");
@@ -103,8 +115,9 @@ public class BlockchainNetworkAddFragment extends Fragment  {
                         String networkId = String.valueOf(obj.get("networkId"));
 
                         if (!rpcEndpoint.startsWith("http://") && !rpcEndpoint.startsWith("https://")) {
-                            Toast.makeText(getContext(), "RPC Endpoint must start with http:// or https://",
-                                    Toast.LENGTH_SHORT).show();
+                            GlobalMethods.ShowErrorDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(),
+                                    "RPC Endpoint must start with http:// or https://");
                             progressBar.setVisibility(View.GONE);
                             return;
                         }

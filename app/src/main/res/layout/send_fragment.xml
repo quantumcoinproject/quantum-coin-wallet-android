@@ -107,6 +107,32 @@
                             android:textSize="14dp"
                             android:textColor="@color/colorCommon6" />
 
+                        <TextView
+                            android:id="@+id/textView_send_asset_label"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textStyle="bold"
+                            android:textSize="16dp" />
+
+                        <Spinner
+                            android:id="@+id/spinner_send_asset"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:layout_marginBottom="4dp"
+                            android:minHeight="44dp"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="32dp"
+                            android:background="@drawable/spinner_dropdown_background" />
+
+                        <TextView
+                            android:id="@+id/textView_send_asset_selected"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="10dp"
+                            android:textSize="12dp"
+                            android:textColor="@color/colorCommon10" />
+
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -158,32 +184,6 @@
                             </LinearLayout>
 
                         </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/textView_send_asset_label"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:textStyle="bold"
-                            android:textSize="16dp" />
-
-                        <Spinner
-                            android:id="@+id/spinner_send_asset"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:layout_marginBottom="4dp"
-                            android:minHeight="44dp"
-                            android:paddingStart="10dp"
-                            android:paddingEnd="32dp"
-                            android:background="@drawable/spinner_dropdown_background" />
-
-                        <TextView
-                            android:id="@+id/textView_send_asset_selected"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="10dp"
-                            android:textSize="12dp"
-                            android:textColor="@color/colorCommon10" />
 
                         <TextView
                             android:id="@+id/textView_send_address_to_send"

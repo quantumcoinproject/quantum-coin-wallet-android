@@ -300,6 +300,11 @@ public class SendFragment extends Fragment  {
                             R.layout.unlock_dialog_fragment).create();
             dialog.dismiss();
             dialog.setCancelable(false);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(
+                                android.graphics.Color.TRANSPARENT));
+            }
             dialog.show();
 
             TextView unlockWalletTextView = (TextView) dialog.findViewById(R.id.textView_unlock_langValues_unlock_wallet);
@@ -328,7 +333,7 @@ public class SendFragment extends Fragment  {
                     closeButton.setEnabled(false);
                     passwordEditText.setEnabled(false);
 
-                    final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                    final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                             .show(getContext(), jsonViewModel.getWaitUnlockByLangValues());
                     new Thread(new Runnable() {
                         @Override
@@ -347,13 +352,15 @@ public class SendFragment extends Fragment  {
                                 public void run() {
                                     try { if (waitDlg != null) waitDlg.dismiss(); } catch (Throwable ignore) { }
                                     if (!unlocked) {
-                                        try { dialog.dismiss(); } catch (Throwable ignore) { }
-                                        sendButtonStatus = 0;
-                                        android.app.Activity act = getActivity();
-                                        if (act instanceof com.quantumcoinwallet.app.view.activities.HomeActivity) {
-                                            ((com.quantumcoinwallet.app.view.activities.HomeActivity) act).forceUnlockPrompt();
-                                        } else {
-                                            messageDialogFragment(languageKey,
+                                        unlockButton.setEnabled(true);
+                                        closeButton.setEnabled(true);
+                                        passwordEditText.setEnabled(true);
+                                        passwordEditText.setText("");
+                                        passwordEditText.requestFocus();
+                                        android.content.Context ctx = getContext();
+                                        if (ctx != null) {
+                                            GlobalMethods.ShowErrorDialog(ctx,
+                                                    jsonViewModel.getErrorTitleByLangValues(),
                                                     jsonViewModel.getWalletPasswordMismatchByErrors());
                                         }
                                         return;

@@ -294,6 +294,7 @@
       "quantumAddr": "Please enter a valid address.",
       "noMoreTxns": "There are no transactions to show.",
       "internetDisconnected": "The server might be busy or your internet connection may be having problems. Please check your internet connection and try again after a few minutes.",
-      "unexpectedError":  "An unexpected error occurred."
+      "unexpectedError":  "An unexpected error occurred.",
+      "wallet-password-not-set": "Wallet password is not set."
     }
 }

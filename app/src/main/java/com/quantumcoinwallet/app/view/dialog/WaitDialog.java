@@ -1,11 +1,14 @@
 package com.quantumcoinwallet.app.view.dialog;
 
-import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AlertDialog;
 
 import com.quantumcoinwallet.app.R;
 
@@ -27,6 +30,7 @@ public final class WaitDialog {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(pad, pad, pad, pad);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackgroundResource(R.drawable.center_container);
 
         ProgressBar pb = new ProgressBar(ctx);
         LinearLayout.LayoutParams lpPb =
@@ -49,6 +53,9 @@ public final class WaitDialog {
                 .setView(row)
                 .setCancelable(false)
                 .create();
+        if (dlg.getWindow() != null) {
+            dlg.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
         dlg.show();
         return dlg;
     }

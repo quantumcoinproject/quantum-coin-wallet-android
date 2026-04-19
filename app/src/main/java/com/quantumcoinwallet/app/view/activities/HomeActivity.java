@@ -355,20 +355,24 @@ public class HomeActivity extends FragmentActivity implements
     }
 
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            onBackPressed();
-            return true;
-        }
-        return super.onKeyDown(keyCode, event);
-    }
-
-    @Override
     public void onBackPressed() {
+        if (unlockDialogShowing) {
+            return;
+        }
+        Fragment current = getSupportFragmentManager().findFragmentById(R.id.frame_home_container_id);
+        if (current instanceof SettingsFragment
+                || current instanceof ReceiveFragment
+                || current instanceof SendFragment
+                || current instanceof AccountTransactionsFragment
+                || current instanceof RevealWalletFragment
+                || current instanceof BlockchainNetworkFragment
+                || current instanceof BlockchainNetworkAddFragment
+                || current instanceof WalletsFragment) {
+            screenViewType(0);
+            beginTransactionNow(HomeMainFragment.newInstance(), bundle);
+            return;
+        }
         super.onBackPressed();
-        Intent intent = getIntent();
-        finish();
-        startActivity(intent);
     }
 
     @Override
@@ -500,13 +504,13 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void  onWalletsCompleteByBackArrow(){
         screenViewType(0);
-        beginTransaction(HomeMainFragment.newInstance(), bundle);
+        beginTransactionNow(HomeMainFragment.newInstance(), bundle);
     }
 
     @Override
     public void  onWalletsCompleteByCreateOrRestore(){
         screenViewType(1);
-        beginTransaction(HomeWalletFragment.newInstance(), bundle);
+        beginTransactionNow(HomeWalletFragment.newInstance(), bundle);
     }
 
     @Override
@@ -608,6 +612,11 @@ public class HomeActivity extends FragmentActivity implements
                     }
                 });
             }
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(
+                                android.graphics.Color.TRANSPARENT));
+            }
             dialog.show();
 
             TextView unlockWalletTextView = (TextView) dialog.findViewById(
@@ -645,7 +654,7 @@ public class HomeActivity extends FragmentActivity implements
                     unlockButton.setText("...");
 
                     final String trimmedPassword = password.trim();
-                    final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                    final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                             .show(HomeActivity.this, jsonViewModel.getWaitUnlockByLangValues());
                     new Thread(new Runnable() {
                         public void run() {
@@ -737,6 +746,11 @@ public class HomeActivity extends FragmentActivity implements
                     .setView((int) R.layout.unlock_dialog_fragment)
                     .create();
             dialog.setCancelable(false);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(
+                                android.graphics.Color.TRANSPARENT));
+            }
             dialog.show();
 
             TextView unlockWalletTextView = (TextView) dialog.findViewById(
@@ -775,7 +789,7 @@ public class HomeActivity extends FragmentActivity implements
                     passwordEditText.setEnabled(false);
                     unlockButton.setText("...");
 
-                    final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                    final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                             .show(HomeActivity.this, jsonViewModel.getWaitUnlockByLangValues());
 
                     new Thread(new Runnable() {
