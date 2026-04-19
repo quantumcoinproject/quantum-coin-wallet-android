@@ -13,6 +13,8 @@ public interface IKeyService {
     void computeAddress(String pubKeyBase64, BridgeCallback callback);
     void initializeOffline(BridgeCallback callback);
     void initialize(int chainId, String rpcEndpoint, BridgeCallback callback);
+    void getAllSeedWords(BridgeCallback callback);
+    void doesSeedWordExist(String word, BridgeCallback callback);
 
     // Blocking variants for background thread use
     String createRandomSeedBlocking(int keyType);
@@ -25,4 +27,6 @@ public interface IKeyService {
     String computeAddressBlocking(String pubKeyBase64);
     String initializeOfflineBlocking();
     String initializeBlocking(int chainId, String rpcEndpoint);
+    String getAllSeedWordsBlocking();
+    String doesSeedWordExistBlocking(String word);
 }

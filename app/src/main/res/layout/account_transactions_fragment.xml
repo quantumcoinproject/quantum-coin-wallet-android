@@ -138,6 +138,27 @@
                                     android:paddingBottom="50dp"
                                     android:clipToPadding="false"/>
 
+                                <LinearLayout
+                                    android:id="@+id/linear_layout_account_transactions_empty"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:orientation="vertical"
+                                    android:paddingTop="40dp"
+                                    android:paddingBottom="40dp"
+                                    android:visibility="gone">
+
+                                    <TextView
+                                        android:id="@+id/textView_account_transactions_empty"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:gravity="center"
+                                        android:textSize="14dp"
+                                        android:alpha="0.6"
+                                        android:textColor="@color/colorCommon6" />
+
+                                </LinearLayout>
+
                         </LinearLayout>
 
                         <LinearLayout

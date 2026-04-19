@@ -177,6 +177,21 @@ public class QuantumCoinJSBridge {
         evaluateOnMainThread(jsCall);
     }
 
+    public void getAllSeedWordsAsync(BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.getAllSeedWords('" + requestId + "')";
+        evaluateOnMainThread(jsCall);
+    }
+
+    public void doesSeedWordExistAsync(String word, BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.doesSeedWordExist('" + requestId + "', '"
+                + escapeForJs(word) + "')";
+        evaluateOnMainThread(jsCall);
+    }
+
     public void scryptDeriveAsync(String password, String saltBase64,
                                   int N, int r, int p, int keyLen,
                                   BridgeCallback callback) {
@@ -261,6 +276,14 @@ public class QuantumCoinJSBridge {
     public String scryptDerive(String password, String saltBase64,
                                int N, int r, int p, int keyLen) {
         return blockingCall(cb -> scryptDeriveAsync(password, saltBase64, N, r, p, keyLen, cb));
+    }
+
+    public String getAllSeedWords() {
+        return blockingCall(this::getAllSeedWordsAsync);
+    }
+
+    public String doesSeedWordExist(String word) {
+        return blockingCall(cb -> doesSeedWordExistAsync(word, cb));
     }
 
     public String encryptWalletJson(String walletInputJson, String password) {

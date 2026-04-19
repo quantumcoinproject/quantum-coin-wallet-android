@@ -1284,6 +1284,36 @@ public class JsonViewModel extends ViewModel{
     public String getRestoreFromFileByLangValues() {
         try { return _jsonInteract.getRestoreFromFileByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
     }
+    public String getBackupToCloudByLangValues() {
+        try { return _jsonInteract.getBackupToCloudByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupToFileByLangValues() {
+        try { return _jsonInteract.getBackupToFileByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupDoneByLangValues() {
+        try { return _jsonInteract.getBackupDoneByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupSavedShortByLangValues() {
+        try { return _jsonInteract.getBackupSavedShortByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupOptionsTitleByLangValues() {
+        try { return _jsonInteract.getBackupOptionsTitleByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getBackupOptionsDescriptionByLangValues() {
+        try { return _jsonInteract.getBackupOptionsDescriptionByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getEnterBackupPasswordTitleByLangValues() {
+        try { return _jsonInteract.getEnterBackupPasswordTitleByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getWalletAlreadyExistsDetailedByLangValues() {
+        try { return _jsonInteract.getWalletAlreadyExistsDetailedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getConfirmPasswordByLangValues() {
+        try { return _jsonInteract.getConfirmPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
+    public String getNoTransactionsByLangValues() {
+        try { return _jsonInteract.getNoTransactionsByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+    }
     public String getRestoreEnterPasswordByLangValues() {
         try { return _jsonInteract.getRestoreEnterPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
     }

@@ -172,7 +172,10 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:layout_marginBottom="4dp"
-                            android:background="@drawable/text_input_selector" />
+                            android:minHeight="44dp"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="32dp"
+                            android:background="@drawable/spinner_dropdown_background" />
 
                         <TextView
                             android:id="@+id/textView_send_asset_selected"

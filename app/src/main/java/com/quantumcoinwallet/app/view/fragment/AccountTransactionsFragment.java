@@ -57,6 +57,9 @@ public class AccountTransactionsFragment extends Fragment  {
     private ImageView imageViewRetry;
     private TextView textViewTitleRetry;
     private TextView textViewSubTitleRetry;
+    private LinearLayout linearLayoutEmpty;
+    private TextView textViewEmpty;
+    private JsonViewModel jsonViewModel;
 
     private OnAccountTransactionsCompleteListener mAccountTransactionsListener;
 
@@ -90,7 +93,7 @@ public class AccountTransactionsFragment extends Fragment  {
         String languageKey = getArguments().getString("languageKey");
         String walletAddress = getArguments().getString("walletAddress");
 
-        JsonViewModel jsonViewModel = new JsonViewModel(getContext(), languageKey);
+        jsonViewModel = new JsonViewModel(getContext(), languageKey);
 
         ImageButton backArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_account_transactions_back_arrow);
 
@@ -118,6 +121,11 @@ public class AccountTransactionsFragment extends Fragment  {
         textViewTitleRetry = (TextView) getView().findViewById(R.id.textview_title_retry);
         textViewSubTitleRetry = (TextView) getView().findViewById(R.id.textview_subtitle_retry);
         Button buttonRetry = (Button) getView().findViewById(R.id.button_retry);
+        linearLayoutEmpty = (LinearLayout) getView().findViewById(R.id.linear_layout_account_transactions_empty);
+        textViewEmpty = (TextView) getView().findViewById(R.id.textView_account_transactions_empty);
+        if (textViewEmpty != null) {
+            textViewEmpty.setText(jsonViewModel.getNoTransactionsByLangValues());
+        }
 
         accountTransactionCompletedToggleButton.setText(jsonViewModel.getCompletedTransactionsByLangValues());
         accountTransactionPendingToggleButton.setText(jsonViewModel.getPendingTransactionsByLangValues());
@@ -285,6 +293,24 @@ public class AccountTransactionsFragment extends Fragment  {
         public abstract void onAccountTransactionsComplete();
     }
 
+    private void showEmptyState() {
+        if (linearLayoutEmpty != null) {
+            linearLayoutEmpty.setVisibility(View.VISIBLE);
+        }
+        if (recycler != null) {
+            recycler.setVisibility(View.GONE);
+        }
+    }
+
+    private void hideEmptyState() {
+        if (linearLayoutEmpty != null) {
+            linearLayoutEmpty.setVisibility(View.GONE);
+        }
+        if (recycler != null) {
+            recycler.setVisibility(View.VISIBLE);
+        }
+    }
+
     public void onAttach(Context context) {
         super.onAttach(context);
         try {
@@ -314,14 +340,21 @@ public class AccountTransactionsFragment extends Fragment  {
                 recycler.removeAllViewsInLayout();
                 accountTransactionSummaries.clear();
 
+                hideEmptyState();
                 AccountTxnRestTask task = new AccountTxnRestTask(
                         context, new AccountTxnRestTask.TaskListener() {
                     @Override
                     public void onFinished(AccountTransactionSummaryResponse accountTransactionSummaryResponse) {
-                        if (accountTransactionSummaryResponse != null && accountTransactionSummaryResponse.getResult().size() > 0) {
+                        boolean hasResults = accountTransactionSummaryResponse != null
+                                && accountTransactionSummaryResponse.getResult() != null
+                                && accountTransactionSummaryResponse.getResult().size() > 0;
+                        if (hasResults) {
                             pageCount = accountTransactionSummaryResponse.getPageCount();
                             accountTransactionSummaries.addAll(accountTransactionSummaryResponse.getResult());
                             accountTransactionAdapter.notifyDataSetChanged();
+                            hideEmptyState();
+                        } else {
+                            showEmptyState();
                         }
                         progressBar.setVisibility(View.GONE);
                     }
@@ -330,6 +363,12 @@ public class AccountTransactionsFragment extends Fragment  {
                     public void onFailure(com.quantumcoinwallet.app.api.read.ApiException e) {
                         progressBar.setVisibility(View.GONE);
                         int code = e.getCode();
+                        if (code == 404 || code == 204) {
+                            accountTransactionSummaries.clear();
+                            accountTransactionAdapter.notifyDataSetChanged();
+                            showEmptyState();
+                            return;
+                        }
                         boolean check = GlobalMethods.ApiExceptionSourceCodeBoolean(code);
                         if(check == true) {
                             GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
@@ -343,7 +382,12 @@ public class AccountTransactionsFragment extends Fragment  {
                     }
                 });
 
-                task.execute(taskParams);
+                try {
+                    task.execute(taskParams);
+                } catch (Exception ex) {
+                    progressBar.setVisibility(View.GONE);
+                    GlobalMethods.ExceptionError(getContext(), TAG, ex);
+                }
             } else {
                 GlobalMethods.OfflineOrExceptionError(getContext(),
                         linerLayoutOffline, imageViewRetry, textViewTitleRetry,
@@ -374,14 +418,21 @@ public class AccountTransactionsFragment extends Fragment  {
                 recycler.removeAllViewsInLayout();
                 accountPendingTransactionSummaries.clear();
 
+                hideEmptyState();
                 AccountPendingTxnRestTask task = new AccountPendingTxnRestTask(
                         context, new AccountPendingTxnRestTask.TaskListener() {
                     @Override
                     public void onFinished(AccountPendingTransactionSummaryResponse accountPendingTransactionSummaryResponse) {
-                        if (accountPendingTransactionSummaryResponse != null && accountPendingTransactionSummaryResponse.getResult().size()>0) {
+                        boolean hasResults = accountPendingTransactionSummaryResponse != null
+                                && accountPendingTransactionSummaryResponse.getResult() != null
+                                && accountPendingTransactionSummaryResponse.getResult().size() > 0;
+                        if (hasResults) {
                             pageCount = accountPendingTransactionSummaryResponse.getPageCount();
                             accountPendingTransactionSummaries.addAll(accountPendingTransactionSummaryResponse.getResult());
                             accountPendingTransactionAdapter.notifyDataSetChanged();
+                            hideEmptyState();
+                        } else {
+                            showEmptyState();
                         }
                         progressBar.setVisibility(View.GONE);
                     }
@@ -390,6 +441,12 @@ public class AccountTransactionsFragment extends Fragment  {
                     public void onFailure(com.quantumcoinwallet.app.api.read.ApiException e) {
                         progressBar.setVisibility(View.GONE);
                         int code = e.getCode();
+                        if (code == 404 || code == 204) {
+                            accountPendingTransactionSummaries.clear();
+                            accountPendingTransactionAdapter.notifyDataSetChanged();
+                            showEmptyState();
+                            return;
+                        }
                         boolean check = GlobalMethods.ApiExceptionSourceCodeBoolean(code);
                         if(check == true) {
                             GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
@@ -403,7 +460,12 @@ public class AccountTransactionsFragment extends Fragment  {
                     }
                 });
 
-                task.execute(taskParams);
+                try {
+                    task.execute(taskParams);
+                } catch (Exception ex) {
+                    progressBar.setVisibility(View.GONE);
+                    GlobalMethods.ExceptionError(getContext(), TAG, ex);
+                }
             } else {
                 GlobalMethods.OfflineOrExceptionError(getContext(),
                         linerLayoutOffline, imageViewRetry, textViewTitleRetry,

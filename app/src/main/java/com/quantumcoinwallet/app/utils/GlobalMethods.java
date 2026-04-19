@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.CountDownTimer;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
@@ -19,7 +20,6 @@ import androidx.annotation.RawRes;
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.model.AccountTokenSummary;
 import com.quantumcoinwallet.app.model.BlockchainNetwork;
-import com.quantumcoinwallet.app.seedwords.SeedWords;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Scanner;
@@ -84,8 +85,12 @@ public class GlobalMethods {
     //String Values to be Used in App
     public static final String downloadDirectory = "quantumcoinWallet";
 
-    public static SeedWords seedWords;
-    public static boolean seedLoaded = false;
+    // Wordlist cache fetched once at startup via the seed-words SDK WebView bridge.
+    // ALL_SEED_WORDS powers the autocomplete adapter; SEED_WORD_SET supports O(1)
+    // per-word validation without crossing the bridge for every keystroke.
+    public static volatile ArrayList<String> ALL_SEED_WORDS = new ArrayList<>();
+    public static volatile HashSet<String> SEED_WORD_SET = new HashSet<>();
+    public static volatile boolean seedLoaded = false;
 
     public static String LocaleLanguage(Context context, String languageKey){
         if (languageKey.equals("en")) {
@@ -260,7 +265,19 @@ public class GlobalMethods {
     }
 
 
-    public static void ShowToast(Context context, String message) {
+    public static void ShowToast(final Context context, final String message) {
+        if (context == null) {
+            return;
+        }
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            new android.os.Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    ShowToast(context, message);
+                }
+            });
+            return;
+        }
         // Set the toast and duration
         int toastDurationInMilliSeconds = 600;
         toast = Toast.makeText(context.getApplicationContext(), message, Toast.LENGTH_LONG);

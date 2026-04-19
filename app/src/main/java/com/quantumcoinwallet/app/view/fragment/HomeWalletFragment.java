@@ -77,7 +77,16 @@ public class HomeWalletFragment extends Fragment {
     private String walletIndexKey = "0";
     private OnHomeWalletCompleteListener mHomeWalletListener;
     private ActivityResultLauncher<Intent> cloudFolderPickerLauncher;
+    private ActivityResultLauncher<Intent> fileBackupLauncher;
+    private ActivityResultLauncher<Intent> restoreFilePickerLauncher;
+    private ActivityResultLauncher<Intent> restoreCloudFolderPickerLauncher;
     private Runnable pendingCloudContinuation;
+    private JSONObject pendingBackupWalletJson;
+    private String pendingBackupEncryptedJson;
+    private String pendingBackupAddress;
+    private LinearLayout backupOptionsLinearLayout;
+    private TextView backupCloudStatusTextView;
+    private TextView backupFileStatusTextView;
 
     public static HomeWalletFragment newInstance() {
         HomeWalletFragment fragment = new HomeWalletFragment();
@@ -91,11 +100,47 @@ public class HomeWalletFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        initFileBackupLauncher();
+        restoreFilePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                new ActivityResultCallback<ActivityResult>() {
+                    @Override
+                    public void onActivityResult(ActivityResult result) {
+                        markActivityUnlocked();
+                        if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK
+                                || result.getData() == null || result.getData().getData() == null) {
+                            return;
+                        }
+                        handleRestoreFromUri(result.getData().getData());
+                    }
+                });
+        restoreCloudFolderPickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                new ActivityResultCallback<ActivityResult>() {
+                    @Override
+                    public void onActivityResult(ActivityResult result) {
+                        markActivityUnlocked();
+                        if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK
+                                || result.getData() == null || result.getData().getData() == null) {
+                            return;
+                        }
+                        Uri treeUri = result.getData().getData();
+                        try {
+                            int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+                            getContext().getContentResolver().takePersistableUriPermission(treeUri, takeFlags);
+                        } catch (Exception ignore) { }
+                        PrefConnect.writeString(getContext(),
+                                PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, treeUri.toString());
+                        showRestoreCloudFilePicker(treeUri);
+                    }
+                });
         cloudFolderPickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 new ActivityResultCallback<ActivityResult>() {
                     @Override
                     public void onActivityResult(ActivityResult result) {
+                        markActivityUnlocked();
                         Runnable continuation = pendingCloudContinuation;
                         pendingCloudContinuation = null;
                         try {
@@ -110,17 +155,84 @@ public class HomeWalletFragment extends Fragment {
                                 } catch (Exception ignore) { }
                                 PrefConnect.writeString(getContext(),
                                         PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, treeUri.toString());
-                                PrefConnect.writeBoolean(getContext(),
-                                        PrefConnect.CLOUD_BACKUP_ENABLED_KEY, true);
-                            } else {
-                                PrefConnect.writeBoolean(getContext(),
-                                        PrefConnect.CLOUD_BACKUP_ENABLED_KEY, false);
                             }
                         } finally {
                             if (continuation != null) continuation.run();
                         }
                     }
                 });
+    }
+
+    private void initFileBackupLauncher() {
+        if (fileBackupLauncher != null) return;
+        fileBackupLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                new ActivityResultCallback<ActivityResult>() {
+                    @Override
+                    public void onActivityResult(ActivityResult result) {
+                        markActivityUnlocked();
+                        final String encrypted = pendingBackupEncryptedJson;
+                        pendingBackupEncryptedJson = null;
+                        pendingBackupAddress = null;
+                        if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK
+                                || result.getData() == null || result.getData().getData() == null
+                                || encrypted == null) {
+                            return;
+                        }
+                        final Uri uri = result.getData().getData();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                java.io.OutputStream os = null;
+                                try {
+                                    os = getContext().getContentResolver().openOutputStream(uri);
+                                    if (os == null) throw new IllegalStateException("openOutputStream returned null");
+                                    os.write(encrypted.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                                    os.flush();
+                                    getActivity().runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            flagFileBackupSaved();
+                                        }
+                                    });
+                                } catch (final Exception e) {
+                                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                                    getActivity().runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
+                                            String msg = tmpl != null
+                                                    ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
+                                                    : ("Backup failed: " + e.getMessage());
+                                            android.widget.Toast.makeText(getContext(), msg,
+                                                    android.widget.Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                                } finally {
+                                    if (os != null) { try { os.close(); } catch (Exception ignore) {} }
+                                }
+                            }
+                        }).start();
+                    }
+                });
+    }
+
+    private void markActivityUnlocked() {
+        try {
+            android.app.Activity act = getActivity();
+            if (act instanceof com.quantumcoinwallet.app.view.activities.HomeActivity) {
+                ((com.quantumcoinwallet.app.view.activities.HomeActivity) act).markUnlockedNow();
+            }
+        } catch (Exception ignore) { }
+    }
+
+    private void setSuppressNextResumeLock(boolean suppress) {
+        try {
+            android.app.Activity act = getActivity();
+            if (act instanceof com.quantumcoinwallet.app.view.activities.HomeActivity) {
+                ((com.quantumcoinwallet.app.view.activities.HomeActivity) act).setSuppressNextResumeLock(suppress);
+            }
+        } catch (Exception ignore) { }
     }
 
     @Override
@@ -163,6 +275,8 @@ public class HomeWalletFragment extends Fragment {
         RadioGroup homeCreateRestoreWalletRadioGroup = (RadioGroup) getView().findViewById(R.id.radioGroup_home_create_restore_wallet);
         RadioButton homeCreateRestoreWalletRadioButton_0 = (RadioButton) getView().findViewById(R.id.radioButton_home_create_restore_wallet_0);
         RadioButton homeCreateRestoreWalletRadioButton_1 = (RadioButton) getView().findViewById(R.id.radioButton_home_create_restore_wallet_1);
+        RadioButton homeCreateRestoreWalletRadioButton_2 = (RadioButton) getView().findViewById(R.id.radioButton_home_create_restore_wallet_2);
+        RadioButton homeCreateRestoreWalletRadioButton_3 = (RadioButton) getView().findViewById(R.id.radioButton_home_create_restore_wallet_3);
         Button homeCreateRestoreWalletNextButton = (Button) getView().findViewById(R.id.button_home_create_restore_wallet_next);
 
         LinearLayout homeWalletTypeLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_wallet_type);
@@ -246,7 +360,8 @@ public class HomeWalletFragment extends Fragment {
             homeSetWalletTopLinearLayout.setVisibility(View.VISIBLE);
             homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
             CreateRestoreWalletView(homeCreateRestoreWalletTitleTextView, homeCreateRestoreWalletDescriptionTextView, homeCreateRestoreWalletRadioButton_0,
-                    homeCreateRestoreWalletRadioButton_1, homeCreateRestoreWalletNextButton);
+                    homeCreateRestoreWalletRadioButton_1, homeCreateRestoreWalletRadioButton_2, homeCreateRestoreWalletRadioButton_3,
+                    homeCreateRestoreWalletNextButton);
         }
 
         homeSetWalletNextButton.setOnClickListener(new View.OnClickListener() {
@@ -258,7 +373,8 @@ public class HomeWalletFragment extends Fragment {
                         homeSetWalletTopLinearLayout.setVisibility(View.VISIBLE);
                         homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
                         CreateRestoreWalletView(homeCreateRestoreWalletTitleTextView, homeCreateRestoreWalletDescriptionTextView, homeCreateRestoreWalletRadioButton_0,
-                                homeCreateRestoreWalletRadioButton_1, homeCreateRestoreWalletNextButton);
+                                homeCreateRestoreWalletRadioButton_1, homeCreateRestoreWalletRadioButton_2, homeCreateRestoreWalletRadioButton_3,
+                                homeCreateRestoreWalletNextButton);
                         return;
                     }
                     message = jsonViewModel.getRetypePasswordMismatchByErrors();
@@ -277,6 +393,12 @@ public class HomeWalletFragment extends Fragment {
 
         homeWalletBackArrowImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                    View backupOptions = getView() != null
+                            ? getView().findViewById(R.id.linear_layout_home_backup_options) : null;
+                    if (backupOptions != null && backupOptions.getVisibility() == View.VISIBLE) {
+                        finishBackupAndNavigateToHome();
+                        return;
+                    }
                     if (homeCreateRestoreWalletLinearLayout.getVisibility()==View.VISIBLE) {
                         if (walletPassword==null || walletPassword.isEmpty()) {
                             homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
@@ -346,6 +468,10 @@ public class HomeWalletFragment extends Fragment {
                         }
                     };
                     showBackupPromptIfNeeded(proceed);
+                } else if (homeCreateRestoreWalletRadioButton_2.isChecked() == true) {
+                    startRestoreFromFileFlow();
+                } else if (homeCreateRestoreWalletRadioButton_3.isChecked() == true) {
+                    startRestoreFromCloudFlow();
                 } else {
                     String message = jsonViewModel.getSelectOptionByErrors();
                     Bundle bundleRoute = new Bundle();
@@ -428,7 +554,7 @@ public class HomeWalletFragment extends Fragment {
                             getActivity().runOnUiThread(new Runnable() {
                                 public void run() {
                                     if (GlobalMethods.seedLoaded) {
-                                        ArrayList<String> seedWordsList = GlobalMethods.seedWords.getAllSeedWords();
+                                        ArrayList<String> seedWordsList = GlobalMethods.ALL_SEED_WORDS;
                                         homeSeedWordsAutoCompleteNextButton.setVisibility(View.VISIBLE);
                                         homeSeedWordsViewAutoCompleteTextViews[autoCompleteCurrentIndex].requestFocus();
                                         seedWordAutoCompleteAdapter = new SeedWordAutoCompleteAdapter(getContext(), android.R.layout.simple_dropdown_item_1line,
@@ -535,7 +661,7 @@ public class HomeWalletFragment extends Fragment {
 
                 homeSeedWordsViewAutoCompleteTextViews[autoCompleteCurrentIndex].requestFocus();
 
-                ArrayList<String> seedWordsList = GlobalMethods.seedWords.getAllSeedWords();
+                ArrayList<String> seedWordsList = GlobalMethods.ALL_SEED_WORDS;
                 seedWordAutoCompleteAdapter = new SeedWordAutoCompleteAdapter(getContext(), android.R.layout.simple_dropdown_item_1line,
                         android.R.id.text1, seedWordsList);
             }
@@ -575,7 +701,7 @@ public class HomeWalletFragment extends Fragment {
                             actv.requestFocus();
                             return;
                         }
-                        if (!GlobalMethods.seedWords.doesSeedWordExist(actv.getText().toString())) {
+                        if (!GlobalMethods.SEED_WORD_SET.contains(actv.getText().toString().toLowerCase())) {
                             actv.setText("");
                             return;
                         }
@@ -661,6 +787,7 @@ public class HomeWalletFragment extends Fragment {
 
     private void CreateRestoreWalletView(TextView createRestoreWalletTitleTextView, TextView createRestoreWalletDescriptionTextView,
                                          RadioButton createRestoreWalletRadioButton_0, RadioButton createRestoreWalletRadioButton_1,
+                                         RadioButton createRestoreWalletRadioButton_2, RadioButton createRestoreWalletRadioButton_3,
                                          Button createRestoreWalletNextButton) {
 
         createRestoreWalletTitleTextView.setText(jsonViewModel.getCreateRestoreWalletByLangValues());
@@ -668,9 +795,13 @@ public class HomeWalletFragment extends Fragment {
 
         createRestoreWalletRadioButton_0.setText(jsonViewModel.getCreateNewWalletByLangValues());
         createRestoreWalletRadioButton_1.setText(jsonViewModel.getRestoreWalletFromSeedByLangValues());
+        createRestoreWalletRadioButton_2.setText(jsonViewModel.getRestoreFromFileByLangValues());
+        createRestoreWalletRadioButton_3.setText(jsonViewModel.getRestoreFromCloudByLangValues());
 
         createRestoreWalletRadioButton_0.setTag(0);
         createRestoreWalletRadioButton_1.setTag(1);
+        createRestoreWalletRadioButton_2.setTag(2);
+        createRestoreWalletRadioButton_3.setTag(3);
 
         createRestoreWalletNextButton.setText(jsonViewModel.getNextByLangValues());
     }
@@ -908,6 +1039,8 @@ public class HomeWalletFragment extends Fragment {
             GlobalMethods.ShowErrorDialog(getContext(), "Error", "Wallet password is not set.");
             return;
         }
+        final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                .show(getContext(), jsonViewModel.getWaitWalletSaveByLangValues());
         new Thread(new Runnable() {
             public void run() {
                 try {
@@ -930,6 +1063,18 @@ public class HomeWalletFragment extends Fragment {
                         address = data.getString("address");
                         privateKeyBase64 = data.getString("privateKey");
                         publicKeyBase64 = data.getString("publicKey");
+                    }
+                    if (PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP != null
+                            && PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.containsKey(address)) {
+                        final String existingAddress = address;
+                        getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                                progressBar.setVisibility(View.GONE);
+                                showDuplicateWalletDialog(existingAddress);
+                            }
+                        });
+                        return;
                     }
                     String seedWordsJoined = android.text.TextUtils.join(",", seedWords);
 
@@ -960,13 +1105,13 @@ public class HomeWalletFragment extends Fragment {
                             PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + walletIndexKey, true);
                     PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(walletIndexKey, true);
 
-                    com.quantumcoinwallet.app.backup.CloudBackupManager
-                            .autoBackupToCloudIfEnabled(getContext(), walletJson, walletPassword);
+                    pendingBackupWalletJson = walletJson;
 
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
+                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                             progressBar.setVisibility(View.GONE);
-                            mHomeWalletListener.onHomeWalletCompleteByHomeMain(walletIndexKey);
+                            showBackupOptionsScreen();
                         }
                     });
                 } catch (Exception e) {
@@ -974,6 +1119,7 @@ public class HomeWalletFragment extends Fragment {
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(new Runnable() {
                             public void run() {
+                                if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                                 progressBar.setVisibility(View.GONE);
                                 GlobalMethods.ShowErrorDialog(getContext(), "Error", errorMsg);
                             }
@@ -985,17 +1131,10 @@ public class HomeWalletFragment extends Fragment {
     }
 
     private void showBackupPromptIfNeeded(final Runnable onComplete) {
-        Runnable cloudStep = new Runnable() {
-            @Override
-            public void run() {
-                showCloudBackupPromptIfNeeded(onComplete);
-            }
-        };
-
         boolean alreadyPrompted = getContext().getSharedPreferences(
                 PrefConnect.PREF_NAME, Context.MODE_PRIVATE).contains(PrefConnect.BACKUP_ENABLED_KEY);
         if (alreadyPrompted) {
-            cloudStep.run();
+            onComplete.run();
             return;
         }
 
@@ -1008,44 +1147,13 @@ public class HomeWalletFragment extends Fragment {
             public void onClick(DialogInterface dialog, int which) {
                 PrefConnect.writeBoolean(getContext(), PrefConnect.BACKUP_ENABLED_KEY, true);
                 dialog.dismiss();
-                cloudStep.run();
+                onComplete.run();
             }
         });
         builder.setNegativeButton(jsonViewModel.getNoByLangValues(), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 PrefConnect.writeBoolean(getContext(), PrefConnect.BACKUP_ENABLED_KEY, false);
-                dialog.dismiss();
-                cloudStep.run();
-            }
-        });
-        builder.show();
-    }
-
-    private void showCloudBackupPromptIfNeeded(final Runnable onComplete) {
-        boolean alreadyPrompted = getContext().getSharedPreferences(
-                PrefConnect.PREF_NAME, Context.MODE_PRIVATE).contains(PrefConnect.CLOUD_BACKUP_ENABLED_KEY);
-        if (alreadyPrompted) {
-            onComplete.run();
-            return;
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle(jsonViewModel.getCloudBackupByLangValues());
-        builder.setMessage(jsonViewModel.getCloudBackupPromptByLangValues());
-        builder.setCancelable(false);
-        builder.setPositiveButton(jsonViewModel.getYesByLangValues(), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                pendingCloudContinuation = onComplete;
-                launchFolderPicker();
-            }
-        });
-        builder.setNegativeButton(jsonViewModel.getNoByLangValues(), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                PrefConnect.writeBoolean(getContext(), PrefConnect.CLOUD_BACKUP_ENABLED_KEY, false);
                 dialog.dismiss();
                 onComplete.run();
             }
@@ -1055,16 +1163,261 @@ public class HomeWalletFragment extends Fragment {
 
     private void launchFolderPicker() {
         try {
+            setSuppressNextResumeLock(true);
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                     | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             cloudFolderPickerLauncher.launch(intent);
         } catch (Exception e) {
-            PrefConnect.writeBoolean(getContext(), PrefConnect.CLOUD_BACKUP_ENABLED_KEY, false);
+            setSuppressNextResumeLock(false);
             Runnable continuation = pendingCloudContinuation;
             pendingCloudContinuation = null;
             if (continuation != null) continuation.run();
+        }
+    }
+
+    private void showBackupOptionsScreen() {
+        if (getView() == null) return;
+        hideAllHomeWalletLayouts();
+        if (backupOptionsLinearLayout == null) {
+            backupOptionsLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_backup_options);
+            backupCloudStatusTextView = (TextView) getView().findViewById(R.id.textView_home_backup_cloud_status);
+            backupFileStatusTextView = (TextView) getView().findViewById(R.id.textView_home_backup_file_status);
+        }
+        if (backupOptionsLinearLayout == null) return;
+
+        TextView titleTextView = (TextView) getView().findViewById(R.id.textView_home_backup_options_title);
+        TextView descriptionTextView = (TextView) getView().findViewById(R.id.textView_home_backup_options_description);
+        Button cloudBtn = (Button) getView().findViewById(R.id.button_home_backup_to_cloud);
+        Button fileBtn = (Button) getView().findViewById(R.id.button_home_backup_to_file);
+        Button doneBtn = (Button) getView().findViewById(R.id.button_home_backup_done);
+
+        titleTextView.setText(jsonViewModel.getBackupOptionsTitleByLangValues());
+        descriptionTextView.setText(jsonViewModel.getBackupOptionsDescriptionByLangValues());
+        cloudBtn.setText(jsonViewModel.getBackupToCloudByLangValues());
+        fileBtn.setText(jsonViewModel.getBackupToFileByLangValues());
+        doneBtn.setText(jsonViewModel.getBackupDoneByLangValues());
+
+        backupCloudStatusTextView.setVisibility(View.GONE);
+        backupFileStatusTextView.setVisibility(View.GONE);
+
+        cloudBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startCloudBackupFromOptionsScreen();
+            }
+        });
+        fileBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startFileBackupFromOptionsScreen();
+            }
+        });
+        doneBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finishBackupAndNavigateToHome();
+            }
+        });
+
+        backupOptionsLinearLayout.setVisibility(View.VISIBLE);
+    }
+
+    private void hideAllHomeWalletLayouts() {
+        if (getView() == null) return;
+        int[] ids = new int[]{
+                R.id.linear_layout_home_set_wallet,
+                R.id.linear_layout_home_create_restore_wallet,
+                R.id.linear_layout_home_wallet_type,
+                R.id.linear_layout_home_seed_word_length,
+                R.id.linear_layout_home_seed_words,
+                R.id.linear_layout_home_seed_words_view,
+                R.id.linear_layout_home_seed_words_edit,
+                R.id.linear_layout_home_backup_options
+        };
+        for (int id : ids) {
+            View v = getView().findViewById(id);
+            if (v != null) v.setVisibility(View.GONE);
+        }
+    }
+
+    private void startCloudBackupFromOptionsScreen() {
+        if (pendingBackupWalletJson == null) return;
+        BackupPasswordDialogShow(new BackupPasswordReceiver() {
+            @Override
+            public void onPassword(final String backupPassword) {
+                encryptWalletForBackup(backupPassword, new EncryptedReady() {
+                    @Override
+                    public void onReady(final String encryptedJson, final String address) {
+                        String folderUriStr = PrefConnect.readString(getContext(),
+                                PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
+                        if (folderUriStr == null || folderUriStr.isEmpty()) {
+                            pendingCloudContinuation = new Runnable() {
+                                @Override
+                                public void run() {
+                                    String chosen = PrefConnect.readString(getContext(),
+                                            PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
+                                    if (chosen != null && !chosen.isEmpty()) {
+                                        writeEncryptedToSafFolder(encryptedJson, address);
+                                    }
+                                }
+                            };
+                            launchFolderPicker();
+                        } else {
+                            writeEncryptedToSafFolder(encryptedJson, address);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    private void writeEncryptedToSafFolder(final String encryptedJson, final String address) {
+        final String folderUriStr = PrefConnect.readString(getContext(),
+                PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
+        if (folderUriStr == null || folderUriStr.isEmpty()) return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String filename = com.quantumcoinwallet.app.backup.CloudBackupManager.buildFilename(address);
+                    com.quantumcoinwallet.app.backup.CloudBackupManager.writeToSafFolder(
+                            getContext(), Uri.parse(folderUriStr), filename, encryptedJson);
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() { flagCloudBackupSaved(); }
+                    });
+                } catch (final Exception e) {
+                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
+                            String msg = tmpl != null
+                                    ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
+                                    : ("Backup failed: " + e.getMessage());
+                            android.widget.Toast.makeText(getContext(), msg,
+                                    android.widget.Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void startFileBackupFromOptionsScreen() {
+        if (pendingBackupWalletJson == null) return;
+        BackupPasswordDialogShow(new BackupPasswordReceiver() {
+            @Override
+            public void onPassword(final String backupPassword) {
+                encryptWalletForBackup(backupPassword, new EncryptedReady() {
+                    @Override
+                    public void onReady(String encryptedJson, String address) {
+                        pendingBackupEncryptedJson = encryptedJson;
+                        pendingBackupAddress = address;
+                        try {
+                            setSuppressNextResumeLock(true);
+                            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                            intent.addCategory(Intent.CATEGORY_OPENABLE);
+                            intent.setType(com.quantumcoinwallet.app.backup.CloudBackupManager.BACKUP_MIME_TYPE);
+                            intent.putExtra(Intent.EXTRA_TITLE,
+                                    com.quantumcoinwallet.app.backup.CloudBackupManager.buildFilename(address));
+                            fileBackupLauncher.launch(intent);
+                        } catch (Exception e) {
+                            setSuppressNextResumeLock(false);
+                            GlobalMethods.ExceptionError(getContext(), TAG, e);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    private interface BackupPasswordReceiver {
+        void onPassword(String backupPassword);
+    }
+
+    private interface EncryptedReady {
+        void onReady(String encryptedJson, String address);
+    }
+
+    private void BackupPasswordDialogShow(final BackupPasswordReceiver receiver) {
+        com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.show(
+                getContext(), jsonViewModel, walletPassword,
+                new com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.OnBackupPasswordListener() {
+                    @Override
+                    public void onPasswordSelected(String password) {
+                        receiver.onPassword(password);
+                    }
+                    @Override
+                    public void onCanceled() { }
+                });
+    }
+
+    private void encryptWalletForBackup(final String backupPassword, final EncryptedReady onReady) {
+        final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_home_wallet);
+        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
+        final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                .show(getContext(), jsonViewModel.getWaitWalletSaveByLangValues());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final com.quantumcoinwallet.app.backup.CloudBackupManager.EncryptedResult enc =
+                            com.quantumcoinwallet.app.backup.CloudBackupManager
+                                    .encryptWallet(pendingBackupWalletJson, backupPassword);
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                            if (progressBar != null) progressBar.setVisibility(View.GONE);
+                            onReady.onReady(enc.json, enc.address);
+                        }
+                    });
+                } catch (final Exception e) {
+                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                            if (progressBar != null) progressBar.setVisibility(View.GONE);
+                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
+                            String msg = tmpl != null
+                                    ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
+                                    : ("Backup failed: " + e.getMessage());
+                            android.widget.Toast.makeText(getContext(), msg,
+                                    android.widget.Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void flagCloudBackupSaved() {
+        if (backupCloudStatusTextView == null) return;
+        backupCloudStatusTextView.setText(jsonViewModel.getBackupSavedShortByLangValues());
+        backupCloudStatusTextView.setVisibility(View.VISIBLE);
+    }
+
+    private void flagFileBackupSaved() {
+        if (backupFileStatusTextView == null) return;
+        backupFileStatusTextView.setText(jsonViewModel.getBackupSavedShortByLangValues());
+        backupFileStatusTextView.setVisibility(View.VISIBLE);
+    }
+
+    private void finishBackupAndNavigateToHome() {
+        final String indexKey = walletIndexKey;
+        android.app.Activity act = getActivity();
+        if (act instanceof com.quantumcoinwallet.app.view.activities.HomeActivity) {
+            ((com.quantumcoinwallet.app.view.activities.HomeActivity) act)
+                    .requirePasswordReentryThenNavigate(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (mHomeWalletListener != null) {
+                                mHomeWalletListener.onHomeWalletCompleteByHomeMain(indexKey);
+                            }
+                        }
+                    });
+        } else if (mHomeWalletListener != null) {
+            mHomeWalletListener.onHomeWalletCompleteByHomeMain(indexKey);
         }
     }
 
@@ -1174,5 +1527,177 @@ public class HomeWalletFragment extends Fragment {
             return false;
         }
         return true;
+    }
+
+    private void startRestoreFromFileFlow() {
+        try {
+            setSuppressNextResumeLock(true);
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType(com.quantumcoinwallet.app.backup.CloudBackupManager.BACKUP_MIME_TYPE);
+            restoreFilePickerLauncher.launch(intent);
+        } catch (Exception e) {
+            setSuppressNextResumeLock(false);
+            GlobalMethods.ExceptionError(getContext(), TAG, e);
+        }
+    }
+
+    private void startRestoreFromCloudFlow() {
+        String folderUriStr = PrefConnect.readString(getContext(),
+                PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
+        if (folderUriStr == null || folderUriStr.isEmpty()) {
+            try {
+                setSuppressNextResumeLock(true);
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                restoreCloudFolderPickerLauncher.launch(intent);
+            } catch (Exception e) {
+                setSuppressNextResumeLock(false);
+                GlobalMethods.ExceptionError(getContext(), TAG, e);
+            }
+            return;
+        }
+        showRestoreCloudFilePicker(Uri.parse(folderUriStr));
+    }
+
+    private void showRestoreCloudFilePicker(final Uri folderUri) {
+        final java.util.List<androidx.documentfile.provider.DocumentFile> files =
+                com.quantumcoinwallet.app.backup.CloudBackupManager.listBackupFiles(getContext(), folderUri);
+        if (files == null || files.isEmpty()) {
+            android.widget.Toast.makeText(getContext(),
+                    jsonViewModel.getRestoreNoBackupsFoundByLangValues(),
+                    android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        final String[] names = new String[files.size()];
+        for (int i = 0; i < files.size(); i++) {
+            androidx.documentfile.provider.DocumentFile f = files.get(i);
+            names[i] = f.getName() != null ? f.getName() : f.getUri().getLastPathSegment();
+        }
+        new AlertDialog.Builder(getContext())
+                .setTitle(jsonViewModel.getRestoreFromCloudByLangValues())
+                .setItems(names, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int which) {
+                        androidx.documentfile.provider.DocumentFile chosen = files.get(which);
+                        handleRestoreFromUri(chosen.getUri());
+                    }
+                })
+                .setNegativeButton(jsonViewModel.getCancelByLangValues(), null)
+                .show();
+    }
+
+    private void handleRestoreFromUri(final Uri fileUri) {
+        final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_home_wallet);
+        com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.show(getContext(), jsonViewModel, walletPassword, true,
+                new com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.OnBackupPasswordListener() {
+                    @Override
+                    public void onPasswordSelected(final String backupPassword) {
+                        performRestoreFromUri(fileUri, backupPassword, progressBar);
+                    }
+                    @Override
+                    public void onCanceled() { }
+                });
+    }
+
+    private void performRestoreFromUri(final Uri fileUri, final String backupPassword,
+                                       final ProgressBar progressBar) {
+        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
+        final android.app.AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                .show(getContext(), jsonViewModel.getWaitWalletOpenByLangValues());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String encryptedJson = com.quantumcoinwallet.app.backup.CloudBackupManager
+                            .readSafFile(getContext(), fileUri);
+                    final com.quantumcoinwallet.app.backup.CloudBackupManager.DecryptedWallet dw =
+                            com.quantumcoinwallet.app.backup.CloudBackupManager
+                                    .decryptWallet(encryptedJson, backupPassword);
+                    if (dw == null || dw.address == null) {
+                        throw new IllegalStateException("decrypt returned empty");
+                    }
+                    if (PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP != null
+                            && PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.containsKey(dw.address)) {
+                        final String existingAddress = dw.address;
+                        getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                                if (progressBar != null) progressBar.setVisibility(View.GONE);
+                                showDuplicateWalletDialog(existingAddress);
+                            }
+                        });
+                        return;
+                    }
+                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                    if (!secureStorage.isUnlocked()) {
+                        secureStorage.unlock(getContext(), walletPassword);
+                    }
+                    int newIndex = secureStorage.getMaxWalletIndex(getContext()) + 1;
+                    final String indexKey = String.valueOf(newIndex);
+
+                    JSONObject walletJson = new JSONObject();
+                    walletJson.put("address", dw.address);
+                    if (dw.privateKey != null) walletJson.put("privateKey", dw.privateKey);
+                    if (dw.publicKey != null) walletJson.put("publicKey", dw.publicKey);
+                    String seedJoined = "";
+                    if (dw.seedWords != null && dw.seedWords.length > 0) {
+                        seedJoined = android.text.TextUtils.join(",", dw.seedWords);
+                    } else if (dw.seed != null) {
+                        seedJoined = dw.seed;
+                    }
+                    walletJson.put("seed", seedJoined);
+
+                    secureStorage.saveWallet(getContext(), newIndex, walletJson.toString());
+                    secureStorage.setMaxWalletIndex(getContext(), newIndex);
+
+                    PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.put(dw.address, indexKey);
+                    PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.put(indexKey, dw.address);
+                    boolean hasSeed = seedJoined != null && !seedJoined.isEmpty();
+                    PrefConnect.writeBoolean(getContext(),
+                            PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, hasSeed);
+                    PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
+
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                            if (progressBar != null) progressBar.setVisibility(View.GONE);
+                            markActivityUnlocked();
+                            if (mHomeWalletListener != null) {
+                                mHomeWalletListener.onHomeWalletCompleteByHomeMain(indexKey);
+                            }
+                        }
+                    });
+                } catch (final Exception e) {
+                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                    getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                            if (progressBar != null) progressBar.setVisibility(View.GONE);
+                            String tmpl = jsonViewModel.getRestoreDecryptFailedByLangValues();
+                            String msg = tmpl != null ? tmpl : ("Restore failed: " + e.getMessage());
+                            android.widget.Toast.makeText(getContext(), msg,
+                                    android.widget.Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void showDuplicateWalletDialog(String address) {
+        if (getContext() == null || address == null) return;
+        String tmpl = jsonViewModel.getWalletAlreadyExistsDetailedByLangValues();
+        String msg = tmpl != null && !tmpl.isEmpty()
+                ? tmpl.replace("[ADDRESS]", address)
+                : "The wallet with following address already exists:\n" + address;
+        String ok = jsonViewModel.getOkByLangValues();
+        new AlertDialog.Builder(getContext())
+                .setMessage(msg)
+                .setPositiveButton(ok != null && !ok.isEmpty() ? ok : "OK", null)
+                .setCancelable(true)
+                .show();
     }
 }

@@ -12,13 +12,19 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
+import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 
 /**
- * Reusable dialog asking the user for a backup password. Offers two modes:
- *  - "Use current wallet password" (default) -- returns the caller-supplied password.
- *  - "Use a different password" -- prompts for password + confirm, enforces length and no
- *    leading/trailing spaces.
+ * Reusable dialog asking the user for a backup password.
+ *
+ * Two modes:
+ *  - Create/backup mode (default): offers "Use current wallet password" or "Use a different
+ *    password" (with confirm + length/trim validation).
+ *  - Restore mode: a single password field with eye toggle, no confirmation, no length check;
+ *    the user is entering an existing backup password, not creating one.
  */
 public class BackupPasswordDialog {
 
@@ -30,6 +36,23 @@ public class BackupPasswordDialog {
     public static void show(final Context ctx, final JsonViewModel vm,
                             final String currentPassword,
                             final OnBackupPasswordListener listener) {
+        show(ctx, vm, currentPassword, false, listener);
+    }
+
+    public static void show(final Context ctx, final JsonViewModel vm,
+                            final String currentPassword,
+                            final boolean restoreMode,
+                            final OnBackupPasswordListener listener) {
+        if (restoreMode) {
+            showRestoreMode(ctx, vm, listener);
+        } else {
+            showCreateMode(ctx, vm, currentPassword, listener);
+        }
+    }
+
+    private static void showCreateMode(final Context ctx, final JsonViewModel vm,
+                                       final String currentPassword,
+                                       final OnBackupPasswordListener listener) {
         final int pad = dp(ctx, 16);
 
         LinearLayout root = new LinearLayout(ctx);
@@ -135,6 +158,57 @@ public class BackupPasswordDialog {
             dialog.getWindow().setSoftInputMode(
                     WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         }
+    }
+
+    private static void showRestoreMode(final Context ctx, final JsonViewModel vm,
+                                        final OnBackupPasswordListener listener) {
+        final int pad = dp(ctx, 16);
+        final String title = safe(vm.getEnterBackupPasswordTitleByLangValues(),
+                "Enter password of the backup");
+
+        LinearLayout root = new LinearLayout(ctx);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, pad, pad, pad);
+
+        final TextInputLayout pwdLayout = new TextInputLayout(ctx);
+        pwdLayout.setHint(safe(vm.getPasswordByLangValues(), "Password"));
+        pwdLayout.setPasswordVisibilityToggleEnabled(true);
+        try {
+            pwdLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+        } catch (Throwable ignore) { }
+
+        final TextInputEditText pwd = new TextInputEditText(ctx);
+        pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        pwd.setSingleLine(true);
+        pwdLayout.addView(pwd);
+        root.addView(pwdLayout);
+
+        final AlertDialog dialog = new AlertDialog.Builder(ctx)
+                .setTitle(title)
+                .setView(root)
+                .setPositiveButton(safe(vm.getOkByLangValues(), "OK"), null)
+                .setNegativeButton(safe(vm.getCancelByLangValues(), "Cancel"), null)
+                .setCancelable(false)
+                .create();
+
+        dialog.setOnShowListener(d -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String p = pwd.getText() == null ? "" : pwd.getText().toString();
+                if (p.isEmpty()) {
+                    Toast.makeText(ctx, safe(vm.getPasswordByLangValues(), "Password"),
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                dialog.dismiss();
+                listener.onPasswordSelected(p);
+            });
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
+                dialog.dismiss();
+                listener.onCanceled();
+            });
+        });
+
+        dialog.show();
     }
 
     private static int dp(Context ctx, int value) {

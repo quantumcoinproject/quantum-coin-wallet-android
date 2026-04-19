@@ -46,7 +46,6 @@ public class PrefConnect {
 
     public static String BACKUP_ENABLED_KEY = "BACKUP_ENABLED";
 
-    public static String CLOUD_BACKUP_ENABLED_KEY = "CLOUD_BACKUP_ENABLED";
     public static String CLOUD_BACKUP_FOLDER_URI_KEY = "CLOUD_BACKUP_FOLDER_URI";
 
     public static String WALLET_HAS_SEED_KEY_PREFIX = "WALLET_HAS_SEED_";
