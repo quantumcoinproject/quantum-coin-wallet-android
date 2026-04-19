@@ -636,9 +636,8 @@ public class HomeWalletFragment extends Fragment {
             public void onClick(View v) {
                 progressBar.setVisibility(View.VISIBLE);
                 String clipboardCopyData = ClipboardCopyData(homeSeedWordsViewCaptionTextViews, homeSeedWordsViewTextViews);
-                ClipboardManager clipBoard = (ClipboardManager) getActivity().getSystemService(getActivity().CLIPBOARD_SERVICE);
-                ClipData clipData = ClipData.newPlainText("walletSeed", clipboardCopyData);
-                clipBoard.setPrimaryClip(clipData);
+                com.quantumcoinwallet.app.utils.SecureClipboard.copySensitive(
+                        getActivity(), "walletSeed", clipboardCopyData);
                 progressBar.setVisibility(View.GONE);
                 homeSeedWordsViewCopied.setVisibility(View.VISIBLE);
                 new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
@@ -1354,7 +1353,7 @@ public class HomeWalletFragment extends Fragment {
 
     private void BackupPasswordDialogShow(final BackupPasswordReceiver receiver) {
         com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.show(
-                getContext(), jsonViewModel, null,
+                getContext(), jsonViewModel,
                 new com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.OnBackupPasswordListener() {
                     @Override
                     public void onPasswordSelected(String password) {

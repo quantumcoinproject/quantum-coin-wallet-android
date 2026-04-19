@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Configuration for QuantumCoin Wallet.
+
+  Goals (MF-17):
+    - Disallow all cleartext traffic in release builds.
+    - Trust only the default Android CA set (no user-installed roots) for
+      wallet/scan/rpc traffic, which is what matters for a crypto wallet.
+    - Provide debug-overrides so developers can still MITM their local
+      emulator/test proxies with a user-installed CA when attaching a
+      debugger, without weakening production.
+
+  NOTE: Certificate pinning for QuantumCoin hosts (SPKI SHA-256 pins) is
+  intentionally left as placeholders that must be populated by the release
+  engineer using:
+      openssl s_client -connect <host>:443 -servername <host> \
+        | openssl x509 -pubkey -noout \
+        | openssl pkey -pubin -outform DER \
+        | openssl dgst -sha256 -binary \
+        | openssl base64
+  Ship at least one backup pin so rotation does not brick clients.
+-->
+<network-security-config>
+
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+      Per-host pinning template for QuantumCoin-controlled endpoints used by
+      the wallet's REST/scan/explorer/RPC traffic. Add one <domain-config>
+      block per host you want to pin. Leave this commented until the pins
+      are populated, otherwise release builds will hard-fail TLS.
+
+      <domain-config cleartextTrafficPermitted="false">
+          <domain includeSubdomains="true">api.example.com</domain>
+          <trust-anchors>
+              <certificates src="system" />
+          </trust-anchors>
+          <pin-set expiration="2027-01-01">
+              <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+              <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+          </pin-set>
+      </domain-config>
+    -->
+
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+
+</network-security-config>

@@ -20,13 +20,11 @@ import androidx.annotation.RawRes;
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.model.AccountTokenSummary;
 import com.quantumcoinwallet.app.model.BlockchainNetwork;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -48,19 +46,42 @@ public class GlobalMethods {
 
     public static String HTTPS = "https://";
 
-    //URL
-    public static String SCAN_API_URL = null;
-    public static String RPC_ENDPOINT_URL = null;
+    // M-05: these identify the currently active blockchain network and are
+    // read by worker threads (REST tasks, JS bridge, etc.) while being
+    // written from the UI thread when the user switches network. Writes go
+    // through setActiveNetwork() which takes the monitor and publishes a
+    // consistent snapshot; reads see a coherent snapshot via volatile.
+    public static volatile String SCAN_API_URL = null;
+    public static volatile String RPC_ENDPOINT_URL = null;
 
-    public static String BLOCK_EXPLORER_URL = null;
+    public static volatile String BLOCK_EXPLORER_URL = null;
     public static String BLOCK_EXPLORER_TX_HASH_URL =  "/txn/{txhash}";
     public static String BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL = "/account/{address}/txn/page";
 
     public static String DP_DOCS_URL = "https://quantumcoin.org/";
 
     //Network
-    public static String BLOCKCHAIN_NAME = null;
-    public static String NETWORK_ID = null;
+    public static volatile String BLOCKCHAIN_NAME = null;
+    public static volatile String NETWORK_ID = null;
+
+    private static final Object ACTIVE_NETWORK_LOCK = new Object();
+
+    /**
+     * M-05: switch all active-network fields atomically. Callers (notably
+     * {@code HomeActivity}) should funnel every network write through here
+     * so workers reading the volatile fields see a consistent snapshot and
+     * cannot observe mixed state across fields.
+     */
+    public static void setActiveNetwork(BlockchainNetwork network) {
+        if (network == null) return;
+        synchronized (ACTIVE_NETWORK_LOCK) {
+            SCAN_API_URL = HTTPS + network.getScanApiDomain();
+            RPC_ENDPOINT_URL = network.getRpcEndpoint();
+            BLOCK_EXPLORER_URL = HTTPS + network.getBlockExplorerDomain();
+            BLOCKCHAIN_NAME = network.getBlockchainName();
+            NETWORK_ID = network.getNetworkId();
+        }
+    }
 
     public static String GAS_QCN_LIMIT = "21000";
     public static String GAS_TOKEN_LIMIT = "84000";
@@ -99,23 +120,31 @@ public class GlobalMethods {
         return readRawResource(context, R.raw.en_us);
     }
     public static List<BlockchainNetwork> BlockChainNetworkRead(Context context) throws JSONException {
-        String blockchainJsonString = "";
-        blockchainJsonString = PrefConnect.readString(context, PrefConnect.BLOCKCHAIN_NETWORK_LIST, "");
-        if(blockchainJsonString=="") {
-            blockchainJsonString=readRawResource(context, R.raw.blockchain_networks);
+        String blockchainJsonString = PrefConnect.readString(context, PrefConnect.BLOCKCHAIN_NETWORK_LIST, "");
+        if (TextUtils.isEmpty(blockchainJsonString)) {
+            blockchainJsonString = readRawResource(context, R.raw.blockchain_networks);
         }
 
-        JsonObject jo = new JsonParser().parse(blockchainJsonString).getAsJsonObject();
-        JsonArray jsonArray = jo.getAsJsonArray("networks");
+        Object parsed = new JSONTokener(blockchainJsonString).nextValue();
+        if (!(parsed instanceof JSONObject)) {
+            throw new JSONException("network list root is not a JSON object");
+        }
+        JSONObject jo = (JSONObject) parsed;
+        JSONArray jsonArray = jo.optJSONArray("networks");
+        if (jsonArray == null) {
+            throw new JSONException("network list missing 'networks' array");
+        }
 
         List<BlockchainNetwork> blockChainNetworks = new ArrayList<>();
-        for (int i=0; i < jsonArray.size(); i++) {
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject entry = jsonArray.optJSONObject(i);
+            if (entry == null) continue;
 
-            String scanApiDomain = jsonArray.get(i).getAsJsonObject().get("scanApiDomain").toString().replace("\"", "").replace("\'", "");
-            String rpcEndpoint = jsonArray.get(i).getAsJsonObject().get("rpcEndpoint").toString().replace("\"", "").replace("\'", "");
-            String blockExplorerDomain = jsonArray.get(i).getAsJsonObject().get("blockExplorerDomain").toString().replace("\"", "").replace("\'", "");
-            String blockchainName = jsonArray.get(i).getAsJsonObject().get("blockchainName").toString().replace("\"", "").replace("\'", "");
-            String networkId = jsonArray.get(i).getAsJsonObject().get("networkId").toString().replace("\"", "").replace("\'", "");
+            String scanApiDomain = entry.optString("scanApiDomain", "").trim();
+            String rpcEndpoint = entry.optString("rpcEndpoint", "").trim();
+            String blockExplorerDomain = entry.optString("blockExplorerDomain", "").trim();
+            String blockchainName = entry.optString("blockchainName", "").trim();
+            String networkId = String.valueOf(entry.opt("networkId")).trim();
 
             BlockchainNetwork blockchainNetwork = new BlockchainNetwork();
             blockchainNetwork.setScanApiDomain(scanApiDomain);
@@ -176,7 +205,11 @@ public class GlobalMethods {
     }
 
     public static void ShowErrorDialog(Context context, String title, String message) {
-        android.util.Log.e("QuantumCoinWallet", title + ": " + message);
+        // M-03: always route through Timber so ReleaseTree can redact/strip.
+        // Only write debug details when explicitly running a debug build.
+        if (com.quantumcoinwallet.app.BuildConfig.DEBUG) {
+            timber.log.Timber.tag("QuantumCoinWallet").w("%s: %s", title, message);
+        }
         if (context instanceof Activity && !((Activity) context).isFinishing()) {
             new androidx.appcompat.app.AlertDialog.Builder(context)
                     .setTitle(title)

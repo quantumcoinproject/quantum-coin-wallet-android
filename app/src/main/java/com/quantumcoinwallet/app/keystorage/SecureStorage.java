@@ -8,15 +8,65 @@ import com.quantumcoinwallet.app.utils.PrefConnect;
 
 import org.json.JSONObject;
 
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+/**
+ * Password-encrypted wallet storage.
+ *
+ * <p>Cryptographic design (MF-04, MF-14):</p>
+ * <ul>
+ *     <li>Password is stretched with Scrypt (N=2^18, r=8, p=1, 32-byte
+ *         output). The derived key only ever encrypts the random 32-byte
+ *         {@code mainKey}.</li>
+ *     <li>{@code mainKey} encrypts every per-wallet blob stored under
+ *         {@code SECURE_WALLET_*}.</li>
+ *     <li>All AES operations are AES-256-GCM with a fresh random 12-byte
+ *         IV per encryption and a 128-bit auth tag. Ciphertexts are
+ *         tagged with {@code "v":2}. Wrong password / tampered blob
+ *         surfaces as a uniform {@link AEADBadTagException} from the
+ *         decrypt side so callers cannot padding-oracle the store.</li>
+ *     <li>The scrypt-derived key and decoded {@code mainKey} copies are
+ *         zeroized as soon as they have been consumed; {@link #lock()}
+ *         wipes the in-memory {@code mainKey}.</li>
+ * </ul>
+ *
+ * <p><b>Why the master key is NOT wrapped by AndroidKeyStore (H-01,
+ * architectural decision):</b></p>
+ * <p>The encrypted {@code mainKey} and all per-wallet blobs must remain
+ * <i>portable across devices</i> so users can recover their wallets when
+ * they migrate to a new phone or restore from a cloud/device backup.
+ * AndroidKeyStore-wrapped material is bound to the originating device's
+ * TEE/StrongBox and cannot be moved off-device, which would break the
+ * product's phone-migration and opt-in cloud-backup story.</p>
+ *
+ * <p>Users opt into having this data leave the device through explicit UI:</p>
+ * <ul>
+ *     <li>The backup-password prompt in
+ *         {@code com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog}.</li>
+ *     <li>The backup toggle in
+ *         {@code com.quantumcoinwallet.app.view.fragment.BackupSettingsFragment}.</li>
+ *     <li>The system backup agent at
+ *         {@code com.quantumcoinwallet.app.backup.QuantumCoinBackupAgent} plus
+ *         the {@code allowBackup} / {@code android:fullBackupContent}
+ *         configuration in {@code AndroidManifest.xml} and
+ *         {@code res/xml/backup_rules.xml} / {@code data_extraction_rules.xml}.</li>
+ * </ul>
+ *
+ * <p>The trade-off (an offline scrypt attack is possible if a rooted attacker
+ * exfiltrates the encrypted blob) is accepted because key portability is a
+ * product requirement. Scrypt parameters (N=2^18, r=8, p=1) are tuned to
+ * make that offline attack expensive against anything but a trivial password.</p>
+ */
 public class SecureStorage {
 
     private static final int SCRYPT_N = 262144;
@@ -24,15 +74,15 @@ public class SecureStorage {
     private static final int SCRYPT_P = 1;
     private static final int SCRYPT_KEY_LEN = 32;
     private static final int SALT_SIZE = 32;
-    private static final int IV_SIZE = 16;
+    private static final int GCM_IV_SIZE = 12;
+    private static final int GCM_TAG_BITS = 128;
 
     private static final String KEY_SALT = "SECURE_DERIVED_KEY_SALT";
     private static final String KEY_ENCRYPTED_MAIN_KEY = "SECURE_ENCRYPTED_MAIN_KEY";
     private static final String KEY_MAX_WALLET_INDEX = "SECURE_MAX_WALLET_INDEX";
-    private static final String LEGACY_KEY_PASSWORD_VERIFIER = "SECURE_PASSWORD_VERIFIER";
     private static final String WALLET_PREFIX = "SECURE_WALLET_";
 
-    private static final String CIPHER_ALGORITHM = "AES/CBC/PKCS5Padding";
+    private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
     private static final String KEY_ALGORITHM = "AES";
 
     private byte[] mainKey;
@@ -66,17 +116,21 @@ public class SecureStorage {
         new SecureRandom().nextBytes(newMainKey);
 
         byte[] derivedKey = scryptDerive(password, saltBase64);
+        try {
+            EncryptedPayload encrypted = encrypt(derivedKey, newMainKey);
 
-        EncryptedPayload encrypted = encrypt(derivedKey, Base64.encodeToString(newMainKey, Base64.NO_WRAP));
+            JSONObject encJson = new JSONObject();
+            encJson.put("v", 2);
+            encJson.put("cipherText", encrypted.cipherTextBase64);
+            encJson.put("iv", encrypted.ivBase64);
 
-        JSONObject encJson = new JSONObject();
-        encJson.put("cipherText", encrypted.cipherTextBase64);
-        encJson.put("iv", encrypted.ivBase64);
+            PrefConnect.writeString(ctx, KEY_SALT, saltBase64);
+            PrefConnect.writeString(ctx, KEY_ENCRYPTED_MAIN_KEY, encJson.toString());
 
-        PrefConnect.writeString(ctx, KEY_SALT, saltBase64);
-        PrefConnect.writeString(ctx, KEY_ENCRYPTED_MAIN_KEY, encJson.toString());
-
-        this.mainKey = newMainKey;
+            this.mainKey = newMainKey;
+        } finally {
+            Arrays.fill(derivedKey, (byte) 0);
+        }
     }
 
     /**
@@ -85,32 +139,32 @@ public class SecureStorage {
      * @return true on success, false on wrong password
      */
     public boolean unlock(Context ctx, String password) {
+        byte[] derivedKey = null;
         try {
             String saltBase64 = PrefConnect.readString(ctx, KEY_SALT, "");
             String encMainKeyJson = PrefConnect.readString(ctx, KEY_ENCRYPTED_MAIN_KEY, "");
             if (saltBase64.isEmpty() || encMainKeyJson.isEmpty()) return false;
 
-            byte[] derivedKey = scryptDerive(password, saltBase64);
+            derivedKey = scryptDerive(password, saltBase64);
 
             JSONObject encJson = new JSONObject(encMainKeyJson);
             EncryptedPayload payload = new EncryptedPayload(
                     encJson.getString("cipherText"),
                     encJson.getString("iv"));
 
-            String mainKeyBase64 = decrypt(derivedKey, payload);
-            this.mainKey = Base64.decode(mainKeyBase64, Base64.NO_WRAP);
-
+            byte[] mainKeyBytes;
             try {
-                String legacy = PrefConnect.readString(ctx, LEGACY_KEY_PASSWORD_VERIFIER, "");
-                if (legacy != null && !legacy.isEmpty()) {
-                    PrefConnect.getEditor(ctx).remove(LEGACY_KEY_PASSWORD_VERIFIER).commit();
-                }
-            } catch (Throwable ignore) { }
-
+                mainKeyBytes = decryptBytes(derivedKey, payload);
+            } catch (AEADBadTagException bad) {
+                return false;
+            }
+            this.mainKey = mainKeyBytes;
             return true;
         } catch (Exception e) {
             this.mainKey = null;
             return false;
+        } finally {
+            if (derivedKey != null) Arrays.fill(derivedKey, (byte) 0);
         }
     }
 
@@ -148,11 +202,17 @@ public class SecureStorage {
 
     public void setSecureItem(Context ctx, String key, String value) throws Exception {
         requireUnlocked();
-        EncryptedPayload encrypted = encrypt(mainKey, value);
-        JSONObject encJson = new JSONObject();
-        encJson.put("cipherText", encrypted.cipherTextBase64);
-        encJson.put("iv", encrypted.ivBase64);
-        PrefConnect.writeString(ctx, key, encJson.toString());
+        byte[] plain = value.getBytes(StandardCharsets.UTF_8);
+        try {
+            EncryptedPayload encrypted = encrypt(mainKey, plain);
+            JSONObject encJson = new JSONObject();
+            encJson.put("v", 2);
+            encJson.put("cipherText", encrypted.cipherTextBase64);
+            encJson.put("iv", encrypted.ivBase64);
+            PrefConnect.writeString(ctx, key, encJson.toString());
+        } finally {
+            Arrays.fill(plain, (byte) 0);
+        }
     }
 
     public String getSecureItem(Context ctx, String key) throws Exception {
@@ -163,7 +223,12 @@ public class SecureStorage {
         EncryptedPayload payload = new EncryptedPayload(
                 encJson.getString("cipherText"),
                 encJson.getString("iv"));
-        return decrypt(mainKey, payload);
+        byte[] plain = decryptBytes(mainKey, payload);
+        try {
+            return new String(plain, StandardCharsets.UTF_8);
+        } finally {
+            Arrays.fill(plain, (byte) 0);
+        }
     }
 
     public void removeSecureItem(Context ctx, String key) {
@@ -192,43 +257,64 @@ public class SecureStorage {
         }
     }
 
+    /**
+     * L-01: wraps the WebView-hosted scrypt call and converts the result
+     * straight into a {@code byte[]} key. The intermediate JSON String
+     * and base64 String cannot be zeroized (Java String immutability),
+     * so we hold no extra references beyond the minimum required and
+     * null them out before returning so GC can reclaim them promptly.
+     */
     private byte[] scryptDerive(String password, String saltBase64) throws Exception {
-        String resultJson = bridge.scryptDerive(password, saltBase64,
-                SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LEN);
-        JSONObject json = new JSONObject(resultJson);
-        JSONObject data = json.getJSONObject("data");
-        String keyBase64 = data.getString("key");
-        return Base64.decode(keyBase64, Base64.NO_WRAP);
+        String resultJson = null;
+        String keyBase64 = null;
+        byte[] derived = null;
+        try {
+            resultJson = bridge.scryptDerive(password, saltBase64,
+                    SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LEN);
+            JSONObject json = new JSONObject(resultJson);
+            JSONObject data = json.getJSONObject("data");
+            keyBase64 = data.getString("key");
+            derived = Base64.decode(keyBase64, Base64.NO_WRAP);
+            return derived;
+        } catch (Exception e) {
+            if (derived != null) Arrays.fill(derived, (byte) 0);
+            throw e;
+        } finally {
+            resultJson = null;
+            keyBase64 = null;
+        }
     }
 
-    private EncryptedPayload encrypt(byte[] key, String plaintext) throws Exception {
-        byte[] iv = new byte[IV_SIZE];
+    private EncryptedPayload encrypt(byte[] key, byte[] plaintext) throws GeneralSecurityException {
+        byte[] iv = new byte[GCM_IV_SIZE];
         new SecureRandom().nextBytes(iv);
 
         SecretKeySpec keySpec = new SecretKeySpec(key, KEY_ALGORITHM);
-        IvParameterSpec ivSpec = new IvParameterSpec(iv);
+        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_BITS, iv);
 
         Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-        cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
-        byte[] cipherBytes = cipher.doFinal(plaintext.getBytes("UTF-8"));
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec, spec);
+        byte[] cipherBytes = cipher.doFinal(plaintext);
 
         return new EncryptedPayload(
                 Base64.encodeToString(cipherBytes, Base64.NO_WRAP),
                 Base64.encodeToString(iv, Base64.NO_WRAP));
     }
 
-    private String decrypt(byte[] key, EncryptedPayload payload) throws Exception {
+    private byte[] decryptBytes(byte[] key, EncryptedPayload payload) throws GeneralSecurityException {
         byte[] iv = Base64.decode(payload.ivBase64, Base64.NO_WRAP);
         byte[] cipherBytes = Base64.decode(payload.cipherTextBase64, Base64.NO_WRAP);
 
+        if (iv.length != GCM_IV_SIZE) {
+            throw new AEADBadTagException("bad iv length");
+        }
+
         SecretKeySpec keySpec = new SecretKeySpec(key, KEY_ALGORITHM);
-        IvParameterSpec ivSpec = new IvParameterSpec(iv);
+        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_BITS, iv);
 
         Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-        cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
-        byte[] plainBytes = cipher.doFinal(cipherBytes);
-
-        return new String(plainBytes, "UTF-8");
+        cipher.init(Cipher.DECRYPT_MODE, keySpec, spec);
+        return cipher.doFinal(cipherBytes);
     }
 
     private static class EncryptedPayload {

@@ -19,13 +19,36 @@ import com.quantumcoinwallet.app.model.BlockchainNetwork;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.List;
+import java.util.regex.Pattern;
+
+import timber.log.Timber;
 
 
 public class BlockchainNetworkAddFragment extends Fragment  {
 
     private static final String TAG = "BlockchainNetworkAddFragment";
+
+    private static final Pattern HOSTNAME_PATTERN = Pattern.compile(
+            "^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)(\\.([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?))+$");
+    private static final Pattern NETWORK_ID_PATTERN = Pattern.compile("^\\d{1,18}$");
+    private static final int BLOCKCHAIN_NAME_MAX_LEN = 64;
+
+    private static boolean isValidHostname(String host) {
+        return host != null && HOSTNAME_PATTERN.matcher(host).matches();
+    }
+
+    private static boolean isValidBlockchainName(String name) {
+        if (name == null) return false;
+        if (name.length() == 0 || name.length() > BLOCKCHAIN_NAME_MAX_LEN) return false;
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (!(Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == ' ')) return false;
+        }
+        return true;
+    }
 
     private BlockchainNetworkAddFragment.OnBlockchainNetworkAddCompleteListener mBlockchainNetworkAddListener;
 
@@ -103,16 +126,54 @@ public class BlockchainNetworkAddFragment extends Fragment  {
                         return;
                     }
                     try {
-                        String scanApiDomain = (String) obj.get("scanApiDomain");
-                        String rpcEndpoint = (String) obj.get("rpcEndpoint");
-                        String blockExplorerDomain = (String) obj.get("blockExplorerDomain");
-                        String blockchainName = (String) obj.get("blockchainName");
-                        String networkId = String.valueOf(obj.get("networkId"));
+                        String scanApiDomain = obj.optString("scanApiDomain", "").trim();
+                        String rpcEndpoint = obj.optString("rpcEndpoint", "").trim();
+                        String blockExplorerDomain = obj.optString("blockExplorerDomain", "").trim();
+                        String blockchainName = obj.optString("blockchainName", "").trim();
+                        String networkId = String.valueOf(obj.opt("networkId")).trim();
 
-                        if (!rpcEndpoint.startsWith("http://") && !rpcEndpoint.startsWith("https://")) {
-                            GlobalMethods.ShowErrorDialog(getContext(),
-                                    jsonViewModel.getErrorTitleByLangValues(),
-                                    "RPC Endpoint must start with http:// or https://");
+                        final String errorTitle = jsonViewModel.getErrorTitleByLangValues();
+
+                        if (!rpcEndpoint.startsWith("https://")) {
+                            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                    "RPC Endpoint must use https://");
+                            progressBar.setVisibility(View.GONE);
+                            return;
+                        }
+                        try {
+                            java.net.URL u = new java.net.URL(rpcEndpoint);
+                            if (!"https".equalsIgnoreCase(u.getProtocol())
+                                    || !isValidHostname(u.getHost())) {
+                                throw new java.net.MalformedURLException("bad host");
+                            }
+                        } catch (java.net.MalformedURLException mu) {
+                            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                    "RPC Endpoint URL is not a valid https host.");
+                            progressBar.setVisibility(View.GONE);
+                            return;
+                        }
+                        if (!isValidHostname(scanApiDomain)) {
+                            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                    "Scan API domain is not a valid hostname.");
+                            progressBar.setVisibility(View.GONE);
+                            return;
+                        }
+                        if (!isValidHostname(blockExplorerDomain)) {
+                            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                    "Block explorer domain is not a valid hostname.");
+                            progressBar.setVisibility(View.GONE);
+                            return;
+                        }
+                        if (!isValidBlockchainName(blockchainName)) {
+                            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                    "Blockchain name must be 1-" + BLOCKCHAIN_NAME_MAX_LEN
+                                            + " letters/digits/_/-/space.");
+                            progressBar.setVisibility(View.GONE);
+                            return;
+                        }
+                        if (!NETWORK_ID_PATTERN.matcher(networkId).matches()) {
+                            GlobalMethods.ShowErrorDialog(getContext(), errorTitle,
+                                    "Network ID must be a positive integer.");
                             progressBar.setVisibility(View.GONE);
                             return;
                         }
@@ -126,22 +187,24 @@ public class BlockchainNetworkAddFragment extends Fragment  {
                         blockchainNetwork.setNetworkId(networkId);
                         blockchainNetworkList.add(blockchainNetwork);
 
-                        String jsonString = "";
-
-                        for(BlockchainNetwork blockchainNetwork1 :  blockchainNetworkList ){
-                            if(jsonString != "")
-                            {
-                                jsonString = jsonString + ",";
+                        JSONArray networksArray = new JSONArray();
+                        for (BlockchainNetwork n : blockchainNetworkList) {
+                            JSONObject entry = new JSONObject();
+                            entry.put("scanApiDomain", n.getScanApiDomain());
+                            entry.put("rpcEndpoint", n.getRpcEndpoint());
+                            entry.put("blockExplorerDomain", n.getBlockExplorerDomain());
+                            entry.put("blockchainName", n.getBlockchainName());
+                            try {
+                                entry.put("networkId", Long.parseLong(n.getNetworkId()));
+                            } catch (NumberFormatException nfe) {
+                                entry.put("networkId", n.getNetworkId());
                             }
-                            jsonString = jsonString + "{'scanApiDomain': '" +  blockchainNetwork1.getScanApiDomain() + "'," +
-                                    "'rpcEndpoint': '" +  blockchainNetwork1.getRpcEndpoint() + "'," +
-                                    "'blockExplorerDomain': '" +  blockchainNetwork1.getBlockExplorerDomain() + "'," +
-                                    "'blockchainName': '" +  blockchainNetwork1.getBlockchainName() + "'," +
-                                    "'networkId': " +  blockchainNetwork1.getNetworkId() + "}";
+                            networksArray.put(entry);
                         }
-
-                        String json = "{ 'networks' : [" + jsonString+ "]}";
-                        PrefConnect.writeString(getContext(), PrefConnect.BLOCKCHAIN_NETWORK_LIST,json);
+                        JSONObject root = new JSONObject();
+                        root.put("networks", networksArray);
+                        PrefConnect.writeString(getContext(), PrefConnect.BLOCKCHAIN_NETWORK_LIST,
+                                root.toString());
 
                         Toast.makeText(getContext(), "Added successfully!",
                                 Toast.LENGTH_SHORT).show();
@@ -191,7 +254,7 @@ public class BlockchainNetworkAddFragment extends Fragment  {
             jObj.put("blockchainName",  "MAINNET");
             jObj.put("networkId",  123123);
         } catch (Exception e) {
-            System.out.println("Error:" + e);
+            Timber.w(e, "makeJSON failed");
         }
         return jObj;
     }

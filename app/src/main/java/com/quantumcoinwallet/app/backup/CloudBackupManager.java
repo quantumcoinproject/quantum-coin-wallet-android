@@ -275,12 +275,12 @@ public class CloudBackupManager {
                                 summary.restored.add(dw.address != null ? dw.address : address);
                                 savedThisFile = true;
                             } catch (Exception decryptErr) {
-                                Log.w(TAG, "decrypt failed for " + displayName, decryptErr);
+                                Log.w(TAG, "decrypt failed for backup entry");
                                 previousFailed = true;
                             }
                         }
                     } catch (Exception e) {
-                        Log.e(TAG, "restore error for " + displayName, e);
+                        Log.e(TAG, "restore error for backup entry");
                         summary.failed.add(displayName + " (" + e.getMessage() + ")");
                     }
                 }

@@ -38,12 +38,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummary;
-import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummaryResponse;
-import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummary;
-import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummaryResponse;
-import com.quantumcoinwallet.app.asynctask.read.AccountPendingTxnRestTask;
-import com.quantumcoinwallet.app.asynctask.read.AccountTxnRestTask;
-import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.GridAutoFitLayoutManager;
@@ -434,7 +428,7 @@ public class WalletsFragment extends Fragment  {
     }
 
     private void startExportFlow(final String walletAddress, final String walletPassword) {
-        BackupPasswordDialog.show(getContext(), jsonViewModel, walletPassword,
+        BackupPasswordDialog.show(getContext(), jsonViewModel,
                 new BackupPasswordDialog.OnBackupPasswordListener() {
                     @Override
                     public void onPasswordSelected(final String backupPassword) {
@@ -574,7 +568,7 @@ public class WalletsFragment extends Fragment  {
     }
 
     private void startCloudBackupFromWalletRow(final String walletAddress, final String walletPassword) {
-        BackupPasswordDialog.show(getContext(), jsonViewModel, walletPassword,
+        BackupPasswordDialog.show(getContext(), jsonViewModel,
                 new BackupPasswordDialog.OnBackupPasswordListener() {
                     @Override
                     public void onPasswordSelected(final String backupPassword) {

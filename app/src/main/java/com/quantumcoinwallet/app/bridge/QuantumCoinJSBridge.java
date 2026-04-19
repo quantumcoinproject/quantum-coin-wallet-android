@@ -3,11 +3,56 @@ package com.quantumcoinwallet.app.bridge;
 import android.os.Handler;
 import android.os.Looper;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Java-side facade over the JavaScript bridge hosted in {@code bridge.html}.
+ *
+ * <p><b>Why the wallet crypto lives in a WebView/JS SDK (H-02, architectural decision):</b></p>
+ * <p>The bundle at {@code webview-sdk-bundle/src/index.js} is the single shared
+ * cryptographic implementation for the entire QuantumCoin ecosystem - Android,
+ * iOS, desktop, and browser surfaces all talk to the same SDK. Hosting that
+ * SDK once inside a WebView (instead of re-implementing BIP-39 / signing /
+ * scrypt natively per platform) eliminates implementation drift between
+ * clients and keeps the blast radius of any crypto bug to a single fix that
+ * ships to every client in lock-step. This choice is deliberate and is not
+ * going to be reversed for a pure-native crypto path.</p>
+ *
+ * <p>The residual risk (a malicious payload reaching the JS runtime) is
+ * mitigated by several defence layers already in place:</p>
+ * <ul>
+ *     <li>The pull-model described below, so sensitive arguments never
+ *         appear in the injected JS script string.</li>
+ *     <li>{@link #escapeForJs(String)} hardened against control characters,
+ *         line/paragraph separators, and JS string-literal breakers.</li>
+ *     <li>DOM storage and file access disabled on the hosting WebView
+ *         (see {@link WebViewManager#configureWebViewSettings}).</li>
+ *     <li>Release-build log redaction via Timber so JS console / error
+ *         output never reaches logcat.</li>
+ * </ul>
+ *
+ * <p>Two transport models are used:</p>
+ * <ul>
+ *     <li><b>Push</b> - small, non-sensitive arguments are interpolated
+ *         directly into the {@code evaluateJavascript} script string
+ *         after being escaped with {@link #escapeForJs(String)}. Used
+ *         for addresses, chain ids, RPC endpoints, etc.</li>
+ *     <li><b>Pull (MF-02)</b> - sensitive arguments (passwords,
+ *         private keys, seed phrases) are never written into the
+ *         script string. They are staged as a JSON payload in
+ *         {@link WebViewManager#storePendingPayload(String, String)}
+ *         and the JavaScript handler pulls them back through the
+ *         {@code AndroidBridge.getPendingPayload(requestId)}
+ *         {@code @JavascriptInterface} right before use.</li>
+ * </ul>
+ */
 public class QuantumCoinJSBridge {
 
     private static final long DEFAULT_TIMEOUT_SECONDS = 30;
@@ -22,186 +67,226 @@ public class QuantumCoinJSBridge {
 
     // ---- Async methods ----
 
-    public void initializeAsync(int chainId, String rpcEndpoint, BridgeCallback callback) {
+    public String initializeAsync(int chainId, String rpcEndpoint, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.initialize('" + requestId + "', "
                 + chainId + ", '" + escapeForJs(rpcEndpoint) + "')";
         evaluateOnMainThread(jsCall);
+        return requestId;
     }
 
-    public void initializeOfflineAsync(BridgeCallback callback) {
+    public String initializeOfflineAsync(BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.initializeOffline('" + requestId + "')";
         evaluateOnMainThread(jsCall);
+        return requestId;
     }
 
-    public void createRandomSeedAsync(int keyType, BridgeCallback callback) {
+    public String createRandomSeedAsync(int keyType, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.createRandomSeed('" + requestId + "', " + keyType + ")";
         evaluateOnMainThread(jsCall);
+        return requestId;
     }
 
-    public void createRandomAsync(int keyType, BridgeCallback callback) {
+    public String createRandomAsync(int keyType, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.createRandom('" + requestId + "', " + keyType + ")";
         evaluateOnMainThread(jsCall);
+        return requestId;
     }
 
-    public void walletFromSeedAsync(int[] seedArray, BridgeCallback callback) {
+    public String walletFromSeedAsync(int[] seedArray, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.walletFromSeed('" + requestId + "', '"
-                + escapeForJs(intArrayToJson(seedArray)) + "')";
-        evaluateOnMainThread(jsCall);
+        // MF-02: seed bytes are staged; JS pulls them.
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("seedArray", intArrayToJsonArray(seedArray));
+        } catch (JSONException je) {
+            throw new RuntimeException(je);
+        }
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.walletFromSeed('" + requestId + "')");
+        return requestId;
     }
 
-    public void walletFromPhraseAsync(String[] words, BridgeCallback callback) {
+    public String walletFromPhraseAsync(String[] words, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.walletFromPhrase('" + requestId + "', '"
-                + escapeForJs(stringArrayToJson(words)) + "')";
-        evaluateOnMainThread(jsCall);
+        // MF-02: seed phrase never enters the script string.
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("words", stringArrayToJsonArray(words));
+        } catch (JSONException je) {
+            throw new RuntimeException(je);
+        }
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.walletFromPhrase('" + requestId + "')");
+        return requestId;
     }
 
-    public void walletFromKeysAsync(String privKeyBase64, String pubKeyBase64,
-                                    BridgeCallback callback) {
+    public String walletFromKeysAsync(String privKeyBase64, String pubKeyBase64,
+                                      BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.walletFromKeys('" + requestId + "', '"
-                + escapeForJs(privKeyBase64) + "', '"
-                + escapeForJs(pubKeyBase64) + "')";
-        evaluateOnMainThread(jsCall);
+        // MF-02: private key never enters the script string.
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("privKey", privKeyBase64 == null ? "" : privKeyBase64);
+            payload.put("pubKey", pubKeyBase64 == null ? "" : pubKeyBase64);
+        } catch (JSONException je) {
+            throw new RuntimeException(je);
+        }
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.walletFromKeys('" + requestId + "')");
+        return requestId;
     }
 
-    public void sendTransactionAsync(String privKeyBase64, String pubKeyBase64,
-                                     String toAddress, String valueWei,
-                                     String gasLimit, String rpcEndpoint,
-                                     int chainId, boolean advancedSigningEnabled,
-                                     BridgeCallback callback) {
+    public String sendTransactionAsync(String privKeyBase64, String pubKeyBase64,
+                                       String toAddress, String valueWei,
+                                       String gasLimit, String rpcEndpoint,
+                                       int chainId, boolean advancedSigningEnabled,
+                                       BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.sendTransaction('" + requestId + "', '"
-                + escapeForJs(privKeyBase64) + "', '"
-                + escapeForJs(pubKeyBase64) + "', '"
-                + escapeForJs(toAddress) + "', '"
-                + escapeForJs(valueWei) + "', '"
-                + escapeForJs(gasLimit) + "', '"
-                + escapeForJs(rpcEndpoint) + "', "
-                + chainId + ", "
-                + advancedSigningEnabled + ")";
-        evaluateOnMainThread(jsCall);
+        // MF-02: all sensitive fields are pulled, not pushed.
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("privKey", privKeyBase64 == null ? "" : privKeyBase64);
+            payload.put("pubKey", pubKeyBase64 == null ? "" : pubKeyBase64);
+            payload.put("to", toAddress == null ? "" : toAddress);
+            payload.put("value", valueWei == null ? "" : valueWei);
+            payload.put("gasLimit", gasLimit == null ? "" : gasLimit);
+            payload.put("rpcEndpoint", rpcEndpoint == null ? "" : rpcEndpoint);
+            payload.put("chainId", chainId);
+            payload.put("advancedSigning", advancedSigningEnabled);
+        } catch (JSONException je) {
+            throw new RuntimeException(je);
+        }
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.sendTransaction('" + requestId + "')");
+        return requestId;
     }
 
-    public void sendTokenTransactionAsync(String privKeyBase64, String pubKeyBase64,
-                                          String contractAddress, String toAddress,
-                                          String amountWei, String gasLimit,
-                                          String rpcEndpoint, int chainId,
-                                          boolean advancedSigningEnabled,
-                                          BridgeCallback callback) {
+    public String sendTokenTransactionAsync(String privKeyBase64, String pubKeyBase64,
+                                            String contractAddress, String toAddress,
+                                            String amountWei, String gasLimit,
+                                            String rpcEndpoint, int chainId,
+                                            boolean advancedSigningEnabled,
+                                            BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.sendTokenTransaction('" + requestId + "', '"
-                + escapeForJs(privKeyBase64) + "', '"
-                + escapeForJs(pubKeyBase64) + "', '"
-                + escapeForJs(contractAddress) + "', '"
-                + escapeForJs(toAddress) + "', '"
-                + escapeForJs(amountWei) + "', '"
-                + escapeForJs(gasLimit) + "', '"
-                + escapeForJs(rpcEndpoint) + "', "
-                + chainId + ", "
-                + advancedSigningEnabled + ")";
-        evaluateOnMainThread(jsCall);
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("privKey", privKeyBase64 == null ? "" : privKeyBase64);
+            payload.put("pubKey", pubKeyBase64 == null ? "" : pubKeyBase64);
+            payload.put("contract", contractAddress == null ? "" : contractAddress);
+            payload.put("to", toAddress == null ? "" : toAddress);
+            payload.put("amount", amountWei == null ? "" : amountWei);
+            payload.put("gasLimit", gasLimit == null ? "" : gasLimit);
+            payload.put("rpcEndpoint", rpcEndpoint == null ? "" : rpcEndpoint);
+            payload.put("chainId", chainId);
+            payload.put("advancedSigning", advancedSigningEnabled);
+        } catch (JSONException je) {
+            throw new RuntimeException(je);
+        }
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.sendTokenTransaction('" + requestId + "')");
+        return requestId;
     }
 
-    public void parseUnitsAsync(String value, int decimals, BridgeCallback callback) {
-        String requestId = UUID.randomUUID().toString();
-        webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.parseUnits('" + requestId + "', '"
-                + escapeForJs(value) + "', " + decimals + ")";
-        evaluateOnMainThread(jsCall);
-    }
-
-    public void isValidAddressAsync(String address, BridgeCallback callback) {
+    public String isValidAddressAsync(String address, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.isValidAddress('" + requestId + "', '"
                 + escapeForJs(address) + "')";
         evaluateOnMainThread(jsCall);
+        return requestId;
     }
 
-    public void computeAddressAsync(String pubKeyBase64, BridgeCallback callback) {
+    public String computeAddressAsync(String pubKeyBase64, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.computeAddress('" + requestId + "', '"
                 + escapeForJs(pubKeyBase64) + "')";
         evaluateOnMainThread(jsCall);
+        return requestId;
     }
 
-    public void formatEtherAsync(String weiValue, BridgeCallback callback) {
+    public String encryptWalletJsonAsync(String walletInputJson, String password,
+                                         BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.formatEther('" + requestId + "', '"
-                + escapeForJs(weiValue) + "')";
-        evaluateOnMainThread(jsCall);
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("walletInput", walletInputJson == null ? "" : walletInputJson);
+            payload.put("password", password == null ? "" : password);
+        } catch (JSONException je) {
+            throw new RuntimeException(je);
+        }
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.encryptWalletJson('" + requestId + "')");
+        return requestId;
     }
 
-    public void parseEtherAsync(String etherValue, BridgeCallback callback) {
+    public String decryptWalletJsonAsync(String walletJson, String password,
+                                         BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.parseEther('" + requestId + "', '"
-                + escapeForJs(etherValue) + "')";
-        evaluateOnMainThread(jsCall);
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("walletJson", walletJson == null ? "" : walletJson);
+            payload.put("password", password == null ? "" : password);
+        } catch (JSONException je) {
+            throw new RuntimeException(je);
+        }
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.decryptWalletJson('" + requestId + "')");
+        return requestId;
     }
 
-    public void encryptWalletJsonAsync(String walletInputJson, String password,
-                                       BridgeCallback callback) {
-        String requestId = UUID.randomUUID().toString();
-        webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.encryptWalletJson('" + requestId + "', '"
-                + escapeForJs(walletInputJson) + "', '"
-                + escapeForJs(password) + "')";
-        evaluateOnMainThread(jsCall);
-    }
-
-    public void decryptWalletJsonAsync(String walletJson, String password,
-                                       BridgeCallback callback) {
-        String requestId = UUID.randomUUID().toString();
-        webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.decryptWalletJson('" + requestId + "', '"
-                + escapeForJs(walletJson) + "', '"
-                + escapeForJs(password) + "')";
-        evaluateOnMainThread(jsCall);
-    }
-
-    public void getAllSeedWordsAsync(BridgeCallback callback) {
+    public String getAllSeedWordsAsync(BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.getAllSeedWords('" + requestId + "')";
         evaluateOnMainThread(jsCall);
+        return requestId;
     }
 
-    public void doesSeedWordExistAsync(String word, BridgeCallback callback) {
+    public String doesSeedWordExistAsync(String word, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.doesSeedWordExist('" + requestId + "', '"
                 + escapeForJs(word) + "')";
         evaluateOnMainThread(jsCall);
+        return requestId;
     }
 
-    public void scryptDeriveAsync(String password, String saltBase64,
-                                  int N, int r, int p, int keyLen,
-                                  BridgeCallback callback) {
+    public String scryptDeriveAsync(String password, String saltBase64,
+                                    int N, int r, int p, int keyLen,
+                                    BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        String jsCall = "bridge.scryptDerive('" + requestId + "', '"
-                + escapeForJs(password) + "', '"
-                + escapeForJs(saltBase64) + "', "
-                + N + ", " + r + ", " + p + ", " + keyLen + ")";
-        evaluateOnMainThread(jsCall);
+        // MF-02: password is staged out-of-band.
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("password", password == null ? "" : password);
+            payload.put("salt", saltBase64 == null ? "" : saltBase64);
+            payload.put("N", N);
+            payload.put("r", r);
+            payload.put("p", p);
+            payload.put("keyLen", keyLen);
+        } catch (JSONException je) {
+            throw new RuntimeException(je);
+        }
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.scryptDerive('" + requestId + "')");
+        return requestId;
     }
 
     // ---- Blocking wrappers ----
@@ -253,24 +338,12 @@ public class QuantumCoinJSBridge {
                 gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, cb));
     }
 
-    public String parseUnits(String value, int decimals) {
-        return blockingCall(cb -> parseUnitsAsync(value, decimals, cb));
-    }
-
     public String isValidAddress(String address) {
         return blockingCall(cb -> isValidAddressAsync(address, cb));
     }
 
     public String computeAddress(String pubKeyBase64) {
         return blockingCall(cb -> computeAddressAsync(pubKeyBase64, cb));
-    }
-
-    public String formatEther(String weiValue) {
-        return blockingCall(cb -> formatEtherAsync(weiValue, cb));
-    }
-
-    public String parseEther(String etherValue) {
-        return blockingCall(cb -> parseEtherAsync(etherValue, cb));
     }
 
     public String scryptDerive(String password, String saltBase64,
@@ -314,7 +387,7 @@ public class QuantumCoinJSBridge {
         AtomicReference<String> resultRef = new AtomicReference<>();
         AtomicReference<String> errorRef = new AtomicReference<>();
 
-        invoker.invoke(new BridgeCallback() {
+        String requestId = invoker.invoke(new BridgeCallback() {
             @Override
             public void onResult(String jsonResult) {
                 resultRef.set(jsonResult);
@@ -328,51 +401,96 @@ public class QuantumCoinJSBridge {
             }
         });
 
+        boolean timedOut = false;
         try {
             if (!latch.await(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                timedOut = true;
                 throw new RuntimeException(
                         "Bridge call timed out after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
             }
         } catch (InterruptedException e) {
+            timedOut = true;
             Thread.currentThread().interrupt();
             throw new RuntimeException("Bridge call interrupted", e);
+        } finally {
+            // L-02: if JavaScript never consumed the staged payload,
+            // drop it now rather than waiting for the TTL sweep.
+            if (timedOut && requestId != null) {
+                webViewManager.removePendingPayload(requestId);
+            }
         }
 
         if (errorRef.get() != null) {
+            // L-02: errors also leave nothing staged - getPendingPayload
+            // removes on access, but JS may have failed before pulling.
+            if (requestId != null) {
+                webViewManager.removePendingPayload(requestId);
+            }
             throw new RuntimeException("Bridge call failed: " + errorRef.get());
         }
         return resultRef.get();
     }
 
+    /**
+     * Escape a string so it can be safely embedded inside a single-quoted
+     * JavaScript string literal. Covers backslash, single quote, NUL, CR,
+     * LF, and the Unicode line separator characters U+2028 / U+2029 that
+     * otherwise terminate a JS string literal on the parser.
+     *
+     * <p>Note: the preferred path for sensitive values is the pull model
+     * above; this helper is only used for non-sensitive push-mode
+     * arguments.</p>
+     */
     static String escapeForJs(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("'", "\\'");
-    }
-
-    static String intArrayToJson(int[] arr) {
-        if (arr == null) return "[]";
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < arr.length; i++) {
-            if (i > 0) sb.append(',');
-            sb.append(arr[i]);
+        StringBuilder sb = new StringBuilder(s.length() + 8);
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '\'': sb.append("\\'"); break;
+                case '\"': sb.append("\\\""); break;
+                case '\0': sb.append("\\u0000"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\u2028': sb.append("\\u2028"); break;
+                case '\u2029': sb.append("\\u2029"); break;
+                default:
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
         }
-        sb.append(']');
         return sb.toString();
     }
 
-    static String stringArrayToJson(String[] arr) {
-        if (arr == null) return "[]";
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < arr.length; i++) {
-            if (i > 0) sb.append(',');
-            sb.append('"').append(escapeForJs(arr[i])).append('"');
-        }
-        sb.append(']');
-        return sb.toString();
+    static JSONArray intArrayToJsonArray(int[] arr) {
+        JSONArray jsonArr = new JSONArray();
+        if (arr == null) return jsonArr;
+        for (int v : arr) jsonArr.put(v);
+        return jsonArr;
+    }
+
+    static JSONArray stringArrayToJsonArray(String[] arr) {
+        JSONArray jsonArr = new JSONArray();
+        if (arr == null) return jsonArr;
+        for (String s : arr) jsonArr.put(s == null ? "" : s);
+        return jsonArr;
     }
 
     @FunctionalInterface
     private interface AsyncInvoker {
-        void invoke(BridgeCallback callback);
+        /**
+         * L-02: returns the generated {@code requestId} so
+         * {@link #blockingCall(AsyncInvoker)} can clear any staged
+         * payload on the timeout path and not leak sensitive data
+         * into the map until TTL expiry.
+         */
+        String invoke(BridgeCallback callback);
     }
 }

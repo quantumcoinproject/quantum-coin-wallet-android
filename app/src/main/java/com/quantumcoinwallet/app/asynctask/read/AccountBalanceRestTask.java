@@ -3,11 +3,14 @@ package com.quantumcoinwallet.app.asynctask.read;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 
+import com.quantumcoinwallet.app.api.read.ApiClient;
 import com.quantumcoinwallet.app.api.read.ApiException;
 import com.quantumcoinwallet.app.api.read.api.AccountsApi;
 import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
 import com.quantumcoinwallet.app.entity.ServiceException;
+import com.quantumcoinwallet.app.utils.GlobalMethods;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,14 +28,26 @@ public class AccountBalanceRestTask {
     }
 
     public void execute(final String... params) {
+        // MF-24: snapshot the base URL at task creation so a concurrent
+        // network switch cannot rewrite the endpoint we target.
+        final String basePathSnapshot = GlobalMethods.SCAN_API_URL;
+
+        // MF-25: validate params before dispatch so we surface bad input
+        // as a listener failure rather than NPE/AIOOBE inside the executor.
+        if (params == null || params.length < 1 || TextUtils.isEmpty(params[0])) {
+            notifyFailure(new ApiException("address parameter is required"));
+            return;
+        }
+        final String address = params[0];
+
         executor.submit(new Runnable() {
             @Override
             public void run() {
                 BalanceResponse balanceResponse = null;
                 ApiException apiException = null;
                 try {
-                    String address = params[0];
-                    AccountsApi apiInstance = new AccountsApi();
+                    ApiClient apiClient = new ApiClient().setBasePath(basePathSnapshot);
+                    AccountsApi apiInstance = new AccountsApi(apiClient);
                     balanceResponse = apiInstance.getAccountBalance(address);
                 } catch (ApiException e) {
                     apiException = e;
@@ -57,6 +72,19 @@ public class AccountBalanceRestTask {
                         }
                     }
                 });
+            }
+        });
+    }
+
+    private void notifyFailure(final ApiException ae) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (taskListener != null) taskListener.onFailure(ae);
+                } finally {
+                    executor.shutdown();
+                }
             }
         });
     }

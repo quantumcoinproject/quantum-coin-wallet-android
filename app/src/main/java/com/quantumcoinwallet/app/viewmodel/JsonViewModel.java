@@ -13,6 +13,8 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 
+import timber.log.Timber;
+
 //@HiltViewModel
 public class JsonViewModel extends ViewModel{
   //@Inject
@@ -24,14 +26,14 @@ public class JsonViewModel extends ViewModel{
             String jsonString = GlobalMethods.LocaleLanguage(context,  languageKey);
             _jsonInteract = new JsonInteract(jsonString);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
     }
     public String getInfoStep() {
         try {
             return _jsonInteract.getInfoStep();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -39,7 +41,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getInfoLength();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return 0;
     }
@@ -47,7 +49,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getTitleByInfo(index);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -55,7 +57,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getDescByInfo(index);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -63,7 +65,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuizStep();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -71,7 +73,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuizWrongAnswer();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -79,7 +81,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuizNoChoice();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -87,7 +89,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuizLength();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return 0;
     }
@@ -95,7 +97,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getTitleByQuiz(index);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -103,7 +105,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuestionByQuiz(index);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -111,7 +113,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getChoicesByQuiz(index);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -119,7 +121,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCorrectChoiceByQuiz(index);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return -1;
     }
@@ -127,7 +129,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAfterQuizInfoByQuiz(index);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -136,7 +138,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getTitleByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -144,7 +146,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNextByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -152,7 +154,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getOkByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -160,7 +162,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCancelByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -168,7 +170,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCloseByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -176,7 +178,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSubmitByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -185,7 +187,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSendByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -193,7 +195,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getReceiveByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -201,7 +203,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getTransactionsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -209,7 +211,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCopyByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -217,7 +219,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBackByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -225,7 +227,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBalanceByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -233,7 +235,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRefreshByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -242,7 +244,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCompletedTransactionsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -250,7 +252,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getPendingTransactionsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -258,7 +260,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRestoreByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -266,7 +268,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -274,7 +276,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSettingsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -282,7 +284,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getUnlockByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -290,7 +292,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getUnlockWalletByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -299,7 +301,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getScanWalletByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -307,7 +309,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBlockExplorerByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -315,7 +317,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSelectNetworkByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -323,7 +325,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterWalletPasswordWalletByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -331,7 +333,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterApasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -339,7 +341,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getShowPasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -347,7 +349,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getPasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -355,7 +357,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSetWalletPassowrdByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -363,7 +365,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuizByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -371,7 +373,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getGetCoinsForDogePTokensByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -380,7 +382,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletPathByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -388,7 +390,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSetWalletPasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -396,7 +398,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getUseStrongPasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -404,7 +406,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRetypePasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -412,7 +414,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRetypeThePasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -420,7 +422,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCreateRestoreWalletByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -428,7 +430,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSelectAnOptionByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -436,7 +438,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCreateNewWalletByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -444,7 +446,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRestoreWalletFromSeedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -452,7 +454,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedWordsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -460,7 +462,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedWordsInfo1ByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -468,7 +470,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedWordsInfo2ByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -476,7 +478,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedWordsInfo3ByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -484,7 +486,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedWordsInfo4ByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -492,7 +494,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedWordsShowByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -500,7 +502,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getVerifySeedWordsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -508,7 +510,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getVerifyWalletPasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -516,7 +518,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getVerifyWalletPasswordInfoByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -524,7 +526,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWaitWalletSaveByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -534,7 +536,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletSavedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -542,7 +544,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterAboveWalletPasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -550,7 +552,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWaitRevealSeedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -558,7 +560,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWaitWalletOpenByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -567,7 +569,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getOpenByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -575,7 +577,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getTotal_balanceByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -583,7 +585,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getHelpByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -591,7 +593,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getDpscanByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -599,7 +601,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAddressByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -607,7 +609,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCoinsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -615,7 +617,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRevealSeedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -623,7 +625,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCreateOrRestoreWalletByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -631,7 +633,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRevealByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -639,7 +641,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWaitUnlockByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -647,7 +649,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNetworksByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -655,7 +657,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getIdByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -663,7 +665,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNameByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -671,7 +673,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getScanApiUrlByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -679,7 +681,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRpcEndpointByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -687,7 +689,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBlockExplorerUrlByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -695,7 +697,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAddNetworkByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -703,7 +705,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAddByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -711,7 +713,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterNetworkJsonByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -719,7 +721,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAddNetworkWarnByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -727,7 +729,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNetworkAddedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -735,7 +737,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getGetCoinsForTokensByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -743,7 +745,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getGetCoinsForTokensInfoByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -751,7 +753,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getChooseEthWalletOptionByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -759,7 +761,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthOptionSeedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -767,7 +769,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthOptionPrivateKeyByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -775,7 +777,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthOptionKeystoreByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -783,7 +785,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthOptionManualByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -791,7 +793,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterEthSeedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -799,7 +801,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getVerifyConversionAddressByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -807,7 +809,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getConversionAgreeByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -815,7 +817,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthAddressByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -823,7 +825,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuantumAddressByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -831,7 +833,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNetworkByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -839,7 +841,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterQuantumWalletPasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -847,7 +849,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getTypeTheWordsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -855,7 +857,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getConversionMessageByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -863,7 +865,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getConversionRequestByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -871,7 +873,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getPleaseWaitSubmitByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -879,7 +881,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterEthKeyByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -887,7 +889,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSelectEthKeyJsonByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -895,7 +897,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterPasswordEthKeyJsonByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -903,7 +905,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterEthPasswordByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -911,7 +913,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCopyEthAddressByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -919,7 +921,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterEthAddressByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -927,7 +929,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCopyMessageByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -935,7 +937,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getPasteSignatureInfoByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -943,7 +945,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getPasteSignatureByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -951,7 +953,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBalanceChangedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -959,7 +961,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAddressToSendByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -967,7 +969,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuantityToSendByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -975,7 +977,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSendRequestByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -983,7 +985,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getReceive_coinsByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -991,7 +993,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSendOnlyByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -999,7 +1001,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getInoutByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1007,7 +1009,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getDateByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1015,7 +1017,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getFromByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1023,7 +1025,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getToByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1031,7 +1033,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getHashByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1039,7 +1041,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBlockByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1047,7 +1049,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSendConfirmByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1055,7 +1057,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSelectWalletTypeByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1063,7 +1065,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletTypeDefaultByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1071,7 +1073,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletTypeAdvancedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1079,7 +1081,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSelectSeedWordLengthByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1087,7 +1089,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedLength32ByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1095,7 +1097,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedLength36ByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1103,7 +1105,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedLength48ByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1111,7 +1113,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getCopiedByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1119,7 +1121,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSkipByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1127,7 +1129,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSkipVerifyConfirmByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1135,7 +1137,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getYesByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1143,7 +1145,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNoByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1151,7 +1153,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getErrorOccurredByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1159,7 +1161,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getErrorTitleByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1167,7 +1169,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSigningByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1175,7 +1177,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAdvancedSigningOptionByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1183,7 +1185,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAdvancedSigningDescriptionByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1191,7 +1193,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnabledByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1199,7 +1201,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getDisabledByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1207,7 +1209,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBackupByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1215,7 +1217,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBackupPromptByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1223,161 +1225,161 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getBackupDescriptionByLangValues();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
     public String getPhoneBackupByLangValues() {
-        try { return _jsonInteract.getPhoneBackupByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getPhoneBackupByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getCloudBackupByLangValues() {
-        try { return _jsonInteract.getCloudBackupByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getCloudBackupByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getCloudBackupPromptByLangValues() {
-        try { return _jsonInteract.getCloudBackupPromptByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getCloudBackupPromptByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getCloudBackupDescriptionByLangValues() {
-        try { return _jsonInteract.getCloudBackupDescriptionByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getCloudBackupDescriptionByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getSelectBackupFolderByLangValues() {
-        try { return _jsonInteract.getSelectBackupFolderByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getSelectBackupFolderByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getChangeFolderByLangValues() {
-        try { return _jsonInteract.getChangeFolderByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getChangeFolderByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getNoFolderSelectedByLangValues() {
-        try { return _jsonInteract.getNoFolderSelectedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getNoFolderSelectedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getCurrentFolderByLangValues() {
-        try { return _jsonInteract.getCurrentFolderByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getCurrentFolderByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getExportWalletByLangValues() {
-        try { return _jsonInteract.getExportWalletByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getExportWalletByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupWalletByLangValues() {
-        try { return _jsonInteract.getBackupWalletByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupWalletByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupWaitByLangValues() {
-        try { return _jsonInteract.getBackupWaitByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupWaitByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupSavedByLangValues() {
-        try { return _jsonInteract.getBackupSavedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupSavedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupFailedByLangValues() {
-        try { return _jsonInteract.getBackupFailedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupFailedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupPasswordByLangValues() {
-        try { return _jsonInteract.getBackupPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getUseCurrentPasswordByLangValues() {
-        try { return _jsonInteract.getUseCurrentPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getUseCurrentPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getUseDifferentPasswordByLangValues() {
-        try { return _jsonInteract.getUseDifferentPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getUseDifferentPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getConfirmBackupPasswordByLangValues() {
-        try { return _jsonInteract.getConfirmBackupPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getConfirmBackupPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreFromCloudByLangValues() {
-        try { return _jsonInteract.getRestoreFromCloudByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreFromCloudByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreFromFileByLangValues() {
-        try { return _jsonInteract.getRestoreFromFileByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreFromFileByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupToCloudByLangValues() {
-        try { return _jsonInteract.getBackupToCloudByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupToCloudByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupToFileByLangValues() {
-        try { return _jsonInteract.getBackupToFileByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupToFileByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupDoneByLangValues() {
-        try { return _jsonInteract.getBackupDoneByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupDoneByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupSavedShortByLangValues() {
-        try { return _jsonInteract.getBackupSavedShortByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupSavedShortByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupOptionsTitleByLangValues() {
-        try { return _jsonInteract.getBackupOptionsTitleByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupOptionsTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getBackupOptionsDescriptionByLangValues() {
-        try { return _jsonInteract.getBackupOptionsDescriptionByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getBackupOptionsDescriptionByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getEnterBackupPasswordTitleByLangValues() {
-        try { return _jsonInteract.getEnterBackupPasswordTitleByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getEnterBackupPasswordTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getWalletAlreadyExistsDetailedByLangValues() {
-        try { return _jsonInteract.getWalletAlreadyExistsDetailedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getWalletAlreadyExistsDetailedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getConfirmPasswordByLangValues() {
-        try { return _jsonInteract.getConfirmPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getConfirmPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getNoTransactionsByLangValues() {
-        try { return _jsonInteract.getNoTransactionsByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getNoTransactionsByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreEnterPasswordByLangValues() {
-        try { return _jsonInteract.getRestoreEnterPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreEnterPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreDecryptFailedByLangValues() {
-        try { return _jsonInteract.getRestoreDecryptFailedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreDecryptFailedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreEnterDifferentPasswordByLangValues() {
-        try { return _jsonInteract.getRestoreEnterDifferentPasswordByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreEnterDifferentPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreSkipByLangValues() {
-        try { return _jsonInteract.getRestoreSkipByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreSkipByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreProgressByLangValues() {
-        try { return _jsonInteract.getRestoreProgressByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreProgressByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreSummaryByLangValues() {
-        try { return _jsonInteract.getRestoreSummaryByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreSummaryByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreRestoredByLangValues() {
-        try { return _jsonInteract.getRestoreRestoredByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreRestoredByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreAlreadyPresentByLangValues() {
-        try { return _jsonInteract.getRestoreAlreadyPresentByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreAlreadyPresentByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreFailedByLangValues() {
-        try { return _jsonInteract.getRestoreFailedByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreFailedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreNoBackupsFoundByLangValues() {
-        try { return _jsonInteract.getRestoreNoBackupsFoundByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreNoBackupsFoundByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreSelectAllByLangValues() {
-        try { return _jsonInteract.getRestoreSelectAllByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreSelectAllByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreSelectNoneByLangValues() {
-        try { return _jsonInteract.getRestoreSelectNoneByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreSelectNoneByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreConfirmByLangValues() {
-        try { return _jsonInteract.getRestoreConfirmByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getRestoreConfirmByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
 
     public String getTokensByLangValues() {
-        try { return _jsonInteract.getTokensByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getTokensByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getNoTokensByLangValues() {
-        try { return _jsonInteract.getNoTokensByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getNoTokensByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getContractByLangValues() {
-        try { return _jsonInteract.getContractByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getContractByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getSymbolByLangValues() {
-        try { return _jsonInteract.getSymbolByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getSymbolByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getAssetToSendByLangValues() {
-        try { return _jsonInteract.getAssetToSendByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getAssetToSendByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getTokenSendConfirmByLangValues() {
-        try { return _jsonInteract.getTokenSendConfirmByLangValues(); } catch (JSONException e) { e.printStackTrace(); } return null;
+        try { return _jsonInteract.getTokenSendConfirmByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
 
     public String getErrorByErrors() {
         try {
             return _jsonInteract.getErrorByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1385,7 +1387,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWrongAnswerByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1393,7 +1395,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSelectOptionByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1401,7 +1403,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getRetypePasswordMismatchByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1409,7 +1411,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getPasswordSpecByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1417,7 +1419,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getPasswordSpaceByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1425,7 +1427,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedInitErrorByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1433,7 +1435,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedEmptyByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1441,7 +1443,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedDoesNotExistByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1449,7 +1451,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSeedMismatchByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1457,7 +1459,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletPasswordMismatchByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1465,7 +1467,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWordToSeedByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1473,7 +1475,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSelectWalletFileByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1481,7 +1483,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterWalletFilePasswordByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1489,7 +1491,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletFileOpenErrorByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1497,7 +1499,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterWalletPassordByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1505,7 +1507,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletOpenErrorByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1514,7 +1516,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNoSeed();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1522,7 +1524,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletAddressExists();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1530,7 +1532,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getInvalidNetworkJson();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1538,7 +1540,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getInvalidNetworkJsonByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1546,7 +1548,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getInvalidApiResponse();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1554,7 +1556,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthSeedEmpty();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1562,7 +1564,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthSeedError();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1570,7 +1572,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNoEthConversionWallets();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1578,7 +1580,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNoEthConversionWallet();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1586,7 +1588,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getSelectEthAddress();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1594,7 +1596,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterQuantumPassword();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1602,7 +1604,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getInvalidEthPrivateKey();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1610,7 +1612,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthSigMatch();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1618,7 +1620,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterEthSig();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1626,7 +1628,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEnterAmount();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1634,7 +1636,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getAmountLarge();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1642,7 +1644,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getEthAddr();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1650,7 +1652,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getQuantumAddr();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1658,7 +1660,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getNoMoreTxns();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1666,7 +1668,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getInternetDisconnected();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1674,7 +1676,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getUnexpectedError();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }
@@ -1682,7 +1684,7 @@ public class JsonViewModel extends ViewModel{
         try {
             return _jsonInteract.getWalletPasswordNotSetByErrors();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "lang key lookup failed");
         }
         return null;
     }

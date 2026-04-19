@@ -2,10 +2,7 @@ package com.quantumcoinwallet.app.interact;
 
 import android.content.Context;
 
-import com.quantumcoinwallet.app.entity.KeyServiceException;
-import com.quantumcoinwallet.app.entity.Result;
 import com.quantumcoinwallet.app.entity.ServiceException;
-import com.quantumcoinwallet.app.keystorage.IKeyStore;
 import com.quantumcoinwallet.app.services.IKeyService;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 

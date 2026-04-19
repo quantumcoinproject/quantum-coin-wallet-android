@@ -27,7 +27,6 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.quantumcoinwallet.app.R;
-import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
@@ -45,6 +44,12 @@ import java.util.Arrays;
 public class RevealWalletFragment extends Fragment {
 
     private static final String TAG = "RevealSeedWalletFragment";
+
+    // L-12: fixed, non-sensitive user-facing message. Any real
+    // decrypt / ServiceException / JSON error details are logged via
+    // Timber (redacted by ReleaseTree) rather than shown on screen.
+    private static final String REVEAL_WALLET_ERROR_GENERIC =
+            "Unable to reveal the wallet. Please check your password and try again.";
 
     private boolean ThreadStop = false;
     private int revealedWordCount = 48;
@@ -103,7 +108,8 @@ public class RevealWalletFragment extends Fragment {
 
         } catch (Exception e) {
             progressBar.setVisibility(View.GONE);
-            GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
+            timber.log.Timber.w(e, "reveal wallet decrypt failed");
+            GlobalMethods.ShowErrorDialog(getContext(), "Error", REVEAL_WALLET_ERROR_GENERIC);
         }
         homeWalletBackArrowImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -129,9 +135,8 @@ public class RevealWalletFragment extends Fragment {
             public void onClick(View v) {
                 progressBar.setVisibility(View.VISIBLE);
                 String clipboardCopyData = ClipboardCopyData(revealSeedWordsViewCaptionTextViews, revealSeedWordsViewTextViews);
-                ClipboardManager clipBoard = (ClipboardManager) getActivity().getSystemService(getActivity().CLIPBOARD_SERVICE);
-                ClipData clipData = ClipData.newPlainText("walletrevealSeed", clipboardCopyData);
-                clipBoard.setPrimaryClip(clipData);
+                com.quantumcoinwallet.app.utils.SecureClipboard.copySensitive(
+                        getActivity(), "walletrevealSeed", clipboardCopyData);
                 progressBar.setVisibility(View.GONE);
                 revealSeedWordsViewCopied.setVisibility(View.VISIBLE);
                 new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
@@ -201,7 +206,8 @@ public class RevealWalletFragment extends Fragment {
                 textViews[i].setText("");
             }
         } catch (Exception e) {
-            GlobalMethods.ShowErrorDialog(getContext(), "Error", e.getMessage());
+            timber.log.Timber.w(e, "reveal wallet render failed");
+            GlobalMethods.ShowErrorDialog(getContext(), "Error", REVEAL_WALLET_ERROR_GENERIC);
         }
         progressBar.setVisibility(View.GONE);
     }

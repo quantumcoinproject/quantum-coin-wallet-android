@@ -40,7 +40,6 @@ import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
 import com.quantumcoinwallet.app.asynctask.read.AccountBalanceRestTask;
 import com.quantumcoinwallet.app.asynctask.read.ListAccountTokensRestTask;
 import com.quantumcoinwallet.app.bridge.BridgeCallback;
-import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.CoinUtils;
@@ -358,7 +357,9 @@ public class SendFragment extends Fragment  {
                                 SecureStorage secureStorage = KeyViewModel.getSecureStorage();
                                 ok = secureStorage.unlock(getContext(), password.trim());
                             } catch (Exception e) {
-                                android.util.Log.e(TAG, "unlock failed", e);
+                                // L-13: route through Timber so ReleaseTree
+                                // strips the stack trace in release builds.
+                                timber.log.Timber.e(e, "send flow unlock failed");
                             }
                             final boolean unlocked = ok;
                             if (getActivity() == null) return;

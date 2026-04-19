@@ -3,10 +3,13 @@ package com.quantumcoinwallet.app.asynctask.read;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 
+import com.quantumcoinwallet.app.api.read.ApiClient;
 import com.quantumcoinwallet.app.api.read.ApiException;
 import com.quantumcoinwallet.app.api.read.api.AccountsApi;
 import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummaryResponse;
+import com.quantumcoinwallet.app.utils.GlobalMethods;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,17 +27,33 @@ public class AccountTxnRestTask {
     }
 
     public void execute(final String... params) {
+        final String basePathSnapshot = GlobalMethods.SCAN_API_URL;
+
+        if (params == null || params.length < 2
+                || TextUtils.isEmpty(params[0]) || TextUtils.isEmpty(params[1])) {
+            notifyFailure(new ApiException("address and pageIndex are required"));
+            return;
+        }
+        final String address = params[0];
+        final int pageIndex;
+        try {
+            pageIndex = Integer.parseInt(params[1]);
+            if (pageIndex < 0) throw new NumberFormatException("negative");
+        } catch (NumberFormatException nfe) {
+            notifyFailure(new ApiException("pageIndex must be a non-negative integer"));
+            return;
+        }
+
         executor.submit(new Runnable() {
             @Override
             public void run() {
                 AccountTransactionSummaryResponse accountTransactionSummaryResponse = null;
                 ApiException apiException = null;
                 try {
-                    String address = params[0];
-                    int pageindex = Integer.parseInt(params[1]);
-                    AccountsApi apiInstance = new AccountsApi();
+                    ApiClient apiClient = new ApiClient().setBasePath(basePathSnapshot);
+                    AccountsApi apiInstance = new AccountsApi(apiClient);
                     accountTransactionSummaryResponse = apiInstance.listAccountTransactions(
-                            address, pageindex);
+                            address, pageIndex);
                 } catch (ApiException e) {
                     apiException = e;
                 }
@@ -58,6 +77,19 @@ public class AccountTxnRestTask {
                         }
                     }
                 });
+            }
+        });
+    }
+
+    private void notifyFailure(final ApiException ae) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (taskListener != null) taskListener.onFailure(ae);
+                } finally {
+                    executor.shutdown();
+                }
             }
         });
     }

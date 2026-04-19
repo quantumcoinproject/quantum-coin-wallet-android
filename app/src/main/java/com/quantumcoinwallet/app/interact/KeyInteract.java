@@ -1,21 +1,13 @@
 package com.quantumcoinwallet.app.interact;
 
-import android.content.Context;
-
 import com.quantumcoinwallet.app.bridge.BridgeCallback;
-import com.quantumcoinwallet.app.entity.KeyServiceException;
-import com.quantumcoinwallet.app.keystorage.IKeyStore;
 import com.quantumcoinwallet.app.services.IKeyService;
-
-import java.security.InvalidKeyException;
 
 public class KeyInteract {
     private final IKeyService keyService;
-    private final IKeyStore keyStore;
 
-    public KeyInteract(IKeyService keyService, IKeyStore keyStore) {
+    public KeyInteract(IKeyService keyService) {
         this.keyService = keyService;
-        this.keyStore = keyStore;
     }
 
     // Async bridge methods (delegate to service)
@@ -44,12 +36,4 @@ public class KeyInteract {
     public String initializeBlocking(int chainId, String rpcEndpoint) { return keyService.initializeBlocking(chainId, rpcEndpoint); }
     public String getAllSeedWordsBlocking() { return keyService.getAllSeedWordsBlocking(); }
     public String doesSeedWordExistBlocking(String word) { return keyService.doesSeedWordExistBlocking(word); }
-
-    // Encryption (unchanged - uses KeyStore)
-    public boolean encryptDataByAccount(Context context, String address, String password, String keyPair) {
-        return keyStore.EncryptData(context, address, password, keyPair);
-    }
-    public byte[] decryptDataByAccount(Context context, String address, String password) throws InvalidKeyException, KeyServiceException {
-        return keyStore.DecryptData(context, address, password);
-    }
 }

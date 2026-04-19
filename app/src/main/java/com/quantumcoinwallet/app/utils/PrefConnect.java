@@ -15,6 +15,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import timber.log.Timber;
+
 public class PrefConnect {
     //Key
     //public static String privatekey = "privatekey";
@@ -148,7 +150,7 @@ public class PrefConnect {
                 }
             }
         }catch(Exception e){
-            e.printStackTrace();
+            Timber.w(e, "loadHashMap failed");
         }
         return outputMap;
     }
@@ -164,7 +166,7 @@ public class PrefConnect {
                 }
             }
         }catch(Exception e){
-            e.printStackTrace();
+            Timber.w(e, "loadArrayMap failed");
         }
         return  null;
     }

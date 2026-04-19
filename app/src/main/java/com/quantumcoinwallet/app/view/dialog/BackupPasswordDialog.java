@@ -47,13 +47,11 @@ public class BackupPasswordDialog {
     }
 
     public static void show(final Context ctx, final JsonViewModel vm,
-                            final String currentPassword,
                             final OnBackupPasswordListener listener) {
         showCreateMode(ctx, vm, listener);
     }
 
     public static void show(final Context ctx, final JsonViewModel vm,
-                            final String currentPassword,
                             final boolean restoreMode,
                             final OnBackupPasswordListener listener) {
         if (restoreMode) {

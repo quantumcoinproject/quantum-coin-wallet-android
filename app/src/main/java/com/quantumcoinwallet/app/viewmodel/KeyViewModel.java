@@ -5,23 +5,10 @@ import android.content.Context;
 import com.quantumcoinwallet.app.bridge.BridgeCallback;
 import com.quantumcoinwallet.app.bridge.QuantumCoinJSBridge;
 import com.quantumcoinwallet.app.bridge.WebViewManager;
-import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.interact.KeyInteract;
-import com.quantumcoinwallet.app.keystorage.IKeyStore;
-import com.quantumcoinwallet.app.keystorage.KeyStore;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
-import com.quantumcoinwallet.app.services.IKeyService;
 import com.quantumcoinwallet.app.services.KeyService;
-import com.quantumcoinwallet.app.utils.CoinUtils;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 import androidx.lifecycle.ViewModel;
-
-import java.security.InvalidKeyException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public class KeyViewModel extends ViewModel {
 
@@ -30,8 +17,7 @@ public class KeyViewModel extends ViewModel {
     private static SecureStorage secureStorageInstance;
 
     public KeyViewModel() {
-        IKeyStore keyStore = new KeyStore();
-        keyInteract = new KeyInteract(new KeyService(bridgeInstance), keyStore);
+        keyInteract = new KeyInteract(new KeyService(bridgeInstance));
     }
 
     public static void initBridge(Context context) {
@@ -65,35 +51,4 @@ public class KeyViewModel extends ViewModel {
     public String sendTokenTransactionBlocking(String privKeyBase64, String pubKeyBase64, String contractAddress, String toAddress, String amountWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled) { return keyInteract.sendTokenTransactionBlocking(privKeyBase64, pubKeyBase64, contractAddress, toAddress, amountWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled); }
     public String getAllSeedWordsBlocking() { return keyInteract.getAllSeedWordsBlocking(); }
     public String doesSeedWordExistBlocking(String word) { return keyInteract.doesSeedWordExistBlocking(word); }
-
-    // --- Wei conversion (pure Java, main-thread safe) ---
-    public String getWeiToDogeProtocol(String value) {
-        return CoinUtils.formatWei(value);
-    }
-
-    // --- Encryption/decryption (unchanged) ---
-    public boolean encryptDataByString(Context context, String key, String password, String passwordSHA256) {
-        return keyInteract.encryptDataByAccount(context, key, password, passwordSHA256);
-    }
-
-    public String decryptDataByString(Context context, String key, String password) throws InvalidKeyException, KeyServiceException {
-        byte[] byteArray = keyInteract.decryptDataByAccount(context, key, password);
-        return new String(byteArray);
-    }
-
-    public boolean encryptDataByAccount(Context context, String key, String password, String[] keyPair) {
-        Gson gson = new Gson();
-        List<String> textList = new ArrayList<>(Arrays.asList(keyPair));
-        String jsonText = gson.toJson(textList);
-        return keyInteract.encryptDataByAccount(context, key, password, jsonText);
-    }
-
-    public String[] decryptDataByAccount(Context context, String key, String password) throws InvalidKeyException, KeyServiceException {
-        byte[] byteArray = keyInteract.decryptDataByAccount(context, key, password);
-        String jsonString = new String(byteArray);
-        List<String> dataList = Arrays.asList(new GsonBuilder().create().fromJson(jsonString, String[].class));
-        String[] data = new String[dataList.size()];
-        data = dataList.toArray(data);
-        return data;
-    }
 }
