@@ -21,7 +21,7 @@
             android:layout_alignParentEnd="true" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
@@ -29,7 +29,7 @@
 
             <TextView
                 android:id="@+id/textView_waller_adapter_address"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:textSize="12dp"
@@ -46,7 +46,7 @@
             android:layout_alignParentEnd="true" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
@@ -55,7 +55,7 @@
             <androidx.cardview.widget.CardView
                 android:layout_width="35dp"
                 android:layout_height="35dp"
-                android:layout_gravity="center_horizontal"
+                android:layout_gravity="center"
                 app:cardBackgroundColor="#FF396F"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="12dp">
@@ -81,7 +81,7 @@
             android:layout_alignParentEnd="true" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
@@ -90,7 +90,7 @@
             <androidx.cardview.widget.CardView
                 android:layout_width="35dp"
                 android:layout_height="35dp"
-                android:layout_gravity="center_horizontal"
+                android:layout_gravity="center"
                 app:cardBackgroundColor="#FF00DB"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="12dp">
@@ -116,7 +116,7 @@
             android:layout_alignParentEnd="true" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
@@ -125,7 +125,7 @@
             <androidx.cardview.widget.CardView
                 android:layout_width="35dp"
                 android:layout_height="35dp"
-                android:layout_gravity="center_horizontal"
+                android:layout_gravity="center"
                 app:cardBackgroundColor="#3B82F6"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="12dp">

@@ -30,7 +30,6 @@ import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
-import com.quantumcoinwallet.app.seedwords.SeedWords;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.view.adapter.SeedWordAutoCompleteAdapter;

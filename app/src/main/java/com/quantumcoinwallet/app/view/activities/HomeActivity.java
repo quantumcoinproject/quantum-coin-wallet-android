@@ -44,7 +44,6 @@ import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
 import com.quantumcoinwallet.app.asynctask.read.AccountBalanceRestTask;
 import com.quantumcoinwallet.app.entity.ServiceException;
 import com.quantumcoinwallet.app.model.BlockchainNetwork;
-import com.quantumcoinwallet.app.seedwords.SeedWords;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.utils.Utility;
@@ -68,9 +67,12 @@ import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -92,6 +94,7 @@ public class HomeActivity extends FragmentActivity implements
     private final int notificationRequestCode = 112;
     private long lastUnlockTimestamp = 0L;
     private boolean unlockDialogShowing = false;
+    private boolean suppressNextResumeLock = false;
 
     private LinearLayout topLinearLayout;
     private ViewGroup.LayoutParams topLinearLayoutParams;
@@ -132,28 +135,15 @@ public class HomeActivity extends FragmentActivity implements
 
             jsonViewModel = new JsonViewModel(getApplicationContext(),languageKey);
 
-            loadSeedsThread();
-
             setContentView(R.layout.home_activity);
 
             KeyViewModel.initBridge(getApplicationContext());
 
-            new Thread(new Runnable() {
-                public void run() {
-                    try {
-                        android.util.Log.i("QuantumCoinWallet", "Startup: waiting for bridge...");
-                        KeyViewModel.getBridge().initializeOffline();
-                        android.util.Log.i("QuantumCoinWallet", "Startup: SDK initialized successfully");
-                    } catch (Exception e) {
-                        android.util.Log.e("QuantumCoinWallet", "Startup: SDK init FAILED: " + e.getMessage(), e);
-                        runOnUiThread(new Runnable() {
-                            public void run() {
-                                GlobalMethods.ShowErrorDialog(HomeActivity.this, "SDK Init Failed", e.getMessage());
-                            }
-                        });
-                    }
-                }
-            }).start();
+            // loadSeedsThread depends on KeyViewModel.getBridge() being non-null,
+            // so it must run AFTER initBridge(). It also internally calls
+            // initializeOffline() before getAllSeedWords(), so no separate
+            // startup init thread is needed.
+            loadSeedsThread();
 
             //Linear top layout
             topLinearLayout = (LinearLayout) findViewById(R.id.top_linear_layout_home_id);
@@ -568,6 +558,11 @@ public class HomeActivity extends FragmentActivity implements
     protected void onResume() {
         super.onResume();
         try {
+            if (suppressNextResumeLock) {
+                suppressNextResumeLock = false;
+                lastUnlockTimestamp = System.currentTimeMillis();
+                return;
+            }
             SecureStorage secureStorage = KeyViewModel.getSecureStorage();
             if (secureStorage != null
                     && secureStorage.isInitialized(getApplicationContext())
@@ -581,7 +576,20 @@ public class HomeActivity extends FragmentActivity implements
         }
     }
 
+    public long markUnlockedNow() {
+        lastUnlockTimestamp = System.currentTimeMillis();
+        return lastUnlockTimestamp;
+    }
+
+    public void setSuppressNextResumeLock(boolean suppress) {
+        this.suppressNextResumeLock = suppress;
+    }
+
     private void showUnlockDialog(final Runnable onSuccess) {
+        showUnlockDialog(onSuccess, false);
+    }
+
+    private void showUnlockDialog(final Runnable onSuccess, final boolean forceModal) {
         if (unlockDialogShowing) return;
         unlockDialogShowing = true;
 
@@ -591,6 +599,16 @@ public class HomeActivity extends FragmentActivity implements
                     .setView((int) R.layout.unlock_dialog_fragment)
                     .create();
             dialog.setCancelable(false);
+            if (forceModal) {
+                dialog.setCanceledOnTouchOutside(false);
+                dialog.setOnKeyListener(new android.content.DialogInterface.OnKeyListener() {
+                    @Override
+                    public boolean onKey(android.content.DialogInterface d, int keyCode,
+                                         android.view.KeyEvent event) {
+                        return keyCode == android.view.KeyEvent.KEYCODE_BACK;
+                    }
+                });
+            }
             dialog.show();
 
             TextView unlockWalletTextView = (TextView) dialog.findViewById(
@@ -687,6 +705,22 @@ public class HomeActivity extends FragmentActivity implements
             unlockDialogShowing = false;
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
+    }
+
+    public void requirePasswordReentryThenNavigate(final Runnable onSuccess) {
+        try {
+            SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+            if (secureStorage != null && secureStorage.isInitialized(getApplicationContext())) {
+                try { secureStorage.lock(); } catch (Exception ignore) { }
+            }
+        } catch (Exception ignore) { }
+        showUnlockDialog(new Runnable() {
+            @Override
+            public void run() {
+                markUnlockedNow();
+                if (onSuccess != null) onSuccess.run();
+            }
+        }, true);
     }
 
     private void showMigrationUnlockDialog(final Runnable onSuccess) {
@@ -1122,23 +1156,42 @@ public class HomeActivity extends FragmentActivity implements
             Thread thread = new Thread() {
                 @Override
                 public void run() {
-                    try {
-                        while (true) {
-                           GlobalMethods.seedWords = new SeedWords();
-                           boolean seed = GlobalMethods.seedWords.initializeSeedWordsFromUrl(getApplicationContext());
-                           if (seed){
-                               GlobalMethods.seedLoaded = true;
-                               return;
-                           }
-                           Thread.sleep(1000);
+                    while (true) {
+                        try {
+                            KeyViewModel.getBridge().initializeOffline();
+                            String resultJson = KeyViewModel.getBridge().getAllSeedWords();
+                            JSONObject outer = new JSONObject(resultJson);
+                            if (!outer.optBoolean("success", false)) {
+                                throw new RuntimeException("getAllSeedWords bridge call returned failure: "
+                                        + outer.optString("error"));
+                            }
+                            JSONObject data = outer.getJSONObject("data");
+                            JSONArray wordsJson = data.getJSONArray("words");
+                            ArrayList<String> words = new ArrayList<>(wordsJson.length());
+                            HashSet<String> wordSet = new HashSet<>(wordsJson.length() * 2);
+                            for (int i = 0; i < wordsJson.length(); i++) {
+                                String w = wordsJson.getString(i);
+                                words.add(w);
+                                wordSet.add(w.toLowerCase());
+                            }
+                            GlobalMethods.ALL_SEED_WORDS = words;
+                            GlobalMethods.SEED_WORD_SET = wordSet;
+                            GlobalMethods.seedLoaded = true;
+                            return;
+                        } catch (Exception e) {
+                            android.util.Log.e(TAG, "loadSeedsThread failed, retrying in 1s", e);
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
                         }
-                    } catch (Exception e) {
-                        GlobalMethods.ExceptionError(getBaseContext(), TAG, e);
                     }
                 }
             };
             thread.start();
-        }catch (Exception e) {
+        } catch (Exception e) {
             GlobalMethods.ExceptionError(getBaseContext(), TAG, e);
         }
     }

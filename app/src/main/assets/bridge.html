@@ -74,6 +74,14 @@ function requireSDK(requestId) {
     return true;
 }
 
+function requireSeedWordsSDK(requestId) {
+    if (typeof SeedWordsSDK === 'undefined') {
+        sendError(requestId, 'SeedWordsSDK bundle failed to load. Check logcat for JS errors.');
+        return false;
+    }
+    return true;
+}
+
 async function ensureInitialized(requestId) {
     if (!requireSDK(requestId)) return false;
     if (!_sdkInitialized) {
@@ -128,8 +136,9 @@ var bridge = {
                 sendError(requestId, 'createRandom returned wallet without seed');
                 return;
             }
+            if (!requireSeedWordsSDK(requestId)) return;
             var seedBytes = hexToBytes(seedHex);
-            var words = QuantumCoinSDK.getWordListFromSeedArray(seedBytes);
+            var words = SeedWordsSDK.getWordListFromSeedArray(seedBytes);
             if (!Array.isArray(words)) {
                 sendError(requestId, 'getWordListFromSeedArray returned non-array');
                 return;
@@ -312,8 +321,9 @@ var bridge = {
             var seedHex = wallet.seed;
             var seedWords = null;
             if (seedHex) {
+                if (!requireSeedWordsSDK(requestId)) return;
                 var seedBytes = hexToBytes(seedHex);
-                var words = QuantumCoinSDK.getWordListFromSeedArray(seedBytes);
+                var words = SeedWordsSDK.getWordListFromSeedArray(seedBytes);
                 if (Array.isArray(words)) {
                     seedWords = words;
                 }
@@ -325,6 +335,32 @@ var bridge = {
                 seed: seedHex || null,
                 seedWords: seedWords
             });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    getAllSeedWords: async function(requestId) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            if (!requireSeedWordsSDK(requestId)) return;
+            var words = SeedWordsSDK.getAllSeedWords();
+            if (!Array.isArray(words) || words.length === 0) {
+                sendError(requestId, 'SeedWordsSDK.getAllSeedWords returned empty (seed-words not initialized)');
+                return;
+            }
+            sendResult(requestId, { words: words });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    doesSeedWordExist: async function(requestId, word) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            if (!requireSeedWordsSDK(requestId)) return;
+            var exists = SeedWordsSDK.doesSeedWordExist(word);
+            sendResult(requestId, { exists: exists === true });
         } catch (e) {
             sendError(requestId, e);
         }

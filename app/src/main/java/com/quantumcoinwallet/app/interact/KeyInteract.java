@@ -29,6 +29,8 @@ public class KeyInteract {
     public void computeAddress(String pubKeyBase64, BridgeCallback callback) { keyService.computeAddress(pubKeyBase64, callback); }
     public void initializeOffline(BridgeCallback callback) { keyService.initializeOffline(callback); }
     public void initialize(int chainId, String rpcEndpoint, BridgeCallback callback) { keyService.initialize(chainId, rpcEndpoint, callback); }
+    public void getAllSeedWords(BridgeCallback callback) { keyService.getAllSeedWords(callback); }
+    public void doesSeedWordExist(String word, BridgeCallback callback) { keyService.doesSeedWordExist(word, callback); }
 
     // Blocking bridge methods (for background threads)
     public String createRandomSeedBlocking(int keyType) { return keyService.createRandomSeedBlocking(keyType); }
@@ -40,6 +42,8 @@ public class KeyInteract {
     public String isValidAddressBlocking(String address) { return keyService.isValidAddressBlocking(address); }
     public String initializeOfflineBlocking() { return keyService.initializeOfflineBlocking(); }
     public String initializeBlocking(int chainId, String rpcEndpoint) { return keyService.initializeBlocking(chainId, rpcEndpoint); }
+    public String getAllSeedWordsBlocking() { return keyService.getAllSeedWordsBlocking(); }
+    public String doesSeedWordExistBlocking(String word) { return keyService.doesSeedWordExistBlocking(word); }
 
     // Encryption (unchanged - uses KeyStore)
     public boolean encryptDataByAccount(Context context, String address, String password, String keyPair) {

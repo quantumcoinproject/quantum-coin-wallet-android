@@ -41,6 +41,11 @@ module.exports = {
       process: 'process/browser',
       util: path.resolve(__dirname, 'src/util-shim.js'),
       quantumcoin: path.resolve(__dirname, 'node_modules/quantumcoin'),
+      'seed-words': path.resolve(__dirname, 'node_modules/seed-words'),
+      'quantum-coin-js-sdk': path.resolve(
+        __dirname,
+        'node_modules/quantumcoin/node_modules/quantum-coin-js-sdk'
+      ),
     },
     symlinks: true,
   },

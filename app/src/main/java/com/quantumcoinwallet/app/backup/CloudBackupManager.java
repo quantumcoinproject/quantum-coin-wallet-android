@@ -194,27 +194,6 @@ public class CloudBackupManager {
         }
     }
 
-    /** Check whether cloud backup is enabled and a folder URI is persisted; then encrypt and write.
-     *  Errors are logged; never thrown (wallet is already saved locally). */
-    public static void autoBackupToCloudIfEnabled(Context ctx, JSONObject walletJson, String password) {
-        try {
-            boolean enabled = PrefConnect.readBoolean(ctx, PrefConnect.CLOUD_BACKUP_ENABLED_KEY, false);
-            if (!enabled) return;
-            String folderUriStr = PrefConnect.readString(ctx, PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
-            if (folderUriStr == null || folderUriStr.isEmpty()) {
-                Log.w(TAG, "autoBackup: cloud backup enabled but no folder configured");
-                return;
-            }
-            Uri folderUri = Uri.parse(folderUriStr);
-            EncryptedResult enc = encryptWallet(walletJson, password);
-            String filename = buildFilename(enc.address);
-            writeToSafFolder(ctx, folderUri, filename, enc.json);
-            Log.i(TAG, "autoBackup: wrote " + filename);
-        } catch (Exception e) {
-            Log.e(TAG, "autoBackup failed", e);
-        }
-    }
-
     /** Callback used by the shared restore loop. All UI work must happen on the main thread;
      *  the loop itself runs on a background thread. */
     public interface RestoreCallback {

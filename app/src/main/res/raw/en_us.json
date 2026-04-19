@@ -6,10 +6,6 @@
         "desc": "You are about to create a quantum resistant wallet. Do not send Ethereum or other coins or tokens to this wallet address!"
       },
       {
-        "title": "Anti Virus",
-        "desc": "Make sure that your computer or laptop or device has anti-virus software installed and enabled!"
-      },
-      {
         "title": "Passwords",
         "desc": "Make sure that you use a strong, long password and do not forget it!"
       },
@@ -127,8 +123,8 @@
       "waitWalletSave": "Please wait while your wallet is being saved with strong encryption. This can take upto a minute or so to complete...",
       "walletSaved": "Your wallet has been saved successfully.",
       "enter-above-wallet-password": "Enter the above wallet's password",
-      "waitRevealSeed": "Please wait while your wallet seed words are being decrypted and opened. This can take upto a minute.",
-      "waitWalletOpen": "Please wait while your wallet is being decrypted and opened. This can take upto a minute.",
+      "waitRevealSeed": "Please wait while your wallet seed words are being decrypted and opened. This can take upto a minute...",
+      "waitWalletOpen": "Please wait while your wallet is being decrypted and opened. This can take upto a minute...",
       "open": "Open",
       "total-balance": "Balance",
       "help": "Help",
@@ -244,6 +240,16 @@
       "restore-select-all": "Select all",
       "restore-select-none": "Select none",
       "restore-confirm": "Restore selected wallets",
+      "backup-to-cloud": "Backup to cloud",
+      "backup-to-file": "Backup to a file",
+      "backup-done": "Done",
+      "backup-saved-short": "Saved",
+      "backup-options-title": "Backup your wallet",
+      "backup-options-description": "Save an encrypted backup now. You can save to cloud and to a file (you can do both, one after the other). Tap Done when you're finished.",
+      "enter-backup-password-title": "Enter password of the backup",
+      "wallet-already-exists-detailed": "The wallet with following address already exists:\n[ADDRESS]",
+      "confirm-password": "Confirm your wallet password to continue",
+      "no-transactions": "No transactions yet",
       "tokens": "Tokens",
       "no-tokens": "No tokens for this address",
       "contract": "Contract",

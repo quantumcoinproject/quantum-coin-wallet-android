@@ -53,6 +53,8 @@ public class KeyViewModel extends ViewModel {
     public void isValidAddress(String address, BridgeCallback callback) { keyInteract.isValidAddress(address, callback); }
     public void initializeOffline(BridgeCallback callback) { keyInteract.initializeOffline(callback); }
     public void initialize(int chainId, String rpcEndpoint, BridgeCallback callback) { keyInteract.initialize(chainId, rpcEndpoint, callback); }
+    public void getAllSeedWords(BridgeCallback callback) { keyInteract.getAllSeedWords(callback); }
+    public void doesSeedWordExist(String word, BridgeCallback callback) { keyInteract.doesSeedWordExist(word, callback); }
 
     // Blocking variants for background threads
     public String createRandomSeedBlocking(int keyType) { return keyInteract.createRandomSeedBlocking(keyType); }
@@ -61,6 +63,8 @@ public class KeyViewModel extends ViewModel {
     public String initializeOfflineBlocking() { return keyInteract.initializeOfflineBlocking(); }
     public String sendTransactionBlocking(String privKeyBase64, String pubKeyBase64, String toAddress, String valueWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled) { return keyInteract.sendTransactionBlocking(privKeyBase64, pubKeyBase64, toAddress, valueWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled); }
     public String sendTokenTransactionBlocking(String privKeyBase64, String pubKeyBase64, String contractAddress, String toAddress, String amountWei, String gasLimit, String rpcEndpoint, int chainId, boolean advancedSigningEnabled) { return keyInteract.sendTokenTransactionBlocking(privKeyBase64, pubKeyBase64, contractAddress, toAddress, amountWei, gasLimit, rpcEndpoint, chainId, advancedSigningEnabled); }
+    public String getAllSeedWordsBlocking() { return keyInteract.getAllSeedWordsBlocking(); }
+    public String doesSeedWordExistBlocking(String word) { return keyInteract.doesSeedWordExistBlocking(word); }
 
     // --- Wei conversion (pure Java, main-thread safe) ---
     public String getWeiToDogeProtocol(String value) {
