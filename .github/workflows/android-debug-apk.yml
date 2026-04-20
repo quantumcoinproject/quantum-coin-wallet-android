@@ -59,7 +59,7 @@ jobs:
         run: echo "VERSION_STR=${GITHUB_REF##*/}" >> "$GITHUB_OUTPUT"
 
       - name: Download APK artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: quantum-coin-wallet-debug
           path: ./artifacts
