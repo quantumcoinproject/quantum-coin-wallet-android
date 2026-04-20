@@ -27,7 +27,68 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        id: build
+        run: ./gradlew assembleDebug --stacktrace --no-daemon --warning-mode=all
+
+      # When the build fails, surface as much of Gradle's own diagnostics as
+      # possible directly in the job log so that the failure can be diagnosed
+      # without admin access to raw action logs. Anything larger (the full HTML
+      # report tree) is still uploaded as an artifact in the next step.
+      - name: Dump Gradle failure diagnostics
+        if: ${{ failure() && steps.build.conclusion == 'failure' }}
+        shell: bash
+        run: |
+          set +e
+          echo "::group::Environment"
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          java -version
+          ./gradlew --version || true
+          echo "::endgroup::"
+
+          echo "::group::Build reports tree"
+          find . -type d \( -path "*/build/reports*" -o -path "*/build/outputs/logs*" \) | sort
+          echo "::endgroup::"
+
+          # Gradle writes one dependency-verification report per attempt under
+          # build/reports/dependency-verification/at-<ts>/. Pick the newest one
+          # and print a plain-text excerpt so the failure reason is visible
+          # directly in the job log (downloadable logs require admin access).
+          echo "::group::Dependency verification report (plain-text excerpt)"
+          latest_dv_report=$(find . -type f -path "*/build/reports/dependency-verification/at-*/dependency-verification-report.html" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)
+          if [ -n "${latest_dv_report}" ]; then
+            echo "Report file: ${latest_dv_report}"
+            sed -e 's/<[^>]*>/ /g' -e 's/&nbsp;/ /g' "${latest_dv_report}" \
+              | tr -s ' \t\n' ' ' \
+              | fold -s -w 160 \
+              | sed -n '1,200p'
+          else
+            echo "No dependency-verification report was produced."
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Problems report (if any)"
+          problems_report=$(find . -type f -name "problems-report.html" -path "*/build/reports/*" | head -n 1)
+          if [ -n "${problems_report}" ]; then
+            echo "Report file: ${problems_report}"
+            sed -e 's/<[^>]*>/ /g' -e 's/&nbsp;/ /g' "${problems_report}" \
+              | tr -s ' \t\n' ' ' \
+              | fold -s -w 160 \
+              | sed -n '1,120p'
+          else
+            echo "No problems report found."
+          fi
+          echo "::endgroup::"
+
+      - name: Upload build reports on failure
+        if: ${{ failure() && steps.build.conclusion == 'failure' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            **/build/reports/**
+            **/build/outputs/logs/**
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Verify APK is signed
         run: |
