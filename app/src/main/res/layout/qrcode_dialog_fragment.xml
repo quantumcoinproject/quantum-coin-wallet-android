@@ -14,8 +14,8 @@
         android:layout_above="@+id/linear_layout_qrcod_dialog_bottom"
         android:gravity="center_horizontal|center_vertical"
         android:orientation="vertical">
-        <SurfaceView
-            android:id="@+id/surfaceView_qrcode"
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView_qrcode"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_centerVertical="true"/>

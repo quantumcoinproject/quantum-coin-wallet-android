@@ -19,9 +19,9 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
 import okio.BufferedSink;
 import okio.Okio;
-import org.threeten.bp.LocalDate;
-import org.threeten.bp.OffsetDateTime;
-import org.threeten.bp.format.DateTimeFormatter;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 
 import javax.net.ssl.*;
 import java.io.File;
@@ -64,8 +64,17 @@ public class ApiClient {
     private int dateLength;
 
     private InputStream sslCaCert;
-    private boolean verifyingSsl;
     private KeyManager[] keyManagers;
+
+    /**
+     * Per-instance base path snapshot. When null the client falls back to
+     * {@link GlobalMethods#SCAN_API_URL} for source compatibility; new
+     * call sites should always call {@link #setBasePath(String)} with a
+     * snapshot of the current network's scan domain so that in-flight
+     * requests cannot be rewritten by a concurrent network switch
+     * (MF-24).
+     */
+    private String basePath;
 
     private OkHttpClient httpClient;
     private JSON json;
@@ -86,9 +95,6 @@ public class ApiClient {
     private void init() {
         httpClient = new OkHttpClient();
 
-
-        verifyingSsl = true;
-
         json = new JSON();
 
         // Set default User-Agent.
@@ -103,17 +109,22 @@ public class ApiClient {
      * @return Base path
      */
     public String getBasePath() {
+        if (basePath != null) return basePath;
         return GlobalMethods.SCAN_API_URL;
     }
 
     /**
-     * Set base path
+     * Set base path for this ApiClient instance.
      *
-     * @param basePath Base path of the URL (e.g http://localhost
-     * @return An instance of OkHttpClient
+     * MF-24: the base URL is stored on the instance, not written back
+     * into any static field. Callers should snapshot the current
+     * network's scan domain at task-creation time and pass it in here.
+     *
+     * @param basePath Base path of the URL (e.g https://localhost)
+     * @return this ApiClient instance
      */
     public ApiClient setBasePath(String basePath) {
-        GlobalMethods.SCAN_API_URL = basePath;
+        this.basePath = basePath;
         return this;
     }
 
@@ -158,26 +169,15 @@ public class ApiClient {
     }
 
     /**
-     * True if isVerifyingSsl flag is on
+     * True if certificate/hostname verification is on. This ApiClient no
+     * longer supports disabling TLS verification at runtime (MF-10); the
+     * method exists only so callers that historically checked the flag
+     * continue to compile.
      *
-     * @return True if isVerifySsl flag is on
+     * @return always true
      */
     public boolean isVerifyingSsl() {
-        return verifyingSsl;
-    }
-
-    /**
-     * Configure whether to verify certificate and hostname when making https requests.
-     * Default to true.
-     * NOTE: Do NOT set to false in production code, otherwise you would face multiple types of cryptographic attacks.
-     *
-     * @param verifyingSsl True to verify TLS/SSL connection
-     * @return ApiClient
-     */
-    public ApiClient setVerifyingSsl(boolean verifyingSsl) {
-        this.verifyingSsl = verifyingSsl;
-        applySslSettings();
-        return this;
+        return true;
     }
 
     /**
@@ -375,6 +375,10 @@ public class ApiClient {
      * @return ApiClient
      */
     public ApiClient setDebugging(boolean debugging) {
+        if (!com.quantumcoinwallet.app.BuildConfig.DEBUG) {
+            this.debugging = false;
+            return this;
+        }
         if (debugging != this.debugging) {
             if (debugging) {
                 loggingInterceptor = new HttpLoggingInterceptor();
@@ -1017,7 +1021,7 @@ public class ApiClient {
      */
     public String buildUrl(String path, List<Pair> queryParams, List<Pair> collectionQueryParams) {
         final StringBuilder url = new StringBuilder();
-        url.append(GlobalMethods.SCAN_API_URL).append(path);
+        url.append(getBasePath()).append(path);
 
         if (queryParams != null && !queryParams.isEmpty()) {
             // support (constant) query string in `path`, e.g. "/posts?draft=1"
@@ -1143,38 +1147,19 @@ public class ApiClient {
     }
 
     /**
-     * Apply SSL related settings to httpClient according to the current values of
-     * verifyingSsl and sslCaCert.
+     * Apply SSL related settings to httpClient (MF-10).
+     *
+     * This client always verifies TLS certificates and hostnames; there
+     * is no "trust all" branch. When a user-provided {@link #sslCaCert}
+     * is supplied we install it as the sole trust anchor (useful for
+     * pinning a self-issued CA). Otherwise we fall through to OkHttp's
+     * default trust manager, which honors the app's
+     * network_security_config.xml.
      */
     private void applySslSettings() {
         try {
             TrustManager[] trustManagers = null;
-            HostnameVerifier hostnameVerifier = null;
-            if (!verifyingSsl) {
-                trustManagers = new TrustManager[]{
-                        new X509TrustManager() {
-                            @Override
-                            public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) throws CertificateException {
-                            }
-
-                            @Override
-                            public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) throws CertificateException {
-                            }
-
-                            @Override
-                            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                                return new java.security.cert.X509Certificate[]{};
-                            }
-                        }
-                };
-                SSLContext sslContext = SSLContext.getInstance("TLS");
-                hostnameVerifier = new HostnameVerifier() {
-                    @Override
-                    public boolean verify(String hostname, SSLSession session) {
-                        return true;
-                    }
-                };
-            } else if (sslCaCert != null) {
+            if (sslCaCert != null) {
                 char[] password = null; // Any password will work.
                 CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
                 Collection<? extends Certificate> certificates = certificateFactory.generateCertificates(sslCaCert);
@@ -1195,15 +1180,31 @@ public class ApiClient {
             if (keyManagers != null || trustManagers != null) {
                 SSLContext sslContext = SSLContext.getInstance("TLS");
                 sslContext.init(keyManagers, trustManagers, new SecureRandom());
-                httpClient = httpClient.newBuilder().sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustManagers[0]).build();
-            } else {
-                httpClient = httpClient.newBuilder().sslSocketFactory(null, (X509TrustManager) trustManagers[0]).build();
+                if (trustManagers != null && trustManagers.length > 0
+                        && trustManagers[0] instanceof X509TrustManager) {
+                    httpClient = httpClient.newBuilder()
+                            .sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustManagers[0])
+                            .build();
+                } else {
+                    httpClient = httpClient.newBuilder()
+                            .sslSocketFactory(sslContext.getSocketFactory(), defaultX509TrustManager())
+                            .build();
+                }
             }
-
-            httpClient = httpClient.newBuilder().hostnameVerifier(hostnameVerifier).build();
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static X509TrustManager defaultX509TrustManager() throws GeneralSecurityException {
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init((KeyStore) null);
+        for (TrustManager tm : tmf.getTrustManagers()) {
+            if (tm instanceof X509TrustManager) {
+                return (X509TrustManager) tm;
+            }
+        }
+        throw new IllegalStateException("No default X509TrustManager");
     }
 
     private KeyStore newEmptyKeyStore(char[] password) throws GeneralSecurityException {

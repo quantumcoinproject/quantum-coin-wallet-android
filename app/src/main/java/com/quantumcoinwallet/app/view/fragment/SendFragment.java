@@ -9,10 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.MediaStore;
-import android.util.SparseArray;
 import android.view.LayoutInflater;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -25,8 +22,6 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.cardview.widget.CardView;
@@ -43,7 +38,6 @@ import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
 import com.quantumcoinwallet.app.asynctask.read.AccountBalanceRestTask;
 import com.quantumcoinwallet.app.asynctask.read.ListAccountTokensRestTask;
 import com.quantumcoinwallet.app.bridge.BridgeCallback;
-import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.entity.ServiceException;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.CoinUtils;
@@ -64,10 +58,22 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.pm.PackageManager;
 
-import com.google.android.gms.vision.CameraSource;
-import com.google.android.gms.vision.Detector;
-import com.google.android.gms.vision.barcode.Barcode;
-import com.google.android.gms.vision.barcode.BarcodeDetector;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageProxy;
+import androidx.camera.core.Preview;
+import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.camera.view.PreviewView;
+
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.mlkit.vision.barcode.BarcodeScanner;
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
+import com.google.mlkit.vision.barcode.BarcodeScanning;
+import com.google.mlkit.vision.barcode.common.Barcode;
+import com.google.mlkit.vision.common.InputImage;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class SendFragment extends Fragment  {
     private static final String TAG = "SendFragment";
@@ -91,9 +97,16 @@ public class SendFragment extends Fragment  {
     private String selectedTokenBalanceWei;
     private List<AccountTokenSummary> tokenOptions = new ArrayList<>();
 
-    private BarcodeDetector barcodeDetector;
-    private CameraSource cameraSource;
+    private ProcessCameraProvider cameraProvider;
+    private BarcodeScanner barcodeScanner;
+    private ExecutorService cameraExecutor;
     private static final int REQUEST_CAMERA_PERMISSION = 201;
+
+    // Remembered so we can re-open the QR scanner dialog after the user grants the
+    // camera permission via the system prompt.
+    private View pendingQrView;
+    private EditText pendingQrAddressEditText;
+    private String pendingQrLanguageKey;
 
     public static SendFragment newInstance() {
         SendFragment fragment = new SendFragment();
@@ -150,6 +163,11 @@ public class SendFragment extends Fragment  {
 
             EditText addressToSendEditText = (EditText) getView().findViewById(R.id.editText_send_address_to_send);
             addressToSendEditText.setHint(jsonViewModel.getAddressToSendByLangValues());
+            addressToSendEditText.setSingleLine(true);
+            addressToSendEditText.setHorizontallyScrolling(true);
+            addressToSendEditText.setHorizontalScrollBarEnabled(true);
+            addressToSendEditText.setHorizontalFadingEdgeEnabled(false);
+            addressToSendEditText.setScrollbarFadingEnabled(false);
 
             ImageButton qrCodeImageButton = (ImageButton) getView().findViewById(R.id.imageButton_scan_qr_code);
 
@@ -343,7 +361,9 @@ public class SendFragment extends Fragment  {
                                 SecureStorage secureStorage = KeyViewModel.getSecureStorage();
                                 ok = secureStorage.unlock(getContext(), password.trim());
                             } catch (Exception e) {
-                                android.util.Log.e(TAG, "unlock failed", e);
+                                // L-13: route through Timber so ReleaseTree
+                                // strips the stack trace in release builds.
+                                timber.log.Timber.e(e, "send flow unlock failed");
                             }
                             final boolean unlocked = ok;
                             if (getActivity() == null) return;
@@ -663,18 +683,43 @@ public class SendFragment extends Fragment  {
     }
 
 
-    private void QRCodeDialogFragment(View view, EditText walletAddressEditText, String languageKey) {
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != REQUEST_CAMERA_PERMISSION) return;
+        Activity act = getActivity();
+        if (act == null) return;
+        PrefConnect.writeBoolean(act, PrefConnect.CAMERA_PERMISSION_ASKED_ONCE, true);
+        boolean granted = grantResults != null && grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        if (granted) {
+            if (pendingQrView != null && pendingQrAddressEditText != null) {
+                QRCodeDialogFragment(pendingQrView, pendingQrAddressEditText, pendingQrLanguageKey);
+            }
+        } else {
+            String msg = jsonViewModel.getCameraPermissionDeniedByLangValues();
+            GlobalMethods.ShowMessageDialog(act, null,
+                    msg != null && !msg.isEmpty() ? msg
+                            : act.getString(R.string.send_camara_permission_description),
+                    null);
+        }
+        pendingQrView = null;
+        pendingQrAddressEditText = null;
+        pendingQrLanguageKey = null;
+    }
+
+    private void QRCodeDialogFragment(View view, final EditText walletAddressEditText, String languageKey) {
         try {
-            AlertDialog dialog = new AlertDialog.Builder(getContext())
+            final AlertDialog dialog = new AlertDialog.Builder(getContext())
                     .setTitle((CharSequence) "").setView((int)
                             R.layout.qrcode_dialog_fragment).create();
 
-            dialog.dismiss();
             dialog.setCancelable(false);
             dialog.show();
 
-            SurfaceView qrCodeSurfaceView = dialog.findViewById(R.id.surfaceView_qrcode);
-            TextView qrcodeTextView = dialog.findViewById(R.id.textView_qrcode);
+            final PreviewView previewView = dialog.findViewById(R.id.previewView_qrcode);
+            final TextView qrcodeTextView = dialog.findViewById(R.id.textView_qrcode);
 
             Button okButton = (Button) dialog.findViewById(R.id.button_qrcode_langValues_ok);
             Button closeButton = (Button) dialog.findViewById(R.id.button_qrcode_langValues_close);
@@ -682,104 +727,179 @@ public class SendFragment extends Fragment  {
             okButton.setText(jsonViewModel.getOkByLangValues());
             closeButton.setText(jsonViewModel.getCloseByLangValues());
 
-            barcodeDetector = new BarcodeDetector.Builder(getContext())
-                    .setBarcodeFormats(Barcode.ALL_FORMATS)
-                    .build();
+            final Activity act = getActivity();
+            if (act == null) {
+                dialog.dismiss();
+                return;
+            }
+            if (ContextCompat.checkSelfPermission(act, Manifest.permission.CAMERA)
+                    != PackageManager.PERMISSION_GRANTED) {
+                final boolean askedBefore = PrefConnect.readBoolean(act,
+                        PrefConnect.CAMERA_PERMISSION_ASKED_ONCE, false);
+                // Remember args so onRequestPermissionsResult can re-open the dialog on grant.
+                pendingQrView = view;
+                pendingQrAddressEditText = walletAddressEditText;
+                pendingQrLanguageKey = languageKey;
 
-            cameraSource = new CameraSource.Builder(getContext(), barcodeDetector)
-                    .setRequestedPreviewSize(1920, 1080)
-                    .setAutoFocusEnabled(true)
-                    .build();
+                dialog.dismiss();
 
-            qrCodeSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
-                @Override
-                public void surfaceCreated(SurfaceHolder holder) {
-                    try {
-                        if (ActivityCompat.checkSelfPermission(getActivity().getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                            cameraSource.start(qrCodeSurfaceView.getHolder());
-                        } else {
-                            if (ActivityCompat.shouldShowRequestPermissionRationale(getActivity(), Manifest.permission.CAMERA))
-                            {
-                                qrcodeTextView.setText(R.string.send_camara_permission_description);
-                                Toast.makeText(getActivity(), R.string.send_camara_permission_description, Toast.LENGTH_SHORT).show();
-                            } else {
-                                ActivityCompat.requestPermissions(getActivity(), new
-                                        String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
-                                dialog.dismiss();
-                                dialog.setCancelable(false);
-                                dialog.show();
-                            }
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                if (GlobalMethods.isPermanentlyDenied(act, Manifest.permission.CAMERA, askedBefore)) {
+                    String msg = jsonViewModel.getCameraPermissionDeniedByLangValues();
+                    GlobalMethods.ShowOpenSettingsDialog(act,
+                            jsonViewModel.getErrorTitleByLangValues(),
+                            msg != null && !msg.isEmpty() ? msg
+                                    : act.getString(R.string.send_camara_permission_description));
+                    return;
                 }
-
-                @Override
-                public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-
+                if (ActivityCompat.shouldShowRequestPermissionRationale(act, Manifest.permission.CAMERA)) {
+                    new AlertDialog.Builder(act)
+                            .setMessage(R.string.send_camara_permission_description)
+                            .setPositiveButton(android.R.string.ok,
+                                    new android.content.DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(android.content.DialogInterface d, int which) {
+                                            PrefConnect.writeBoolean(act,
+                                                    PrefConnect.CAMERA_PERMISSION_ASKED_ONCE, true);
+                                            ActivityCompat.requestPermissions(act,
+                                                    new String[]{Manifest.permission.CAMERA},
+                                                    REQUEST_CAMERA_PERMISSION);
+                                        }
+                                    })
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show();
+                } else {
+                    PrefConnect.writeBoolean(act, PrefConnect.CAMERA_PERMISSION_ASKED_ONCE, true);
+                    ActivityCompat.requestPermissions(act,
+                            new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
                 }
+                return;
+            }
 
-                @Override
-                public void surfaceDestroyed(SurfaceHolder holder) {
-                    cameraSource.stop();
-                }
-            });
-
-
-            barcodeDetector.setProcessor(new Detector.Processor<Barcode>() {
-                @Override
-                public void release() {
-                    //Toast.makeText(getActivity(), "To prevent memory leaks barcode scanner has been stopped", Toast.LENGTH_SHORT).show();
-                }
-
-                @Override
-                public void receiveDetections(@NonNull Detector.Detections<Barcode> detections) {
-                    final SparseArray<Barcode> barCode = detections.getDetectedItems();
-                    if (barCode.size() > 0) {
-                        qrcodeTextView.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                String intentData = barCode.valueAt(0).displayValue;
-                                qrcodeTextView.setText(intentData);
-                            }
-                        });
-                    }
-                }
-            });
+            startQrCamera(previewView, qrcodeTextView);
 
             okButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    cameraSource.stop();
                     if (qrcodeTextView.getText().toString().startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
                         walletAddressEditText.setText(qrcodeTextView.getText());
                     } else {
                         walletAddressEditText.setText("");
                     }
-                    v.post(new Runnable() {
-                        public void run() {
-                            cameraSource.release();
-                            dialog.dismiss();
-                        }
-                    });
+                    stopQrCamera();
+                    dialog.dismiss();
                 }
             });
 
             closeButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    cameraSource.stop();
-                    v.post(new Runnable() {
-                        public void run() {
-                            cameraSource.release();
-                            dialog.dismiss();
-                        }
-                    });
+                    stopQrCamera();
+                    dialog.dismiss();
+                }
+            });
+
+            dialog.setOnDismissListener(new android.content.DialogInterface.OnDismissListener() {
+                @Override
+                public void onDismiss(android.content.DialogInterface d) {
+                    stopQrCamera();
                 }
             });
 
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getContext(), TAG, e);
         }
+    }
+
+    @SuppressLint("UnsafeOptInUsageError")
+    private void startQrCamera(final PreviewView previewView, final TextView qrcodeTextView) {
+        if (cameraExecutor == null || cameraExecutor.isShutdown()) {
+            cameraExecutor = Executors.newSingleThreadExecutor();
+        }
+        BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
+                .build();
+        barcodeScanner = BarcodeScanning.getClient(options);
+
+        final ListenableFuture<ProcessCameraProvider> providerFuture =
+                ProcessCameraProvider.getInstance(getContext());
+        providerFuture.addListener(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    cameraProvider = providerFuture.get();
+
+                    Preview preview = new Preview.Builder().build();
+                    preview.setSurfaceProvider(previewView.getSurfaceProvider());
+
+                    ImageAnalysis analysis = new ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build();
+                    analysis.setAnalyzer(cameraExecutor, new ImageAnalysis.Analyzer() {
+                        @SuppressLint("UnsafeOptInUsageError")
+                        @Override
+                        public void analyze(@NonNull final ImageProxy imageProxy) {
+                            android.media.Image mediaImage = imageProxy.getImage();
+                            if (mediaImage == null) {
+                                imageProxy.close();
+                                return;
+                            }
+                            InputImage input = InputImage.fromMediaImage(mediaImage,
+                                    imageProxy.getImageInfo().getRotationDegrees());
+                            barcodeScanner.process(input)
+                                    .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<java.util.List<Barcode>>() {
+                                        @Override
+                                        public void onSuccess(java.util.List<Barcode> barcodes) {
+                                            if (!barcodes.isEmpty()) {
+                                                final String value = barcodes.get(0).getRawValue();
+                                                if (value != null) {
+                                                    qrcodeTextView.post(new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            qrcodeTextView.setText(value);
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    })
+                                    .addOnCompleteListener(new com.google.android.gms.tasks.OnCompleteListener<java.util.List<Barcode>>() {
+                                        @Override
+                                        public void onComplete(@NonNull com.google.android.gms.tasks.Task<java.util.List<Barcode>> task) {
+                                            imageProxy.close();
+                                        }
+                                    });
+                        }
+                    });
+
+                    cameraProvider.unbindAll();
+                    cameraProvider.bindToLifecycle(SendFragment.this,
+                            CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis);
+                } catch (Exception e) {
+                    GlobalMethods.ExceptionError(getContext(), TAG, e);
+                }
+            }
+        }, ContextCompat.getMainExecutor(getContext()));
+    }
+
+    private void stopQrCamera() {
+        try {
+            if (cameraProvider != null) {
+                cameraProvider.unbindAll();
+                cameraProvider = null;
+            }
+            if (barcodeScanner != null) {
+                barcodeScanner.close();
+                barcodeScanner = null;
+            }
+            if (cameraExecutor != null) {
+                cameraExecutor.shutdown();
+                cameraExecutor = null;
+            }
+        } catch (Exception ignore) { }
+    }
+
+    @Override
+    public void onDestroyView() {
+        stopQrCamera();
+        super.onDestroyView();
     }
 
 }

@@ -15,7 +15,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import androidx.activity.result.ActivityResult;
@@ -31,18 +30,13 @@ import com.quantumcoinwallet.app.backup.CloudBackupManager;
 import com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog;
 
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummary;
-import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummaryResponse;
-import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummary;
-import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummaryResponse;
-import com.quantumcoinwallet.app.asynctask.read.AccountPendingTxnRestTask;
-import com.quantumcoinwallet.app.asynctask.read.AccountTxnRestTask;
-import com.quantumcoinwallet.app.entity.KeyServiceException;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.GridAutoFitLayoutManager;
@@ -128,7 +122,7 @@ public class WalletsFragment extends Fragment  {
                                                                   uri.getLastPathSegment() != null
                                                                       ? uri.getLastPathSegment() : "")
                                                     : "Wallet exported";
-                                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                            GlobalMethods.ShowMessageDialog(getContext(), null, msg, null);
                                         }
                                     });
                                 } catch (final Exception e) {
@@ -433,7 +427,7 @@ public class WalletsFragment extends Fragment  {
     }
 
     private void startExportFlow(final String walletAddress, final String walletPassword) {
-        BackupPasswordDialog.show(getContext(), jsonViewModel, walletPassword,
+        BackupPasswordDialog.show(getContext(), jsonViewModel,
                 new BackupPasswordDialog.OnBackupPasswordListener() {
                     @Override
                     public void onPasswordSelected(final String backupPassword) {
@@ -528,7 +522,7 @@ public class WalletsFragment extends Fragment  {
         cloudBtn.setText(cloudLabel);
         cloudBtn.setAllCaps(false);
         cloudBtn.setBackgroundResource(R.drawable.button_green_selector);
-        cloudBtn.setTextColor(getResources().getColor(R.color.colorCommon7));
+        cloudBtn.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon7));
         LinearLayout.LayoutParams cloudLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 (int) (48 * getResources().getDisplayMetrics().density));
@@ -539,7 +533,7 @@ public class WalletsFragment extends Fragment  {
         fileBtn.setText(fileLabel);
         fileBtn.setAllCaps(false);
         fileBtn.setBackgroundResource(R.drawable.button_green_selector);
-        fileBtn.setTextColor(getResources().getColor(R.color.colorCommon7));
+        fileBtn.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon7));
         LinearLayout.LayoutParams fileLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 (int) (48 * getResources().getDisplayMetrics().density));
@@ -573,7 +567,7 @@ public class WalletsFragment extends Fragment  {
     }
 
     private void startCloudBackupFromWalletRow(final String walletAddress, final String walletPassword) {
-        BackupPasswordDialog.show(getContext(), jsonViewModel, walletPassword,
+        BackupPasswordDialog.show(getContext(), jsonViewModel,
                 new BackupPasswordDialog.OnBackupPasswordListener() {
                     @Override
                     public void onPasswordSelected(final String backupPassword) {
@@ -669,7 +663,7 @@ public class WalletsFragment extends Fragment  {
                             String msg = tmpl != null
                                     ? tmpl.replace("[FOLDER]", "").replace("[FILENAME]", filename)
                                     : "Wallet backed up";
-                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                            GlobalMethods.ShowMessageDialog(getContext(), null, msg, null);
                         }
                     });
                 } catch (final Exception e) {
@@ -709,39 +703,4 @@ public class WalletsFragment extends Fragment  {
         } catch (Exception ignore) { }
     }
 
-    /*
-    private void CheckThread(ProgressBar progressBar, String walletAddress, String walletPassword) {
-        progressBar.setVisibility(View.VISIBLE);
-        new Thread(new Runnable() {
-            public void run() {
-                while (true) {
-                    getActivity().runOnUiThread(new Runnable() {
-                        public void run() {
-                            if (GlobalMethods.seedLoaded) {
-                                try {
-                                    progressBar.setVisibility(View.GONE);
-                                } catch (Exception e) {
-                                    progressBar.setVisibility(View.GONE);
-                                    GlobalMethods.ExceptionError(getContext(), TAG, e);
-                                }
-                            }
-                        }
-                    });
-                    try {
-                        if(progressBar.getVisibility()==View.GONE){
-                            return;
-                        }
-                        if(ThreadStop) {
-                            return;
-                        }
-                        Thread.sleep(1000);
-                    } catch (Exception e) {
-                        progressBar.setVisibility(View.GONE);
-                        GlobalMethods.ExceptionError(getContext(), TAG, e);
-                    }
-                }
-            }
-        }).start();
-    }
-    */
 }

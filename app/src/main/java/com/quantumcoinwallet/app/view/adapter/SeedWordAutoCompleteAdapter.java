@@ -45,7 +45,7 @@ public class SeedWordAutoCompleteAdapter extends ArrayAdapter<String> implements
     }
 
     private class ArrayFilter extends Filter {
-        private Object lock;
+        private final Object lock = new Object();
 
         @Override
         protected FilterResults performFiltering(CharSequence prefix) {

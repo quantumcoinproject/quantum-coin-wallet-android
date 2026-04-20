@@ -19,6 +19,8 @@ import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 
+import timber.log.Timber;
+
 public class HomeStartFragment extends Fragment  {
     private static final String TAG = "HomeStartFragment";
 
@@ -111,7 +113,7 @@ public class HomeStartFragment extends Fragment  {
                     jsonIndex = jsonIndex + 1;
 
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Timber.w(e, "info step");
                 }
             }
         });
@@ -177,7 +179,7 @@ public class HomeStartFragment extends Fragment  {
                     messageDialogFragment.show(fragmentManager, "");
 
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Timber.w(e, "quiz step");
                 }
             }
         });

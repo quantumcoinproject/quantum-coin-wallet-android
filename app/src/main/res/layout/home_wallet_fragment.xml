@@ -1944,7 +1944,7 @@
                                     android:id="@+id/textView_home_seed_words_view_copied"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:textColor="#000000"
+                                    android:textColor="@color/colorCommon6"
                                     android:textSize="14dp"
                                     android:visibility="gone"
                                     android:layout_marginStart="8dp" />

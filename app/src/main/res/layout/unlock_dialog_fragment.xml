@@ -64,7 +64,7 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:hintAnimationEnabled="true"
                     app:passwordToggleEnabled="true"
-                    app:passwordToggleTint="@color/colorCommon9"
+                    app:passwordToggleTint="@color/colorCommon6"
                     app:passwordToggleDrawable="@drawable/show_password_selector">
 
                     <EditText

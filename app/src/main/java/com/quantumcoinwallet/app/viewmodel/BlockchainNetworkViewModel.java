@@ -9,6 +9,8 @@ import com.quantumcoinwallet.app.utils.GlobalMethods;
 
 import org.json.JSONException;
 
+import timber.log.Timber;
+
 //@HiltViewModel
 public class BlockchainNetworkViewModel extends ViewModel{
   //@Inject
@@ -23,7 +25,7 @@ public class BlockchainNetworkViewModel extends ViewModel{
         try {
             return _blockchainNetworkInteract.getNetWorks();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "blockchain network lookup failed");
         }
         return null;
     }
@@ -31,7 +33,7 @@ public class BlockchainNetworkViewModel extends ViewModel{
         try {
             return _blockchainNetworkInteract.getScanApiDomain();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "blockchain network lookup failed");
         }
         return null;
     }
@@ -39,7 +41,7 @@ public class BlockchainNetworkViewModel extends ViewModel{
         try {
             return _blockchainNetworkInteract.getRpcEndpoint();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "blockchain network lookup failed");
         }
         return null;
     }
@@ -47,7 +49,7 @@ public class BlockchainNetworkViewModel extends ViewModel{
         try {
             return _blockchainNetworkInteract.getBlockExplorerDomain();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "blockchain network lookup failed");
         }
         return null;
     }
@@ -55,7 +57,7 @@ public class BlockchainNetworkViewModel extends ViewModel{
         try {
             return _blockchainNetworkInteract.getBlockchainName();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "blockchain network lookup failed");
         }
         return null;
     }
@@ -63,7 +65,7 @@ public class BlockchainNetworkViewModel extends ViewModel{
         try {
             return _blockchainNetworkInteract.getNetworkId();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Timber.w(e, "blockchain network lookup failed");
         }
         return null;
     }

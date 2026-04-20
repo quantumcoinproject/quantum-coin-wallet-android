@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
@@ -18,6 +20,7 @@ import com.quantumcoinwallet.app.api.read.model.AccountTokenSummary;
 import com.quantumcoinwallet.app.asynctask.read.ListAccountTokensRestTask;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.view.adapter.TokenAdapter;
+import com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 
 import java.util.ArrayList;
@@ -31,6 +34,10 @@ public class HomeMainFragment extends Fragment  {
     private HomeMainFragment.OnHomeMainCompleteListener mHomeMainListener;
 
     private RecyclerView tokenRecyclerView;
+    private HorizontalScrollView tokenScrollContainer;
+    private LinearLayout tokenScrollRow;
+    private VerticalScrollIndicatorView tokenScrollLeft;
+    private VerticalScrollIndicatorView tokenScrollRight;
     private TextView tokenEmptyTextView;
     private TextView tokenTitleTextView;
     private TextView tokenHeaderSymbol;
@@ -72,6 +79,10 @@ public class HomeMainFragment extends Fragment  {
             }
 
             tokenRecyclerView = view.findViewById(R.id.recyclerView_tokenList);
+            tokenScrollContainer = view.findViewById(R.id.horizontalScroll_tokenList);
+            tokenScrollRow = view.findViewById(R.id.tokenList_scrollRow);
+            tokenScrollLeft = view.findViewById(R.id.verticalScroll_tokenList_left);
+            tokenScrollRight = view.findViewById(R.id.verticalScroll_tokenList_right);
             tokenEmptyTextView = view.findViewById(R.id.textView_tokenList_empty);
             tokenTitleTextView = view.findViewById(R.id.textView_tokenList_title);
             tokenHeaderSymbol = view.findViewById(R.id.textView_tokenList_header_symbol);
@@ -90,6 +101,13 @@ public class HomeMainFragment extends Fragment  {
             tokenRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
             tokenAdapter = new TokenAdapter(getContext(), getCachedTokensForAddress(walletAddress));
             tokenRecyclerView.setAdapter(tokenAdapter);
+
+            if (tokenScrollLeft != null) {
+                tokenScrollLeft.attachTo(tokenRecyclerView);
+            }
+            if (tokenScrollRight != null) {
+                tokenScrollRight.attachTo(tokenRecyclerView);
+            }
 
             renderEmptyState(tokenAdapter.getItemCount() == 0);
 
@@ -110,11 +128,21 @@ public class HomeMainFragment extends Fragment  {
     }
 
     private void renderEmptyState(boolean empty) {
-        if (tokenRecyclerView == null || tokenEmptyTextView == null) {
-            return;
+        if (tokenScrollRow != null) {
+            tokenScrollRow.setVisibility(empty ? View.GONE : View.VISIBLE);
+        } else if (tokenScrollContainer != null) {
+            tokenScrollContainer.setVisibility(empty ? View.GONE : View.VISIBLE);
+        } else if (tokenRecyclerView != null) {
+            tokenRecyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
         }
-        tokenRecyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
-        tokenEmptyTextView.setVisibility(empty ? View.VISIBLE : View.GONE);
+        // "No tokens for this address" placeholder is intentionally suppressed; an
+        // empty wallet simply shows nothing beneath the Send/Receive panel.
+        if (tokenEmptyTextView != null) {
+            tokenEmptyTextView.setVisibility(View.GONE);
+        }
+        if (tokenTitleTextView != null) {
+            tokenTitleTextView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        }
     }
 
     /**

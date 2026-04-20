@@ -1,7 +1,5 @@
 package com.quantumcoinwallet.app.view.fragment;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -85,11 +83,13 @@ public class ReceiveFragment extends Fragment  {
 
         copyClipboardImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                ClipboardManager clipBoard = (ClipboardManager) getActivity().getSystemService(getActivity().CLIPBOARD_SERVICE);
-                ClipData clipData = ClipData.newPlainText("receiveAddress", receiveAddressTextView.getText());
-                clipBoard.setPrimaryClip(clipData);
+                // L-05: IS_SENSITIVE so Android 13+ clipboard previews
+                // do not render the full address.
+                com.quantumcoinwallet.app.utils.SecureClipboard.copyAddress(
+                        getActivity(), "receiveAddress",
+                        receiveAddressTextView.getText());
                 receiveCopiedTextView.setVisibility(View.VISIBLE);
-                new Handler().postDelayed(new Runnable() {
+                new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         receiveCopiedTextView.setVisibility(View.GONE);

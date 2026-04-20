@@ -51,24 +51,39 @@ public enum TransactionType {
   }
 
   public static TransactionType fromValue(String text) {
+    if (text == null) {
+      return null;
+    }
     for (TransactionType b : TransactionType.values()) {
       if (String.valueOf(b.value).equals(text)) {
         return b;
       }
     }
-    throw new IllegalArgumentException("Unexpected value '" + text + "'");
+    // Unknown value from the server: return null rather than throwing so a single
+    // row cannot abort deserialization of the whole transaction list (e.g. a
+    // newly-added backend enum variant). The UI only uses this field for
+    // labeling, so an unknown type simply renders as a generic transaction.
+    return null;
   }
 
   public static class Adapter extends TypeAdapter<TransactionType> {
     @Override
     public void write(final JsonWriter jsonWriter, final TransactionType enumeration) throws IOException {
-      jsonWriter.value(enumeration.getValue());
+      if (enumeration == null) {
+        jsonWriter.nullValue();
+      } else {
+        jsonWriter.value(enumeration.getValue());
+      }
     }
 
     @Override
     public TransactionType read(final JsonReader jsonReader) throws IOException {
+      if (jsonReader.peek() == com.google.gson.stream.JsonToken.NULL) {
+        jsonReader.nextNull();
+        return null;
+      }
       String value = jsonReader.nextString();
-      return TransactionType.fromValue(String.valueOf(value));
+      return TransactionType.fromValue(value);
     }
   }
 }

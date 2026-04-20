@@ -1,13 +1,44 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older that API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto-Backup rules (MF-09).
+
+  What is being backed up:
+    DP_QUANTUM_COIN_WALLET_APP_PREF.xml is the SharedPreferences file that
+    holds:
+      * The scrypt salt (SECURE_DERIVED_KEY_SALT)
+      * The scrypt+AES encrypted main key (SECURE_ENCRYPTED_MAIN_KEY)
+      * Per-wallet encrypted blobs (SECURE_WALLET_*) that contain the
+        address, public/private key and seed phrase encrypted with the
+        main key
+      * Non-sensitive app state (current wallet index, network list, etc.)
+      * The BACKUP_ENABLED flag itself
+
+  Why this is safe to back up:
+    Every sensitive value is encrypted with an AES key that is itself
+    encrypted with a scrypt-derived key (N=262144, r=8, p=1, keyLen=32).
+    Without the user's wallet password the backup is useless to an
+    attacker (including Google's backup storage, device images, or the
+    receiving device during restore). The password is never stored on
+    disk in a recoverable form.
+
+  Runtime gate:
+    WalletBackupAgent.onFullBackup() inspects BACKUP_ENABLED_KEY before
+    calling super.onFullBackup(). If the user has not explicitly opted
+    in from the app Settings UI, the agent returns without emitting
+    any data, so even with android:allowBackup="true" in the manifest
+    nothing leaves the device.
+
+  Restore behavior:
+    On a new install on a new device, Android replays the backup into
+    the same SharedPreferences file. Because the encrypted main key and
+    all per-wallet blobs travel together, the user only needs their
+    original wallet password to unlock on the new device; no seed
+    re-import is required.
+
+  Exclusions:
+    Everything else (caches, files/*, external storage, etc.) is
+    excluded by omitting it from the <include> whitelist below.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <include domain="sharedpref" path="DP_QUANTUM_COIN_WALLET_APP_PREF.xml" />
 </full-backup-content>

@@ -48,6 +48,22 @@ public class CloudBackupManager {
         public String[] seedWords;
     }
 
+    /** One qualifying backup file discovered in a folder scan: has a .wallet extension,
+     *  parses as JSON, and carries a non-empty address. The encrypted JSON is already
+     *  loaded so the decrypt loop does not re-read SAF on every password attempt. */
+    public static class BackupCandidate {
+        public final Uri uri;
+        public final String filename;
+        public final String encryptedJson;
+        public final String address;
+        public BackupCandidate(Uri uri, String filename, String encryptedJson, String address) {
+            this.uri = uri;
+            this.filename = filename;
+            this.encryptedJson = encryptedJson;
+            this.address = address;
+        }
+    }
+
     public static class EncryptedResult {
         public final String json;
         public final String address;
@@ -138,28 +154,49 @@ public class CloudBackupManager {
         return file;
     }
 
-    public static List<DocumentFile> listBackupFiles(Context ctx, Uri folderUri) {
-        List<DocumentFile> out = new ArrayList<>();
+    /** Walks the SAF folder, keeps only files that end in {@link #BACKUP_FILE_EXTENSION},
+     *  can be read, parse as a JSON object, and expose a non-empty address field.
+     *  Anything else is silently excluded (non-.wallet files, unreadable files,
+     *  non-JSON content, JSON without an address). Sorted newest-first by mtime. */
+    public static List<BackupCandidate> scanQualifyingBackups(Context ctx, Uri folderUri) {
+        List<BackupCandidate> out = new ArrayList<>();
         DocumentFile folder = DocumentFile.fromTreeUri(ctx, folderUri);
         if (folder == null || !folder.exists() || !folder.isDirectory()) return out;
+
+        List<DocumentFile> dotWalletFiles = new ArrayList<>();
         for (DocumentFile f : folder.listFiles()) {
             if (!f.isFile()) continue;
             String name = f.getName();
             if (name == null) continue;
-            String lower = name.toLowerCase(Locale.US);
-            boolean isDotWallet = lower.endsWith(BACKUP_FILE_EXTENSION);
-            int dotIdx = name.lastIndexOf('.');
-            boolean hasNoExt = dotIdx <= 0;
-            if (isDotWallet || hasNoExt) {
-                out.add(f);
-            }
+            if (!name.toLowerCase(Locale.US).endsWith(BACKUP_FILE_EXTENSION)) continue;
+            dotWalletFiles.add(f);
         }
-        Collections.sort(out, new Comparator<DocumentFile>() {
+        Collections.sort(dotWalletFiles, new Comparator<DocumentFile>() {
             @Override
             public int compare(DocumentFile a, DocumentFile b) {
                 return Long.compare(b.lastModified(), a.lastModified());
             }
         });
+
+        for (DocumentFile f : dotWalletFiles) {
+            String name = f.getName();
+            Uri uri = f.getUri();
+            String content;
+            try {
+                content = readSafFile(ctx, uri);
+            } catch (IOException ioe) {
+                continue;
+            }
+            if (content == null || content.isEmpty()) continue;
+            try {
+                new JSONObject(content);
+            } catch (Exception parseErr) {
+                continue;
+            }
+            String address = extractAddressFromEncryptedJson(content);
+            if (address == null || address.isEmpty()) continue;
+            out.add(new BackupCandidate(uri, name, content, address));
+        }
         return out;
     }
 
@@ -198,128 +235,4 @@ public class CloudBackupManager {
         }
     }
 
-    /** Callback used by the shared restore loop. All UI work must happen on the main thread;
-     *  the loop itself runs on a background thread. */
-    public interface RestoreCallback {
-        /** Called on the UI thread to update the progress dialog. */
-        void onProgress(int current, int total, String filename);
-
-        /** Must show a password prompt (default = last successful password) and call
-         *  one of PasswordPromptResult.onProvided / onSkipped. Called on the background
-         *  thread; implementations should marshal to the UI thread and block until the
-         *  user responds. */
-        PasswordPromptResult promptPassword(String filename, String lastPassword, boolean previousAttemptFailed);
-
-        /** Called on the UI thread with the final summary. */
-        void onComplete(RestoreSummary summary);
-    }
-
-    public static class PasswordPromptResult {
-        public final boolean skipped;
-        public final String password;
-        public PasswordPromptResult(boolean skipped, String password) {
-            this.skipped = skipped;
-            this.password = password;
-        }
-        public static PasswordPromptResult skip() { return new PasswordPromptResult(true, null); }
-        public static PasswordPromptResult provide(String pw) { return new PasswordPromptResult(false, pw); }
-    }
-
-    public static class RestoreSummary {
-        public final List<String> restored = new ArrayList<>();
-        public final List<String> alreadyPresent = new ArrayList<>();
-        public final List<String> failed = new ArrayList<>();
-    }
-
-    /** Iterates through the given list of URIs, reads each, extracts the address, checks for
-     *  duplicates, prompts for password (with retry/skip) on decrypt failure, saves the wallet
-     *  to SecureStorage, and builds a summary. */
-    public static void runRestoreLoop(final Context ctx, final List<Uri> uris,
-                                      final List<String> displayNames,
-                                      final RestoreCallback cb) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                RestoreSummary summary = new RestoreSummary();
-                final int total = uris.size();
-                String lastPassword = null;
-                for (int i = 0; i < total; i++) {
-                    final Uri uri = uris.get(i);
-                    final String displayName = (displayNames != null && i < displayNames.size())
-                            ? displayNames.get(i) : uri.getLastPathSegment();
-                    final int current = i + 1;
-                    cb.onProgress(current, total, displayName);
-                    try {
-                        String json = readSafFile(ctx, uri);
-                        String address = extractAddressFromEncryptedJson(json);
-                        if (address == null) {
-                            summary.failed.add(displayName + " (invalid keystore)");
-                            continue;
-                        }
-                        if (PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.containsKey(address)) {
-                            summary.alreadyPresent.add(address);
-                            continue;
-                        }
-                        boolean savedThisFile = false;
-                        boolean previousFailed = false;
-                        while (!savedThisFile) {
-                            PasswordPromptResult pr = cb.promptPassword(displayName, lastPassword, previousFailed);
-                            if (pr.skipped) {
-                                summary.failed.add(address + " (skipped)");
-                                break;
-                            }
-                            try {
-                                DecryptedWallet dw = decryptWallet(json, pr.password);
-                                lastPassword = pr.password;
-                                saveDecryptedWallet(ctx, dw);
-                                summary.restored.add(dw.address != null ? dw.address : address);
-                                savedThisFile = true;
-                            } catch (Exception decryptErr) {
-                                Log.w(TAG, "decrypt failed for " + displayName, decryptErr);
-                                previousFailed = true;
-                            }
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "restore error for " + displayName, e);
-                        summary.failed.add(displayName + " (" + e.getMessage() + ")");
-                    }
-                }
-                cb.onComplete(summary);
-            }
-        }).start();
-    }
-
-    private static void saveDecryptedWallet(Context ctx, DecryptedWallet w) throws Exception {
-        if (w.address == null || w.privateKey == null || w.publicKey == null) {
-            throw new IllegalStateException("decrypted wallet missing fields");
-        }
-        com.quantumcoinwallet.app.keystorage.SecureStorage storage = KeyViewModel.getSecureStorage();
-        if (storage == null) throw new IllegalStateException("SecureStorage unavailable");
-        if (!storage.isUnlocked()) throw new IllegalStateException("SecureStorage is locked");
-
-        int newIndex = storage.getMaxWalletIndex(ctx) + 1;
-        JSONObject walletJson = new JSONObject();
-        walletJson.put("address", w.address);
-        walletJson.put("privateKey", w.privateKey);
-        walletJson.put("publicKey", w.publicKey);
-        boolean hasSeed = w.seedWords != null && w.seedWords.length > 0;
-        if (hasSeed) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < w.seedWords.length; i++) {
-                if (i > 0) sb.append(',');
-                sb.append(w.seedWords[i]);
-            }
-            walletJson.put("seed", sb.toString());
-        } else {
-            walletJson.put("seed", "");
-        }
-        storage.saveWallet(ctx, newIndex, walletJson.toString());
-        storage.setMaxWalletIndex(ctx, newIndex);
-
-        String indexKey = String.valueOf(newIndex);
-        PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.put(w.address, indexKey);
-        PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.put(indexKey, w.address);
-        PrefConnect.writeBoolean(ctx, PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, hasSeed);
-        PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
-    }
 }

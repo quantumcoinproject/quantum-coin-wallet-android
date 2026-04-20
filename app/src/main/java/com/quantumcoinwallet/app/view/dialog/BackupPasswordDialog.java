@@ -4,9 +4,13 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.text.InputType;
 import android.text.method.PasswordTransformationMethod;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
+
+import java.util.List;
 
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -46,14 +50,34 @@ public class BackupPasswordDialog {
         void onCanceled();
     }
 
+    /**
+     * Controls given to the caller of {@link #showRestoreBatch}. The dialog stays on
+     * screen when OK is pressed; the driver performs the decrypt pass and then either
+     * dismisses the dialog (if any wallet was removed from the pending list) or calls
+     * {@link #reEnable()} so the user can retype a different password in the same
+     * dialog instance without losing the remaining-addresses list.
+     */
+    public interface BatchDialogControl {
+        void dismiss();
+        /** Re-enable OK/Cancel/password, clear the password field, and refocus input. */
+        void reEnable();
+    }
+
+    /**
+     * Listener for the batched restore dialog. Unlike the old contract, the dialog does
+     * NOT dismiss itself on OK; the driver owns dismissal via {@link BatchDialogControl}.
+     */
+    public interface OnBatchPasswordListener {
+        void onPassword(String password, BatchDialogControl control);
+        void onCanceled();
+    }
+
     public static void show(final Context ctx, final JsonViewModel vm,
-                            final String currentPassword,
                             final OnBackupPasswordListener listener) {
         showCreateMode(ctx, vm, listener);
     }
 
     public static void show(final Context ctx, final JsonViewModel vm,
-                            final String currentPassword,
                             final boolean restoreMode,
                             final OnBackupPasswordListener listener) {
         if (restoreMode) {
@@ -89,9 +113,9 @@ public class BackupPasswordDialog {
 
         final TextInputLayout pwdLayout = new TextInputLayout(ctx);
         pwdLayout.setHintEnabled(false);
-        pwdLayout.setPasswordVisibilityToggleEnabled(true);
+        pwdLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
         try {
-            pwdLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+            pwdLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
         final TextInputEditText pwd = new TextInputEditText(ctx);
         pwd.setHint(safe(vm.getPasswordByLangValues(), "Password"));
@@ -104,9 +128,9 @@ public class BackupPasswordDialog {
 
         final TextInputLayout confirmLayout = new TextInputLayout(ctx);
         confirmLayout.setHintEnabled(false);
-        confirmLayout.setPasswordVisibilityToggleEnabled(true);
+        confirmLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
         try {
-            confirmLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+            confirmLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
         final TextInputEditText confirm = new TextInputEditText(ctx);
         confirm.setHint(safe(vm.getConfirmBackupPasswordByLangValues(), "Confirm password"));
@@ -183,9 +207,9 @@ public class BackupPasswordDialog {
 
         final TextInputLayout pwdLayout = new TextInputLayout(ctx);
         pwdLayout.setHintEnabled(false);
-        pwdLayout.setPasswordVisibilityToggleEnabled(true);
+        pwdLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
         try {
-            pwdLayout.setPasswordVisibilityToggleDrawable(R.drawable.show_password_selector);
+            pwdLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
 
         final TextInputEditText pwd = new TextInputEditText(ctx);
@@ -240,6 +264,127 @@ public class BackupPasswordDialog {
                 pwd.setEnabled(false);
                 okButton.setText("...");
                 listener.onAttempt(p, control);
+            });
+            cancelButton.setOnClickListener(v -> {
+                try { dialog.dismiss(); } catch (Throwable ignore) { }
+                listener.onCanceled();
+            });
+        });
+
+        dialog.show();
+    }
+
+    /**
+     * Restore-mode prompt for the batched restore flow. Shows the list of addresses still
+     * pending decryption above a single password field. The dialog stays on screen after
+     * OK is pressed (the buttons disable while the decrypt pass runs); the caller then
+     * either dismisses via {@link BatchDialogControl#dismiss()} and reopens a fresh
+     * dialog with a shrunken remaining list, or calls {@link BatchDialogControl#reEnable()}
+     * so the user can try another password in this same dialog.
+     */
+    public static void showRestoreBatch(final Context ctx, final JsonViewModel vm,
+                                        final List<String> remainingAddresses,
+                                        final OnBatchPasswordListener listener) {
+        final int pad = dp(ctx, 16);
+        final String title = safe(vm.getEnterBackupPasswordTitleByLangValues(),
+                "Enter password of the backup");
+
+        LinearLayout root = new LinearLayout(ctx);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, pad, pad, pad);
+
+        TextView header = new TextView(ctx);
+        header.setText(safe(vm.getRestorePasswordPromptRemainingByLangValues(),
+                "Wallets to restore:"));
+        header.setTextSize(14);
+        header.setPadding(0, 0, 0, dp(ctx, 6));
+        root.addView(header);
+
+        ScrollView addressesScroll = new ScrollView(ctx);
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(ctx, 140));
+        addressesScroll.setLayoutParams(scrollParams);
+
+        LinearLayout addressesList = new LinearLayout(ctx);
+        addressesList.setOrientation(LinearLayout.VERTICAL);
+        if (remainingAddresses != null) {
+            for (String addr : remainingAddresses) {
+                TextView row = new TextView(ctx);
+                row.setText(addr == null ? "" : addr);
+                row.setTextSize(12);
+                row.setTypeface(android.graphics.Typeface.MONOSPACE);
+                row.setPadding(0, dp(ctx, 2), 0, dp(ctx, 2));
+                addressesList.addView(row);
+            }
+        }
+        addressesScroll.addView(addressesList);
+        root.addView(addressesScroll);
+
+        TextView spacer = new TextView(ctx);
+        spacer.setHeight(dp(ctx, 8));
+        root.addView(spacer);
+
+        final TextInputLayout pwdLayout = new TextInputLayout(ctx);
+        pwdLayout.setHintEnabled(false);
+        pwdLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
+        try {
+            pwdLayout.setEndIconDrawable(R.drawable.show_password_selector);
+        } catch (Throwable ignore) { }
+
+        final TextInputEditText pwd = new TextInputEditText(ctx);
+        pwd.setHint(safe(vm.getPasswordByLangValues(), "Password"));
+        pwd.setSingleLine(true);
+        pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        pwd.setTransformationMethod(PasswordTransformationMethod.getInstance());
+        pwd.setBackground(null);
+        pwdLayout.addView(pwd);
+        root.addView(pwdLayout);
+
+        final AlertDialog dialog = new AlertDialog.Builder(ctx)
+                .setTitle(title)
+                .setView(root)
+                .setPositiveButton(safe(vm.getOkByLangValues(), "OK"), null)
+                .setNegativeButton(safe(vm.getCancelByLangValues(), "Cancel"), null)
+                .setCancelable(false)
+                .create();
+
+        dialog.setOnShowListener(d -> {
+            final android.widget.Button okButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            final android.widget.Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            final CharSequence okLabel = okButton.getText();
+
+            final BatchDialogControl control = new BatchDialogControl() {
+                @Override
+                public void dismiss() {
+                    try { dialog.dismiss(); } catch (Throwable ignore) { }
+                }
+                @Override
+                public void reEnable() {
+                    try {
+                        okButton.setEnabled(true);
+                        cancelButton.setEnabled(true);
+                        okButton.setText(okLabel);
+                        pwd.setEnabled(true);
+                        pwd.setText("");
+                        pwd.requestFocus();
+                    } catch (Throwable ignore) { }
+                }
+            };
+
+            okButton.setOnClickListener(v -> {
+                String p = pwd.getText() == null ? "" : pwd.getText().toString();
+                if (p.isEmpty()) {
+                    GlobalMethods.ShowErrorDialog(ctx,
+                            safe(vm.getErrorTitleByLangValues(), "Error"),
+                            safe(vm.getEnterApasswordByLangValues(), "Enter a password"));
+                    return;
+                }
+                okButton.setEnabled(false);
+                cancelButton.setEnabled(false);
+                pwd.setEnabled(false);
+                okButton.setText("...");
+                listener.onPassword(p, control);
             });
             cancelButton.setOnClickListener(v -> {
                 try { dialog.dismiss(); } catch (Throwable ignore) { }

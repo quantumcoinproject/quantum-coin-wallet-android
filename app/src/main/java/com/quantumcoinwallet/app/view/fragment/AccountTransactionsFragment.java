@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -14,21 +15,22 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.asynctask.read.AccountPendingTxnRestTask;
 import com.quantumcoinwallet.app.asynctask.read.AccountTxnRestTask;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
-import com.quantumcoinwallet.app.utils.GridAutoFitLayoutManager;
-import com.quantumcoinwallet.app.utils.Utility;
 import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummary;
 import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummaryResponse;
 import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummary;
 import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummaryResponse;
 import com.quantumcoinwallet.app.view.adapter.AccountPendingTransactionAdapter;
 import com.quantumcoinwallet.app.view.adapter.AccountTransactionAdapter;
+import com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
@@ -42,8 +44,12 @@ public class AccountTransactionsFragment extends Fragment  {
 
     private static final String TAG = "AccountTransactionsFragment";
 
-    private int pageIndex = 1;
-    private int pageCount = 1;
+    // The server uses 1-indexed pagination where page 1 is the oldest, page
+    // pageCount is the newest, and -1 is the sentinel that asks the server
+    // for the latest page without the client having to know pageCount yet.
+    // pageCount stays at 0 until the first response with results arrives.
+    private int pageIndex = -1;
+    private int pageCount = 0;
 
     private AccountTransactionAdapter accountTransactionAdapter;
     private List<AccountTransactionSummary> accountTransactionSummaries;
@@ -52,6 +58,10 @@ public class AccountTransactionsFragment extends Fragment  {
     private List<AccountPendingTransactionSummary> accountPendingTransactionSummaries;
 
     RecyclerView recycler;
+    private HorizontalScrollView tableScrollContainer;
+    private LinearLayout tableScrollRow;
+    private VerticalScrollIndicatorView tableScrollLeft;
+    private VerticalScrollIndicatorView tableScrollRight;
 
     private LinearLayout linerLayoutOffline;
     private ImageView imageViewRetry;
@@ -89,6 +99,16 @@ public class AccountTransactionsFragment extends Fragment  {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         this.recycler = view.findViewById(R.id.recycler_account_transactions);
+        this.tableScrollContainer = view.findViewById(R.id.horizontalScroll_account_transactions);
+        this.tableScrollRow = view.findViewById(R.id.tableScrollRow_account_transactions);
+        this.tableScrollLeft = view.findViewById(R.id.verticalScroll_account_transactions_left);
+        this.tableScrollRight = view.findViewById(R.id.verticalScroll_account_transactions_right);
+        if (tableScrollLeft != null) {
+            tableScrollLeft.attachTo(recycler);
+        }
+        if (tableScrollRight != null) {
+            tableScrollRight.attachTo(recycler);
+        }
 
         String languageKey = getArguments().getString("languageKey");
         String walletAddress = getArguments().getString("walletAddress");
@@ -143,13 +163,7 @@ public class AccountTransactionsFragment extends Fragment  {
         this.accountTransactionSummaries = new ArrayList<>();
         this.accountPendingTransactionSummaries = new ArrayList<>();
 
-        int mNoOfColumns = Utility.calculateNoOfColumns(getContext(),
-                R.id.recycler_account_transactions);
-
-        GridAutoFitLayoutManager mLayoutManager = new GridAutoFitLayoutManager(getContext(),
-                mNoOfColumns, 1, false);
-
-        this.recycler.setLayoutManager(mLayoutManager);
+        this.recycler.setLayoutManager(new LinearLayoutManager(getContext()));
 
         this.accountTransactionAdapter = new AccountTransactionAdapter(getContext(),
                 accountTransactionSummaries, walletAddress);
@@ -185,15 +199,15 @@ public class AccountTransactionsFragment extends Fragment  {
             public void onClick(View v) {
                 accountTransactionCompletedToggleButton.setChecked(true);
                 accountTransactionCompletedToggleButton.setTypeface(accountTransactionCompletedToggleButton.getTypeface(), Typeface.BOLD);
-                accountTransactionCompletedToggleButton.setTextColor(getResources().getColor(R.color.colorCommon2));
+                accountTransactionCompletedToggleButton.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon2));
 
                 accountTransactionPendingToggleButton.setChecked(false);
                 accountTransactionPendingToggleButton.setTypeface(accountTransactionPendingToggleButton.getTypeface(), Typeface.NORMAL);
-                accountTransactionPendingToggleButton.setTextColor(getResources().getColor(R.color.colorCommon3));
+                accountTransactionPendingToggleButton.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon3));
 
                 transactionStatus = 0;
-                pageIndex = 1;
-                pageCount = 1;
+                pageIndex = -1;
+                pageCount = 0;
 
                 accountPendingTransactionSummaries.clear();
 
@@ -206,15 +220,15 @@ public class AccountTransactionsFragment extends Fragment  {
             public void onClick(View v) {
                 accountTransactionPendingToggleButton.setChecked(true);
                 accountTransactionPendingToggleButton.setTypeface(accountTransactionPendingToggleButton.getTypeface(), Typeface.BOLD);
-                accountTransactionPendingToggleButton.setTextColor(getResources().getColor(R.color.colorCommon2));
+                accountTransactionPendingToggleButton.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon2));
 
                 accountTransactionCompletedToggleButton.setChecked(false);
                 accountTransactionCompletedToggleButton.setTypeface(accountTransactionCompletedToggleButton.getTypeface(), Typeface.NORMAL);
-                accountTransactionCompletedToggleButton.setTextColor(getResources().getColor(R.color.colorCommon3));
+                accountTransactionCompletedToggleButton.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon3));
 
                 transactionStatus = 1;
-                pageIndex = 1;
-                pageCount = 1;
+                pageIndex = -1;
+                pageCount = 0;
 
                 accountTransactionSummaries.clear();
 
@@ -223,9 +237,24 @@ public class AccountTransactionsFragment extends Fragment  {
             }
         });
 
-        //press previous
+        // Previous (left arrow): walk back to older pages. Server convention
+        // is 1-indexed with page 1 == oldest, so decrement. If we are already
+        // at page 1 (or still at the -1 sentinel with no data), there is
+        // nothing older to fetch, so surface the modal instead of hitting
+        // the network. Note: 0 is the server's "latest" sentinel, NOT a valid
+        // explicit page, which is why the guard is <= 1.
         previousMaterialButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v) {
+                if (pageIndex <= 1) {
+                    String msg = jsonViewModel.getNoMoreTransactionsByLangValues();
+                    if (msg == null || msg.isEmpty()) {
+                        msg = "There are no more transactions to show.";
+                    }
+                    String title = jsonViewModel.getTransactionsByLangValues();
+                    GlobalMethods.ShowMessageDialog(getContext(), title, msg, null);
+                    return;
+                }
+                pageIndex--;
                 switch(transactionStatus) {
                     case 0:
                         recycler.setAdapter(accountTransactionAdapter);
@@ -235,27 +264,31 @@ public class AccountTransactionsFragment extends Fragment  {
                         recycler.setAdapter(accountPendingTransactionAdapter);
                         ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
                         break;
-                }
-                if(pageIndex<pageCount) {
-                    pageIndex++;
                 }
             }
         });
 
-        //press next
+        // Next (right arrow): step forward toward newer pages. If we already
+        // think we are on the newest page (== pageCount), re-issue the request
+        // with -1 so the server can surface any transactions that have
+        // arrived since the last fetch.
         nextMaterialButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v) {
-                if(pageIndex>1) {
-                    pageIndex--;
+                int requested;
+                if (pageCount > 0 && pageIndex >= 1 && pageIndex < pageCount) {
+                    pageIndex++;
+                    requested = pageIndex;
+                } else {
+                    requested = -1;
                 }
                 switch(transactionStatus) {
                     case 0:
                         recycler.setAdapter(accountTransactionAdapter);
-                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, requested);
                         break;
                     case 1:
                         recycler.setAdapter(accountPendingTransactionAdapter);
-                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, requested);
                         break;
                 }
             }
@@ -297,7 +330,11 @@ public class AccountTransactionsFragment extends Fragment  {
         if (linearLayoutEmpty != null) {
             linearLayoutEmpty.setVisibility(View.VISIBLE);
         }
-        if (recycler != null) {
+        if (tableScrollRow != null) {
+            tableScrollRow.setVisibility(View.GONE);
+        } else if (tableScrollContainer != null) {
+            tableScrollContainer.setVisibility(View.GONE);
+        } else if (recycler != null) {
             recycler.setVisibility(View.GONE);
         }
     }
@@ -305,6 +342,12 @@ public class AccountTransactionsFragment extends Fragment  {
     private void hideEmptyState() {
         if (linearLayoutEmpty != null) {
             linearLayoutEmpty.setVisibility(View.GONE);
+        }
+        if (tableScrollRow != null) {
+            tableScrollRow.setVisibility(View.VISIBLE);
+        }
+        if (tableScrollContainer != null) {
+            tableScrollContainer.setVisibility(View.VISIBLE);
         }
         if (recycler != null) {
             recycler.setVisibility(View.VISIBLE);
@@ -349,11 +392,26 @@ public class AccountTransactionsFragment extends Fragment  {
                                 && accountTransactionSummaryResponse.getResult() != null
                                 && accountTransactionSummaryResponse.getResult().size() > 0;
                         if (hasResults) {
-                            pageCount = accountTransactionSummaryResponse.getPageCount();
+                            Integer respPageCount = accountTransactionSummaryResponse.getPageCount();
+                            int resolvedPageCount = (respPageCount == null) ? 0 : respPageCount;
+                            AccountTransactionsFragment.this.pageCount = resolvedPageCount;
+                            // Server uses 1-indexed paging (1 = oldest,
+                            // pageCount = newest). Only reseed this.pageIndex
+                            // when the caller asked for the latest via the
+                            // sentinel -- the sentinel response does not echo
+                            // which page the server actually returned.
+                            if (pageIndex < 1) {
+                                AccountTransactionsFragment.this.pageIndex =
+                                        resolvedPageCount > 0 ? resolvedPageCount : 0;
+                            } else {
+                                AccountTransactionsFragment.this.pageIndex = pageIndex;
+                            }
                             accountTransactionSummaries.addAll(accountTransactionSummaryResponse.getResult());
                             accountTransactionAdapter.notifyDataSetChanged();
                             hideEmptyState();
                         } else {
+                            AccountTransactionsFragment.this.pageCount = 0;
+                            AccountTransactionsFragment.this.pageIndex = 0;
                             showEmptyState();
                         }
                         progressBar.setVisibility(View.GONE);
@@ -427,11 +485,24 @@ public class AccountTransactionsFragment extends Fragment  {
                                 && accountPendingTransactionSummaryResponse.getResult() != null
                                 && accountPendingTransactionSummaryResponse.getResult().size() > 0;
                         if (hasResults) {
-                            pageCount = accountPendingTransactionSummaryResponse.getPageCount();
+                            Integer respPageCount = accountPendingTransactionSummaryResponse.getPageCount();
+                            int resolvedPageCount = (respPageCount == null) ? 0 : respPageCount;
+                            AccountTransactionsFragment.this.pageCount = resolvedPageCount;
+                            // Mirror the completed-list logic: 1-indexed
+                            // paging, reseed from pageCount only on a sentinel
+                            // request.
+                            if (pageIndex < 1) {
+                                AccountTransactionsFragment.this.pageIndex =
+                                        resolvedPageCount > 0 ? resolvedPageCount : 0;
+                            } else {
+                                AccountTransactionsFragment.this.pageIndex = pageIndex;
+                            }
                             accountPendingTransactionSummaries.addAll(accountPendingTransactionSummaryResponse.getResult());
                             accountPendingTransactionAdapter.notifyDataSetChanged();
                             hideEmptyState();
                         } else {
+                            AccountTransactionsFragment.this.pageCount = 0;
+                            AccountTransactionsFragment.this.pageIndex = 0;
                             showEmptyState();
                         }
                         progressBar.setVisibility(View.GONE);

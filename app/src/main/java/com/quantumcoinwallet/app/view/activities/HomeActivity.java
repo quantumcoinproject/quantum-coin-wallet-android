@@ -5,7 +5,6 @@ import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
@@ -35,8 +34,6 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentTransaction;
-
-import android.content.ClipboardManager;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.ApiClient;
@@ -70,7 +67,6 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -95,6 +91,32 @@ public class HomeActivity extends FragmentActivity implements
     private long lastUnlockTimestamp = 0L;
     private boolean unlockDialogShowing = false;
     private boolean suppressNextResumeLock = false;
+
+    // L-09: in-foreground idle-lock. The onResume elapsed-time check is
+    // second line of defence; the timer runs continuously while the
+    // Activity is resumed and fires lock + unlock prompt at UNLOCK_TIMEOUT_MS
+    // of user-interaction inactivity.
+    private final Handler idleLockHandler = new Handler(android.os.Looper.getMainLooper());
+    private final Runnable idleLockRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                if (secureStorage != null
+                        && secureStorage.isInitialized(getApplicationContext())
+                        && secureStorage.isUnlocked()
+                        && !unlockDialogShowing) {
+                    secureStorage.lock();
+                    showUnlockDialog(null);
+                }
+            } catch (Throwable ignore) { }
+        }
+    };
+
+    private void resetIdleLockTimer() {
+        idleLockHandler.removeCallbacks(idleLockRunnable);
+        idleLockHandler.postDelayed(idleLockRunnable, UNLOCK_TIMEOUT_MS);
+    }
 
     private LinearLayout topLinearLayout;
     private ViewGroup.LayoutParams topLinearLayoutParams;
@@ -203,16 +225,19 @@ public class HomeActivity extends FragmentActivity implements
                 createNotificationChannel();
             }
 
-            int blockchainNetworkIdIndex = PrefConnect.readInteger(getApplicationContext(),
+            int storedNetworkIndex = PrefConnect.readInteger(getApplicationContext(),
                     PrefConnect.BLOCKCHAIN_NETWORK_ID_INDEX_KEY, 0);
 
             List<BlockchainNetwork> blockchainNetworkList = GlobalMethods.BlockChainNetworkRead(getApplicationContext());
+            int maxNetworkIdx = Math.max(0, blockchainNetworkList.size() - 1);
+            final int blockchainNetworkIdIndex = Math.max(0, Math.min(storedNetworkIndex, maxNetworkIdx));
+            if (blockchainNetworkIdIndex != storedNetworkIndex) {
+                android.util.Log.w(TAG, "Stored network index out of range; clamped to " + blockchainNetworkIdIndex);
+                PrefConnect.writeInteger(getApplicationContext(),
+                        PrefConnect.BLOCKCHAIN_NETWORK_ID_INDEX_KEY, blockchainNetworkIdIndex);
+            }
             BlockchainNetwork blockchainNetwork = blockchainNetworkList.get(blockchainNetworkIdIndex);
-            GlobalMethods.SCAN_API_URL = GlobalMethods.HTTPS + blockchainNetwork.getScanApiDomain();
-            GlobalMethods.RPC_ENDPOINT_URL = blockchainNetwork.getRpcEndpoint();
-            GlobalMethods.BLOCK_EXPLORER_URL = GlobalMethods.HTTPS + blockchainNetwork.getBlockExplorerDomain();
-            GlobalMethods.BLOCKCHAIN_NAME = blockchainNetwork.getBlockchainName();
-            GlobalMethods.NETWORK_ID = blockchainNetwork.getNetworkId();
+            GlobalMethods.setActiveNetwork(blockchainNetwork);
 
             blockChainNetworkTextView.setText(GlobalMethods.BLOCKCHAIN_NAME);
 
@@ -230,11 +255,13 @@ public class HomeActivity extends FragmentActivity implements
             //Center buttons setOnClickListener
             copyClipboardImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    ClipboardManager clipBoard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                    ClipData clipData = ClipData.newPlainText("currentAddress", walletAddressTextView.getText());
-                    clipBoard.setPrimaryClip(clipData);
+                    // L-05: IS_SENSITIVE so Android 13+ clipboard previews
+                    // do not render the full address.
+                    com.quantumcoinwallet.app.utils.SecureClipboard.copyAddress(
+                            HomeActivity.this, "currentAddress",
+                            walletAddressTextView.getText());
                     homeCopiedTextView.setVisibility(View.VISIBLE);
-                    new Handler().postDelayed(new Runnable() {
+                    new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
                         @Override
                         public void run() {
                             homeCopiedTextView.setVisibility(View.GONE);
@@ -294,7 +321,7 @@ public class HomeActivity extends FragmentActivity implements
                         if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
                             if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
                                 screenViewType(1);
-                                beginTransaction(WalletsFragment.newInstance(), bundle);
+                                beginTransactionNow(WalletsFragment.newInstance(), bundle);
                             }
                         }
                         return true;
@@ -310,7 +337,7 @@ public class HomeActivity extends FragmentActivity implements
                         return true;
                     } else if (id == R.id.nav_settings) {
                         screenViewType(1);
-                        beginTransaction(SettingsFragment.newInstance(), bundle);
+                        beginTransactionNow(SettingsFragment.newInstance(), bundle);
                         return true;
                     }
                     return false;
@@ -321,21 +348,9 @@ public class HomeActivity extends FragmentActivity implements
 
             SecureStorage secureStorage = KeyViewModel.getSecureStorage();
             boolean secureInitialized = secureStorage != null && secureStorage.isInitialized(getApplicationContext());
-            boolean oldDataExists = !PrefConnect.loadHashMap(getApplicationContext(),
-                    PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX).isEmpty();
 
             if (secureInitialized) {
                 showUnlockDialog(new Runnable() {
-                    @Override
-                    public void run() {
-                        walletAddressTextView.setText(walletAddress);
-                        screenViewType(0);
-                        beginTransaction(HomeMainFragment.newInstance(), bundle);
-                        notificationThread(1);
-                    }
-                });
-            } else if (oldDataExists) {
-                showMigrationUnlockDialog(new Runnable() {
                     @Override
                     public void run() {
                         walletAddressTextView.setText(walletAddress);
@@ -563,24 +578,53 @@ public class HomeActivity extends FragmentActivity implements
         try {
             if (suppressNextResumeLock) {
                 suppressNextResumeLock = false;
-                lastUnlockTimestamp = System.currentTimeMillis();
+                lastUnlockTimestamp = android.os.SystemClock.elapsedRealtime();
+                resetIdleLockTimer();
                 return;
             }
             SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+            long now = android.os.SystemClock.elapsedRealtime();
+            long elapsed = now - lastUnlockTimestamp;
+            boolean nonMonotonic = elapsed < 0;
             if (secureStorage != null
                     && secureStorage.isInitialized(getApplicationContext())
                     && !unlockDialogShowing
-                    && (System.currentTimeMillis() - lastUnlockTimestamp) > UNLOCK_TIMEOUT_MS) {
+                    && (nonMonotonic || elapsed > UNLOCK_TIMEOUT_MS)) {
                 secureStorage.lock();
                 showUnlockDialog(null);
+            } else {
+                // L-09: (re)arm the in-foreground idle-lock timer on every resume.
+                resetIdleLockTimer();
             }
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
     }
 
+    @Override
+    protected void onPause() {
+        // L-09: stop the timer while we are not foregrounded; onResume will
+        // re-evaluate staleness via the elapsed-time check.
+        idleLockHandler.removeCallbacks(idleLockRunnable);
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        idleLockHandler.removeCallbacks(idleLockRunnable);
+        super.onDestroy();
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        // L-09: any tap/swipe/key press resets the idle-lock countdown.
+        resetIdleLockTimer();
+    }
+
     public long markUnlockedNow() {
-        lastUnlockTimestamp = System.currentTimeMillis();
+        lastUnlockTimestamp = android.os.SystemClock.elapsedRealtime();
+        resetIdleLockTimer();
         return lastUnlockTimestamp;
     }
 
@@ -689,7 +733,7 @@ public class HomeActivity extends FragmentActivity implements
                                     public void run() {
                                         try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                                         getCurrentWallet(PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE);
-                                        lastUnlockTimestamp = System.currentTimeMillis();
+                                        lastUnlockTimestamp = android.os.SystemClock.elapsedRealtime();
                                         unlockDialogShowing = false;
                                         dialog.dismiss();
                                         if (onSuccess != null) {
@@ -736,117 +780,6 @@ public class HomeActivity extends FragmentActivity implements
         }, true);
     }
 
-    private void showMigrationUnlockDialog(final Runnable onSuccess) {
-        if (unlockDialogShowing) return;
-        unlockDialogShowing = true;
-
-        try {
-            AlertDialog dialog = new AlertDialog.Builder(this)
-                    .setTitle((CharSequence) "")
-                    .setView((int) R.layout.unlock_dialog_fragment)
-                    .create();
-            dialog.setCancelable(false);
-            if (dialog.getWindow() != null) {
-                dialog.getWindow().setBackgroundDrawable(
-                        new android.graphics.drawable.ColorDrawable(
-                                android.graphics.Color.TRANSPARENT));
-            }
-            dialog.show();
-
-            TextView unlockWalletTextView = (TextView) dialog.findViewById(
-                    R.id.textView_unlock_langValues_unlock_wallet);
-            unlockWalletTextView.setText(jsonViewModel.getUnlockWalletByLangValues());
-
-            TextView unlockPasswordTextView = (TextView) dialog.findViewById(
-                    R.id.textView_unlock_langValues_enter_wallet_password);
-            unlockPasswordTextView.setText(jsonViewModel.getEnterQuantumWalletPasswordByLangValues());
-
-            android.widget.EditText passwordEditText = (android.widget.EditText) dialog.findViewById(
-                    R.id.editText_unlock_langValues_enter_a_password);
-            passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
-
-            Button unlockButton = (Button) dialog.findViewById(
-                    R.id.button_unlock_langValues_unlock);
-            unlockButton.setText(jsonViewModel.getUnlockByLangValues());
-
-            Button closeButton = (Button) dialog.findViewById(
-                    R.id.button_unlock_langValues_close);
-            closeButton.setText(jsonViewModel.getCloseByLangValues());
-            closeButton.setVisibility(View.GONE);
-
-            unlockButton.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-                    String password = passwordEditText.getText().toString();
-                    if (password == null || password.isEmpty()) {
-                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
-                                jsonViewModel.getErrorTitleByLangValues(),
-                                jsonViewModel.getEnterApasswordByLangValues());
-                        return;
-                    }
-
-                    final String trimmedPassword = password.trim();
-                    unlockButton.setEnabled(false);
-                    passwordEditText.setEnabled(false);
-                    unlockButton.setText("...");
-
-                    final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
-                            .show(HomeActivity.this, jsonViewModel.getWaitUnlockByLangValues());
-
-                    new Thread(new Runnable() {
-                        public void run() {
-                            try {
-                                migrateOldDataToSecureStorage(trimmedPassword);
-
-                                SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-                                Map<String, String>[] maps = secureStorage.buildWalletMaps(
-                                        getApplicationContext());
-                                PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP = maps[0];
-                                PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP = maps[1];
-                                PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE =
-                                        PrefConnect.readString(getApplicationContext(),
-                                                PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_KEY, "0");
-                                loadWalletHasSeedMap();
-
-                                runOnUiThread(new Runnable() {
-                                    public void run() {
-                                        try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                                        getCurrentWallet(PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE);
-                                        lastUnlockTimestamp = System.currentTimeMillis();
-                                        unlockDialogShowing = false;
-                                        dialog.dismiss();
-                                        if (onSuccess != null) {
-                                            onSuccess.run();
-                                        }
-                                    }
-                                });
-                            } catch (Exception e) {
-                                android.util.Log.e(TAG, "Migration failed", e);
-                                try {
-                                    SecureStorage s = KeyViewModel.getSecureStorage();
-                                    if (s != null) s.lock();
-                                } catch (Exception ignore) { }
-                                runOnUiThread(new Runnable() {
-                                    public void run() {
-                                        try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                                        unlockButton.setEnabled(true);
-                                        passwordEditText.setEnabled(true);
-                                        unlockButton.setText(jsonViewModel.getUnlockByLangValues());
-                                        GlobalMethods.ShowErrorDialog(HomeActivity.this,
-                                                jsonViewModel.getErrorTitleByLangValues(),
-                                                jsonViewModel.getWalletPasswordMismatchByErrors());
-                                    }
-                                });
-                            }
-                        }
-                    }).start();
-                }
-            });
-        } catch (Exception e) {
-            unlockDialogShowing = false;
-            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
-        }
-    }
-
     private void loadWalletHasSeedMap() {
         PrefConnect.WALLET_INDEX_HAS_SEED_MAP.clear();
         for (String indexKey : PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.keySet()) {
@@ -854,66 +787,6 @@ public class HomeActivity extends FragmentActivity implements
                     PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, true);
             PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
         }
-    }
-
-    private void migrateOldDataToSecureStorage(String password) throws Exception {
-        SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-        KeyViewModel keyViewModel = new KeyViewModel();
-
-        secureStorage.createMainKey(getApplicationContext(), password);
-
-        Map<String, String> oldAddressToIndex = PrefConnect.loadHashMap(getApplicationContext(),
-                PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX);
-        Map<String, String> oldIndexToAddress = PrefConnect.loadHashMap(getApplicationContext(),
-                PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_INDEX_ADDRESS);
-
-        int maxIndex = -1;
-        for (Map.Entry<String, String> entry : oldIndexToAddress.entrySet()) {
-            int index = Integer.parseInt(entry.getKey());
-            String address = entry.getValue();
-
-            String[] walletData = keyViewModel.decryptDataByAccount(
-                    getApplicationContext(), address, password);
-            String privKeyBase64 = walletData[0];
-            String pubKeyBase64 = walletData[1];
-            String seedWords = walletData.length > 2 ? walletData[2] : "";
-
-            JSONObject walletJson = new JSONObject();
-            walletJson.put("address", address);
-            walletJson.put("privateKey", privKeyBase64);
-            walletJson.put("publicKey", pubKeyBase64);
-            walletJson.put("seed", seedWords);
-
-            secureStorage.saveWallet(getApplicationContext(), index, walletJson.toString());
-
-            boolean hasSeed = seedWords != null && !seedWords.isEmpty();
-            String indexKey = String.valueOf(index);
-            PrefConnect.writeBoolean(getApplicationContext(),
-                    PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, hasSeed);
-            PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
-
-            if (index > maxIndex) maxIndex = index;
-        }
-        secureStorage.setMaxWalletIndex(getApplicationContext(), maxIndex);
-
-        for (String address : oldAddressToIndex.keySet()) {
-            String fileName = address.toLowerCase().substring(2);
-            File f = new File(getApplicationContext().getFilesDir(), fileName);
-            if (f.exists()) f.delete();
-        }
-        File pwdFile1 = new File(getApplicationContext().getFilesDir(),
-                PrefConnect.WALLET_KEY_PASSWORD.toLowerCase());
-        if (pwdFile1.exists()) pwdFile1.delete();
-        File pwdFile2 = new File(getApplicationContext().getFilesDir(), "wallet_password");
-        if (pwdFile2.exists()) pwdFile2.delete();
-        File pwdFile3 = new File(getApplicationContext().getFilesDir(), "llet_password");
-        if (pwdFile3.exists()) pwdFile3.delete();
-
-        PrefConnect.getEditor(getApplicationContext())
-                .remove(PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_ADDRESS_INDEX)
-                .remove(PrefConnect.WALLET_KEY_PREFIX + PrefConnect.WALLET_KEY_INDEX_ADDRESS)
-                .remove(PrefConnect.WALLET_KEY_PASSWORD)
-                .commit();
     }
 
     private void beginTransaction(Fragment fragment, Bundle bundle) {

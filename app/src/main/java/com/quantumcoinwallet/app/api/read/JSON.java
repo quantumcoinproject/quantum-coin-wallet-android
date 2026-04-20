@@ -23,9 +23,9 @@ import com.google.gson.stream.JsonWriter;
 import com.google.gson.JsonElement;
 import io.gsonfire.GsonFireBuilder;
 
-import org.threeten.bp.LocalDate;
-import org.threeten.bp.OffsetDateTime;
-import org.threeten.bp.format.DateTimeFormatter;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 
 import okio.ByteString;
 
@@ -101,8 +101,12 @@ public class JSON {
         return this;
     }
 
+    /**
+     * MF-20: lenient JSON parsing is forbidden in this client. The setter
+     * is retained for source-level compatibility with legacy call sites
+     * but is a no-op; the field stays at the strict default (false).
+     */
     public JSON setLenientOnJson(boolean lenientOnJson) {
-        isLenientOnJson = lenientOnJson;
         return this;
     }
 
@@ -126,24 +130,12 @@ public class JSON {
      */
     @SuppressWarnings("unchecked")
     public <T> T deserialize(String body, Type returnType) {
-        try {
-            if (isLenientOnJson) {
-                JsonReader jsonReader = new JsonReader(new StringReader(body));
-                // see https://google-gson.googlecode.com/svn/trunk/gson/docs/javadocs/com/google/gson/stream/JsonReader.html#setLenient(boolean)
-                jsonReader.setLenient(true);
-                return gson.fromJson(jsonReader, returnType);
-            } else {
-                return gson.fromJson(body, returnType);
-            }
-        } catch (JsonParseException e) {
-            // Fallback processing when failed to parse JSON form response body:
-            // return the response body string directly for the String return type;
-            if (returnType.equals(String.class)) {
-                return (T) body;
-            } else {
-                throw (e);
-            }
-        }
+        // L-11: strict deserialization only. Removed the former
+        // {@code String.class} raw-body fallback so an unparseable
+        // response can never be mistaken for a valid payload. Any
+        // {@link JsonParseException} propagates to the caller.
+        // MF-20: strict parsing only. No JsonReader with lenient=true.
+        return gson.fromJson(body, returnType);
     }
 
     /**

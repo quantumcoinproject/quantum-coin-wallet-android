@@ -24,6 +24,8 @@ import org.json.JSONException;
 
 import java.util.List;
 
+import timber.log.Timber;
+
 public class BlockchainNetworkDialogFragment extends DialogFragment {
 
     private static final String TAG = "BlockchainNetworkDialogFragment";
@@ -99,7 +101,7 @@ public class BlockchainNetworkDialogFragment extends DialogFragment {
                     getDialog().dismiss();
                     mBlockchainNetworkDialogListener.onBlockchainNetworkDialogCancel();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Timber.w(e, "cancel click");
                 }
             }
         });
@@ -115,7 +117,7 @@ public class BlockchainNetworkDialogFragment extends DialogFragment {
                         mBlockchainNetworkDialogListener.onBlockchainNetworkDialogCancel();
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Timber.w(e, "ok click");
                 }
             }
         });

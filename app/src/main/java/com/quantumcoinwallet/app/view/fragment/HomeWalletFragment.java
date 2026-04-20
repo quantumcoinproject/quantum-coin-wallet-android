@@ -28,6 +28,9 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import androidx.activity.result.ActivityResult;
@@ -49,6 +52,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 
 import com.quantumcoinwallet.app.view.adapter.SeedWordAutoCompleteAdapter;
@@ -636,12 +641,11 @@ public class HomeWalletFragment extends Fragment {
             public void onClick(View v) {
                 progressBar.setVisibility(View.VISIBLE);
                 String clipboardCopyData = ClipboardCopyData(homeSeedWordsViewCaptionTextViews, homeSeedWordsViewTextViews);
-                ClipboardManager clipBoard = (ClipboardManager) getActivity().getSystemService(getActivity().CLIPBOARD_SERVICE);
-                ClipData clipData = ClipData.newPlainText("walletSeed", clipboardCopyData);
-                clipBoard.setPrimaryClip(clipData);
+                com.quantumcoinwallet.app.utils.SecureClipboard.copySensitive(
+                        getActivity(), "walletSeed", clipboardCopyData);
                 progressBar.setVisibility(View.GONE);
                 homeSeedWordsViewCopied.setVisibility(View.VISIBLE);
-                new Handler().postDelayed(new Runnable() {
+                new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         homeSeedWordsViewCopied.setVisibility(View.GONE);
@@ -1354,7 +1358,7 @@ public class HomeWalletFragment extends Fragment {
 
     private void BackupPasswordDialogShow(final BackupPasswordReceiver receiver) {
         com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.show(
-                getContext(), jsonViewModel, null,
+                getContext(), jsonViewModel,
                 new com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.OnBackupPasswordListener() {
                     @Override
                     public void onPasswordSelected(String password) {
@@ -1401,14 +1405,20 @@ public class HomeWalletFragment extends Fragment {
 
     private void flagCloudBackupSaved() {
         if (backupCloudStatusTextView == null) return;
-        backupCloudStatusTextView.setText(jsonViewModel.getBackupSavedShortByLangValues());
+        String msg = jsonViewModel.getBackupSavedShortByLangValues();
+        backupCloudStatusTextView.setText(msg);
         backupCloudStatusTextView.setVisibility(View.VISIBLE);
+        GlobalMethods.ShowMessageDialog(getContext(), null,
+                msg != null && !msg.isEmpty() ? msg : "Saved", null);
     }
 
     private void flagFileBackupSaved() {
         if (backupFileStatusTextView == null) return;
-        backupFileStatusTextView.setText(jsonViewModel.getBackupSavedShortByLangValues());
+        String msg = jsonViewModel.getBackupSavedShortByLangValues();
+        backupFileStatusTextView.setText(msg);
         backupFileStatusTextView.setVisibility(View.VISIBLE);
+        GlobalMethods.ShowMessageDialog(getContext(), null,
+                msg != null && !msg.isEmpty() ? msg : "Saved", null);
     }
 
     private void finishBackupAndNavigateToHome() {
@@ -1570,31 +1580,364 @@ public class HomeWalletFragment extends Fragment {
         showRestoreCloudFilePicker(Uri.parse(folderUriStr));
     }
 
+    /** First restored wallet's index key, captured during the batched restore pass so the
+     *  final summary dialog can hand it to the home listener when the user acknowledges. */
+    private String firstRestoredIndexKey = null;
+
     private void showRestoreCloudFilePicker(final Uri folderUri) {
-        final java.util.List<androidx.documentfile.provider.DocumentFile> files =
-                com.quantumcoinwallet.app.backup.CloudBackupManager.listBackupFiles(getContext(), folderUri);
-        if (files == null || files.isEmpty()) {
-            GlobalMethods.ShowErrorDialog(getContext(),
-                    jsonViewModel.getErrorTitleByLangValues(),
-                    jsonViewModel.getRestoreNoBackupsFoundByLangValues());
+        final Context ctx = getContext();
+        if (ctx == null) return;
+        final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_home_wallet);
+        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final List<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> candidates =
+                        com.quantumcoinwallet.app.backup.CloudBackupManager
+                                .scanQualifyingBackups(ctx, folderUri);
+                if (getActivity() == null) return;
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (progressBar != null) progressBar.setVisibility(View.GONE);
+                        if (candidates.isEmpty()) {
+                            GlobalMethods.ShowErrorDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(),
+                                    jsonViewModel.getRestoreNoBackupsFoundByLangValues());
+                            return;
+                        }
+                        firstRestoredIndexKey = null;
+                        final List<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> pending =
+                                new ArrayList<>();
+                        final List<String> restored = new ArrayList<>();
+                        final List<String> alreadyExists = new ArrayList<>();
+                        final List<String> skipped = new ArrayList<>();
+                        for (com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate c : candidates) {
+                            if (c.address != null
+                                    && PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP != null
+                                    && PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.containsKey(c.address)) {
+                                alreadyExists.add(c.address);
+                            } else {
+                                pending.add(c);
+                            }
+                        }
+                        // When every scanned file is already imported, skip the password
+                        // dialog entirely and jump straight to the summary.
+                        runBatchedRestorePass(pending, restored, alreadyExists, skipped);
+                    }
+                });
+            }
+        }).start();
+    }
+
+    /** Core batched-restore loop. Base case: pending is empty -> show summary. Otherwise
+     *  open a fresh password dialog listing the remaining pending addresses and hand off
+     *  to {@link #attemptBatchDecrypt} for the actual decrypt work. The dialog stays on
+     *  screen while decryption runs; the attempt either dismisses it + re-enters this
+     *  loop with a shrunken pending list, or re-enables it for the user to retry the
+     *  same dialog with a different password. Cancel moves the remaining pending
+     *  addresses into {@code skipped} and goes straight to the summary. */
+    private void runBatchedRestorePass(
+            final List<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> pending,
+            final List<String> restored,
+            final List<String> alreadyExists,
+            final List<String> skipped) {
+        if (getContext() == null) return;
+        if (pending.isEmpty()) {
+            showRestoreSummaryDialog(restored, alreadyExists, skipped);
             return;
         }
-        final String[] names = new String[files.size()];
-        for (int i = 0; i < files.size(); i++) {
-            androidx.documentfile.provider.DocumentFile f = files.get(i);
-            names[i] = f.getName() != null ? f.getName() : f.getUri().getLastPathSegment();
+        final List<String> remainingAddresses = new ArrayList<>();
+        for (com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate c : pending) {
+            remainingAddresses.add(c.address);
         }
-        new AlertDialog.Builder(getContext())
-                .setTitle(jsonViewModel.getRestoreFromCloudByLangValues())
-                .setItems(names, new DialogInterface.OnClickListener() {
+        com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.showRestoreBatch(
+                getContext(), jsonViewModel, remainingAddresses,
+                new com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.OnBatchPasswordListener() {
                     @Override
-                    public void onClick(DialogInterface d, int which) {
-                        androidx.documentfile.provider.DocumentFile chosen = files.get(which);
-                        handleRestoreFromUri(chosen.getUri());
+                    public void onPassword(String password,
+                                           com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.BatchDialogControl control) {
+                        attemptBatchDecrypt(pending, restored, alreadyExists, skipped, password, control);
                     }
-                })
-                .setNegativeButton(jsonViewModel.getCancelByLangValues(), null)
+                    @Override
+                    public void onCanceled() {
+                        for (com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate c : pending) {
+                            skipped.add(c.address);
+                        }
+                        pending.clear();
+                        showRestoreSummaryDialog(restored, alreadyExists, skipped);
+                    }
+                });
+    }
+
+    private void attemptBatchDecrypt(
+            final List<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> pending,
+            final List<String> restored,
+            final List<String> alreadyExists,
+            final List<String> skipped,
+            final String password,
+            final com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog.BatchDialogControl control) {
+        final Context ctx = getContext();
+        if (ctx == null) return;
+        final int before = pending.size();
+        final int restoredBefore = restored.size();
+        final String overlayTitle = jsonViewModel.getWaitWalletOpenByLangValues();
+        final com.quantumcoinwallet.app.view.dialog.WaitDialog.Handle overlay =
+                com.quantumcoinwallet.app.view.dialog.WaitDialog.showWithDetails(
+                        ctx, overlayTitle == null ? "" : overlayTitle);
+        final String progressTemplate = jsonViewModel.getRestoreProgressOfByLangValues();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                    if (secureStorage == null) {
+                        throw new IllegalStateException("SecureStorage unavailable");
+                    }
+                    // Mirror the create-wallet flow (HomeWalletFragment L1097-1104): on a
+                    // fresh install the restore screen is the first touch of SecureStorage,
+                    // so the backup password also bootstraps the app's main key. If
+                    // SecureStorage is already initialized but locked (e.g. opened from
+                    // the "add wallet" path after an idle timeout) try to unlock with the
+                    // same password so the iteration below has a usable key.
+                    if (!secureStorage.isInitialized(getContext())) {
+                        secureStorage.createMainKey(getContext(), password);
+                    }
+                    if (!secureStorage.isUnlocked()) {
+                        secureStorage.unlock(getContext(), password);
+                    }
+                    if (!secureStorage.isUnlocked()) {
+                        // Wrong app-level password: keep every entry in pending, dismiss
+                        // the overlay, surface the "try a different password" error, and
+                        // then re-enable the password dialog for another attempt.
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    overlay.dismiss();
+                                    GlobalMethods.ShowMessageDialog(getContext(),
+                                            jsonViewModel.getErrorTitleByLangValues(),
+                                            jsonViewModel.getRestoreTryDifferentPasswordByLangValues(),
+                                            new Runnable() {
+                                                @Override
+                                                public void run() { control.reEnable(); }
+                                            });
+                                }
+                            });
+                        }
+                        return;
+                    }
+                    int attemptIndex = 0;
+                    Iterator<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> it =
+                            pending.iterator();
+                    while (it.hasNext()) {
+                        final com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate c = it.next();
+                        final int currentIndex = ++attemptIndex;
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    overlay.setAddress(c.address);
+                                    String tmpl = progressTemplate;
+                                    String text;
+                                    if (tmpl == null || tmpl.isEmpty()) {
+                                        text = currentIndex + " of " + before;
+                                    } else {
+                                        text = tmpl
+                                                .replace("[CURRENT]", String.valueOf(currentIndex))
+                                                .replace("[TOTAL]", String.valueOf(before));
+                                    }
+                                    overlay.setProgress(text);
+                                }
+                            });
+                        }
+                        com.quantumcoinwallet.app.backup.CloudBackupManager.DecryptedWallet dw;
+                        try {
+                            dw = com.quantumcoinwallet.app.backup.CloudBackupManager
+                                    .decryptWallet(c.encryptedJson, password);
+                        } catch (Exception decryptErr) {
+                            continue;
+                        }
+                        if (dw == null || dw.address == null) continue;
+
+                        if (PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP != null
+                                && PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.containsKey(dw.address)) {
+                            alreadyExists.add(dw.address);
+                            it.remove();
+                            continue;
+                        }
+
+                        int newIndex = secureStorage.getMaxWalletIndex(getContext()) + 1;
+                        String indexKey = String.valueOf(newIndex);
+
+                        JSONObject walletJson = new JSONObject();
+                        walletJson.put("address", dw.address);
+                        if (dw.privateKey != null) walletJson.put("privateKey", dw.privateKey);
+                        if (dw.publicKey != null) walletJson.put("publicKey", dw.publicKey);
+                        String seedJoined = "";
+                        if (dw.seedWords != null && dw.seedWords.length > 0) {
+                            seedJoined = android.text.TextUtils.join(",", dw.seedWords);
+                        } else if (dw.seed != null) {
+                            seedJoined = dw.seed;
+                        }
+                        walletJson.put("seed", seedJoined);
+
+                        secureStorage.saveWallet(getContext(), newIndex, walletJson.toString());
+                        secureStorage.setMaxWalletIndex(getContext(), newIndex);
+
+                        PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.put(dw.address, indexKey);
+                        PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.put(indexKey, dw.address);
+                        boolean hasSeed = !seedJoined.isEmpty();
+                        PrefConnect.writeBoolean(getContext(),
+                                PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, hasSeed);
+                        PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
+
+                        if (firstRestoredIndexKey == null) firstRestoredIndexKey = indexKey;
+                        restored.add(dw.address);
+                        it.remove();
+                    }
+                } catch (Exception e) {
+                    timber.log.Timber.e(e, "Batched restore failed");
+                }
+                if (getActivity() == null) return;
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        overlay.dismiss();
+                        markActivityUnlocked();
+                        if (pending.size() < before) {
+                            // At least one wallet was moved out of pending this pass.
+                            final int restoredDelta = restored.size() - restoredBefore;
+                            if (!pending.isEmpty() && restoredDelta > 0) {
+                                // Partial progress with more to go: acknowledge the
+                                // count and only then reopen the password dialog.
+                                String tmpl = jsonViewModel.getRestorePartialProgressByLangValues();
+                                String msg;
+                                if (tmpl == null || tmpl.isEmpty()) {
+                                    msg = restoredDelta + " wallet(s) were restored. Enter password for the remaining.";
+                                } else {
+                                    msg = tmpl.replace("[COUNT]", String.valueOf(restoredDelta));
+                                }
+                                GlobalMethods.ShowMessageDialog(getContext(),
+                                        jsonViewModel.getBackupByLangValues(),
+                                        msg,
+                                        new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                control.dismiss();
+                                                runBatchedRestorePass(pending, restored, alreadyExists, skipped);
+                                            }
+                                        });
+                            } else {
+                                // Either everything finished (pending empty, go to
+                                // summary) or progress came purely from duplicates
+                                // being moved to alreadyExists: reopen silently.
+                                control.dismiss();
+                                runBatchedRestorePass(pending, restored, alreadyExists, skipped);
+                            }
+                        } else {
+                            // Nothing decrypted: keep the same password dialog on screen
+                            // and surface a modal "try a different password" message.
+                            GlobalMethods.ShowMessageDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(),
+                                    jsonViewModel.getRestoreTryDifferentPasswordByLangValues(),
+                                    new Runnable() {
+                                        @Override
+                                        public void run() { control.reEnable(); }
+                                    });
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void showRestoreSummaryDialog(final List<String> restored,
+                                          final List<String> alreadyExists,
+                                          final List<String> skipped) {
+        if (getContext() == null) return;
+        final Context ctx = getContext();
+        final int pad = (int) (16 * ctx.getResources().getDisplayMetrics().density);
+
+        ScrollView scroll = new ScrollView(ctx);
+        LinearLayout container = new LinearLayout(ctx);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(pad, pad, pad, pad);
+
+        TableLayout table = new TableLayout(ctx);
+        table.setStretchAllColumns(true);
+        table.setColumnShrinkable(1, true);
+
+        TableRow headerRow = new TableRow(ctx);
+        TextView statusHeader = new TextView(ctx);
+        String statusCol = jsonViewModel.getRestoreSummaryStatusColumnByLangValues();
+        statusHeader.setText(statusCol != null && !statusCol.isEmpty() ? statusCol : "Status");
+        statusHeader.setTypeface(null, android.graphics.Typeface.BOLD);
+        statusHeader.setPadding(0, 0, pad, (int) (pad * 0.5f));
+        TextView addressHeader = new TextView(ctx);
+        String addrCol = jsonViewModel.getRestoreSummaryAddressColumnByLangValues();
+        addressHeader.setText(addrCol != null && !addrCol.isEmpty() ? addrCol : "Address");
+        addressHeader.setTypeface(null, android.graphics.Typeface.BOLD);
+        addressHeader.setPadding(0, 0, 0, (int) (pad * 0.5f));
+        headerRow.addView(statusHeader);
+        headerRow.addView(addressHeader);
+        table.addView(headerRow);
+
+        String restoredLabel = jsonViewModel.getRestoreSummaryStatusRestoredByLangValues();
+        if (restoredLabel == null || restoredLabel.isEmpty()) restoredLabel = "Restored";
+        String alreadyExistsLabel = jsonViewModel.getRestoreSummaryStatusAlreadyExistsByLangValues();
+        if (alreadyExistsLabel == null || alreadyExistsLabel.isEmpty()) alreadyExistsLabel = "Already exists";
+        String skippedLabel = jsonViewModel.getRestoreSummaryStatusSkippedByLangValues();
+        if (skippedLabel == null || skippedLabel.isEmpty()) skippedLabel = "Skipped";
+
+        for (String addr : restored) {
+            table.addView(buildSummaryRow(ctx, restoredLabel, addr, pad));
+        }
+        if (alreadyExists != null) {
+            for (String addr : alreadyExists) {
+                table.addView(buildSummaryRow(ctx, alreadyExistsLabel, addr, pad));
+            }
+        }
+        for (String addr : skipped) {
+            table.addView(buildSummaryRow(ctx, skippedLabel, addr, pad));
+        }
+
+        container.addView(table);
+        scroll.addView(container);
+
+        String title = jsonViewModel.getRestoreFromCloudByLangValues();
+        String ok = jsonViewModel.getOkByLangValues();
+        new AlertDialog.Builder(ctx)
+                .setTitle(title != null && !title.isEmpty() ? title : "Restore from cloud")
+                .setView(scroll)
+                .setCancelable(false)
+                .setPositiveButton(ok != null && !ok.isEmpty() ? ok : "OK",
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface d, int which) {
+                                if (!restored.isEmpty() && firstRestoredIndexKey != null
+                                        && mHomeWalletListener != null) {
+                                    mHomeWalletListener.onHomeWalletCompleteByHomeMain(
+                                            firstRestoredIndexKey);
+                                }
+                            }
+                        })
                 .show();
+    }
+
+    private TableRow buildSummaryRow(Context ctx, String status, String address, int pad) {
+        TableRow row = new TableRow(ctx);
+        TextView statusView = new TextView(ctx);
+        statusView.setText(status);
+        statusView.setPadding(0, (int) (pad * 0.25f), pad, (int) (pad * 0.25f));
+        TextView addressView = new TextView(ctx);
+        addressView.setText(address == null ? "" : address);
+        addressView.setTypeface(android.graphics.Typeface.MONOSPACE);
+        addressView.setTextSize(12);
+        addressView.setPadding(0, (int) (pad * 0.25f), 0, (int) (pad * 0.25f));
+        row.addView(statusView);
+        row.addView(addressView);
+        return row;
     }
 
     private void handleRestoreFromUri(final Uri fileUri) {
