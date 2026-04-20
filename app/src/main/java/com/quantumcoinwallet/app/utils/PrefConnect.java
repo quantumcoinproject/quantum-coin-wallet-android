@@ -48,6 +48,12 @@ public class PrefConnect {
 
     public static String CLOUD_BACKUP_FOLDER_URI_KEY = "CLOUD_BACKUP_FOLDER_URI";
 
+    /** Tracks whether we have ever asked the user for the camera permission. Combined with
+     *  {@code ActivityCompat.shouldShowRequestPermissionRationale} this lets us disambiguate
+     *  "first-time request" from "permanently denied" so we can surface an Open Settings
+     *  dialog in the latter case. */
+    public static String CAMERA_PERMISSION_ASKED_ONCE = "CAMERA_PERMISSION_ASKED_ONCE";
+
     public static String WALLET_HAS_SEED_KEY_PREFIX = "WALLET_HAS_SEED_";
     public static HashMap<String, Boolean> WALLET_INDEX_HAS_SEED_MAP = new HashMap<>();
 

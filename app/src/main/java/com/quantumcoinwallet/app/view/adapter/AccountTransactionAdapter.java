@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.model.AccountTransactionSummary;
+import com.quantumcoinwallet.app.utils.AccountTransactionUi;
 import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 
@@ -37,6 +38,7 @@ public class AccountTransactionAdapter extends
 
     class DataObjectHolder extends ViewHolder {
 
+        ImageView imageViewFailed;
         ImageView imageViewInOut;
 
         TextView textViewTransHash;
@@ -50,6 +52,7 @@ public class AccountTransactionAdapter extends
         public DataObjectHolder(View itemView) {
             super(itemView);
             try{
+                this.imageViewFailed = (ImageView) itemView.findViewById(R.id.imageView_account_transactions_adapter_failed);
                 this.imageViewInOut = (ImageView) itemView.findViewById(R.id.imageView_account_transactions_adapter_in_out);
                 this.textViewQuantity = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_quantity);
                 this.textViewDate = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_date);
@@ -87,12 +90,15 @@ public class AccountTransactionAdapter extends
             String rawValue = txn.getValue() != null ? txn.getValue().toString() : null;
             String rawDate = txn.getCreatedAt() != null ? txn.getCreatedAt().toString() : null;
 
-            if (walletAddress != null && from.length() > 0
-                    && walletAddress.toLowerCase().equals(from.toLowerCase())) {
-                holder.imageViewInOut.setImageResource(R.drawable.arrow_up_circle_outline);
-            } else {
-                holder.imageViewInOut.setImageResource(R.drawable.arrow_down_circle_outline);
+            boolean outgoing = walletAddress != null && from.length() > 0
+                    && walletAddress.equalsIgnoreCase(from);
+            boolean success = AccountTransactionUi.isCompletedSuccessful(txn);
+            if (holder.imageViewFailed != null) {
+                holder.imageViewFailed.setVisibility(success ? View.GONE : View.VISIBLE);
             }
+            holder.imageViewInOut.setImageResource(outgoing
+                    ? R.drawable.arrow_up_circle_outline
+                    : R.drawable.arrow_down_circle_outline);
 
             try {
                 if (rawDate != null && rawDate.length() > 0) {

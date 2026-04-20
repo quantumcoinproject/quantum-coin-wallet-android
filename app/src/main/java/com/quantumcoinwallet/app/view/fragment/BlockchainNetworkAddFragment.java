@@ -10,8 +10,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.fragment.app.Fragment;
 
 import com.quantumcoinwallet.app.R;
@@ -206,10 +204,16 @@ public class BlockchainNetworkAddFragment extends Fragment  {
                         PrefConnect.writeString(getContext(), PrefConnect.BLOCKCHAIN_NETWORK_LIST,
                                 root.toString());
 
-                        Toast.makeText(getContext(), "Added successfully!",
-                                Toast.LENGTH_SHORT).show();
-
-                        mBlockchainNetworkAddListener.onBlockchainNetworkAddComplete();
+                        GlobalMethods.ShowMessageDialog(getContext(), null,
+                                "Added successfully!",
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (mBlockchainNetworkAddListener != null) {
+                                            mBlockchainNetworkAddListener.onBlockchainNetworkAddComplete();
+                                        }
+                                    }
+                                });
                     } catch (Exception e) {
                         GlobalMethods.ExceptionError(getContext(), TAG, e);
                     }

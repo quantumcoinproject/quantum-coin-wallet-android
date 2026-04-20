@@ -222,6 +222,72 @@ public class GlobalMethods {
         }
     }
 
+    /** Neutral info dialog with a single OK button. Used for success/acknowledge
+     *  confirmations that previously auto-dismissed as toasts. {@code onOk} may be
+     *  null; if non-null, it fires only when the user presses OK. The dialog is
+     *  non-cancelable so OK is the only way to dismiss it. */
+    public static void ShowMessageDialog(Context context, String title, String message,
+                                         final Runnable onOk) {
+        if (context == null) return;
+        if (!(context instanceof Activity) || ((Activity) context).isFinishing()) {
+            if (onOk != null) onOk.run();
+            return;
+        }
+        androidx.appcompat.app.AlertDialog.Builder b =
+                new androidx.appcompat.app.AlertDialog.Builder(context);
+        if (title != null && !title.isEmpty()) b.setTitle(title);
+        b.setMessage(message == null ? "" : message);
+        b.setCancelable(false);
+        b.setPositiveButton("OK", new android.content.DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(android.content.DialogInterface dialog, int which) {
+                if (onOk != null) onOk.run();
+            }
+        });
+        b.show();
+    }
+
+    /** Deep-links to the app's settings screen so the user can flip a permanently-denied
+     *  runtime permission back to granted. Used after we detect
+     *  {@link #isPermanentlyDenied(Activity, String, boolean)}. */
+    public static void ShowOpenSettingsDialog(Context context, String title, String message) {
+        if (context == null) return;
+        final Context ctx = context;
+        androidx.appcompat.app.AlertDialog.Builder b =
+                new androidx.appcompat.app.AlertDialog.Builder(ctx);
+        b.setTitle(title != null && !title.isEmpty() ? title : "Permission required");
+        b.setMessage(message == null ? "" : message);
+        b.setCancelable(true);
+        b.setPositiveButton("Open Settings", new android.content.DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(android.content.DialogInterface dialog, int which) {
+                try {
+                    android.content.Intent i = new android.content.Intent(
+                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    i.setData(android.net.Uri.fromParts("package", ctx.getPackageName(), null));
+                    i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    ctx.startActivity(i);
+                } catch (Throwable ignore) { }
+            }
+        });
+        b.setNegativeButton("Cancel", null);
+        b.show();
+    }
+
+    /** Heuristic for "user has permanently denied this permission": permission is not
+     *  currently granted, we have asked at least once (tracked by the caller via a
+     *  SharedPreferences flag), and {@code shouldShowRequestPermissionRationale} is
+     *  now false (the platform signal that further requests will be auto-denied). */
+    public static boolean isPermanentlyDenied(Activity activity, String permission,
+                                              boolean askedBefore) {
+        if (activity == null || permission == null) return false;
+        if (androidx.core.content.ContextCompat.checkSelfPermission(activity, permission)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
+        if (!askedBefore) return false;
+        return !androidx.core.app.ActivityCompat
+                .shouldShowRequestPermissionRationale(activity, permission);
+    }
+
     //Api exception error onFailure(ApiException e)
     public static boolean ApiExceptionSourceCodeBoolean(int code) {
         boolean checkExcaption = true;

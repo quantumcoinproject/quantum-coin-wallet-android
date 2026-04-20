@@ -1,44 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/transactions_list_header"
-    android:layout_width="match_parent"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="55dp"
-        android:layout_gravity="center_vertical|center_horizontal"
-        android:orientation="horizontal" >
-        <View
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:background="@drawable/separator_line_vertical"
-            android:alpha="0.15"
-            android:layout_alignParentEnd="true" />
-
-        <ImageView
-            android:id="@+id/imageView_account_transactions_adapter_in_out"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_weight= "1"
-            android:padding="10dp"
-            android:src="@drawable/arrow_up_circle_outline"
-            android:gravity="center" />
+        android:orientation="horizontal"
+        android:baselineAligned="false">
 
         <View
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="@drawable/separator_line_vertical"
-            android:alpha="0.15"
-            android:layout_alignParentEnd="true" />
+            android:alpha="0.15" />
+
+        <LinearLayout
+            android:id="@+id/linearLayout_account_transactions_inout"
+            android:layout_width="70dp"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/imageView_account_transactions_adapter_failed"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:visibility="gone"
+                android:importantForAccessibility="no"
+                android:src="@drawable/alert_outline"
+                tools:ignore="ContentDescription" />
+
+            <ImageView
+                android:id="@+id/imageView_account_transactions_adapter_in_out"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:padding="2dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/arrow_up_circle_outline"
+                tools:ignore="ContentDescription" />
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/separator_line_vertical"
+            android:alpha="0.15" />
 
         <TextView
             android:id="@+id/textView_account_transactions_adapter_quantity"
-            android:layout_width="match_parent"
+            android:layout_width="110dp"
             android:layout_height="match_parent"
-            android:layout_weight= "1"
             android:textSize="10dp"
             android:gravity="center" />
 
@@ -46,14 +63,12 @@
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="@drawable/separator_line_vertical"
-            android:alpha="0.15"
-            android:layout_alignParentEnd="true" />
+            android:alpha="0.15" />
 
         <TextView
             android:id="@+id/textView_account_transactions_adapter_date"
-            android:layout_width="match_parent"
+            android:layout_width="220dp"
             android:layout_height="match_parent"
-            android:layout_weight= "1"
             android:gravity="center"
             android:textSize="11dp" />
 
@@ -61,14 +76,12 @@
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="@drawable/separator_line_vertical"
-            android:alpha="0.15"
-            android:layout_alignParentEnd="true" />
+            android:alpha="0.15" />
 
         <TextView
             android:id="@+id/textView_account_transactions_adapter_from"
-            android:layout_width="match_parent"
+            android:layout_width="90dp"
             android:layout_height="match_parent"
-            android:layout_weight= "1"
             android:gravity="center"
             android:textSize="12dp"
             android:textColor="@color/colorCommon8" />
@@ -77,14 +90,12 @@
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="@drawable/separator_line_vertical"
-            android:alpha="0.15"
-            android:layout_alignParentEnd="true" />
+            android:alpha="0.15" />
 
         <TextView
             android:id="@+id/textView_account_transactions_adapter_to"
-            android:layout_width="match_parent"
+            android:layout_width="90dp"
             android:layout_height="match_parent"
-            android:layout_weight= "1"
             android:gravity="center"
             android:textSize="12dp"
             android:textColor="@color/colorCommon8" />
@@ -93,29 +104,26 @@
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="@drawable/separator_line_vertical"
-            android:alpha="0.15"
-            android:layout_alignParentEnd="true" />
+            android:alpha="0.15" />
 
         <TextView
             android:id="@+id/textView_account_transactions_adapter_trans_hash"
-            android:layout_width="match_parent"
+            android:layout_width="100dp"
             android:layout_height="match_parent"
-            android:layout_weight= "1"
             android:gravity="center"
             android:textSize="12dp"
-            android:textColor="@color/colorCommon8"/>
+            android:textColor="@color/colorCommon8" />
 
         <View
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="@drawable/separator_line_vertical"
-            android:alpha="0.15"
-            android:layout_alignParentEnd="true" />
+            android:alpha="0.15" />
 
     </LinearLayout>
 
     <View
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="1dp"
         android:alpha="0.2"
         android:background="@drawable/line_2_shape" />

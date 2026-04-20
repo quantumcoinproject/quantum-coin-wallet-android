@@ -1,4 +1,4 @@
-name: Quantum Coin Wallet
+name: Quantum Coin Wallet (debug)
 
 env:
   main_project_module: app
@@ -7,8 +7,7 @@ on:
   push:
     tags:
       - '*'
-  # Allow manually running a signed release build for verification
-  # without pushing a tag.
+  # Allow manually running a debug build for verification without pushing a tag.
   workflow_dispatch: {}
 
 jobs:
@@ -27,55 +26,25 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # MF-01: decode the upload keystore from a repo secret into a
-      # tmpfs-scoped path. The file is removed in the cleanup step so
-      # it does not linger on the runner or leak into any cached
-      # layer.
-      - name: Decode release keystore
-        id: keystore
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "${ANDROID_KEYSTORE_BASE64}" ]; then
-            echo "ANDROID_KEYSTORE_BASE64 secret is not configured" >&2
-            exit 1
-          fi
-          KEYSTORE_PATH="${RUNNER_TEMP}/release.keystore"
-          echo "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${KEYSTORE_PATH}"
-          if [ ! -s "${KEYSTORE_PATH}" ]; then
-            echo "Decoded keystore is empty" >&2
-            exit 1
-          fi
-          echo "keystore_path=${KEYSTORE_PATH}" >> "$GITHUB_OUTPUT"
-
-      - name: Build signed release APK
-        env:
-          ANDROID_KEYSTORE_FILE: ${{ steps.keystore.outputs.keystore_path }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --stacktrace --no-daemon
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Verify APK is signed
         run: |
-          APK_DIR="${{ env.main_project_module }}/build/outputs/apk/release"
+          APK_DIR="${{ env.main_project_module }}/build/outputs/apk/debug"
           APK_FILE=$(ls "${APK_DIR}"/*.apk | head -n 1)
           echo "Verifying ${APK_FILE}"
           "${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools | sort -V | tail -n 1)/apksigner" verify --verbose "${APK_FILE}"
 
       - name: List built APK
-        run: ls -la ${{ env.main_project_module }}/build/outputs/apk/release/
+        run: ls -la ${{ env.main_project_module }}/build/outputs/apk/debug/
 
-      - name: Upload Quantum Coin Wallet release APK
+      - name: Upload Quantum Coin Wallet debug APK
         uses: actions/upload-artifact@v6
         with:
-          name: quantum-coin-wallet-release
-          path: ${{ env.main_project_module }}/build/outputs/apk/release/*.apk
+          name: quantum-coin-wallet-debug
+          path: ${{ env.main_project_module }}/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
-      - name: Clean up keystore
-        if: always()
-        run: rm -f "${{ steps.keystore.outputs.keystore_path }}"
 
   Release:
     name: Release APK
@@ -92,7 +61,7 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v7
         with:
-          name: quantum-coin-wallet-release
+          name: quantum-coin-wallet-debug
           path: ./artifacts
 
       - name: List downloaded artifacts
@@ -108,7 +77,7 @@ jobs:
           replacesArtifacts: false
           artifacts: "./artifacts/*.apk"
           artifactContentType: application/vnd.android.package-archive
-          name: Release ${{ steps.version-string.outputs.VERSION_STR }}
+          name: Release ${{ steps.version-string.outputs.VERSION_STR }} (debug)
           prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') }}
           tag: ${{ steps.version-string.outputs.VERSION_STR }}
           token: ${{ secrets.GITHUB_TOKEN }}

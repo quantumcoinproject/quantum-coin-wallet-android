@@ -15,7 +15,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import androidx.activity.result.ActivityResult;
@@ -123,7 +122,7 @@ public class WalletsFragment extends Fragment  {
                                                                   uri.getLastPathSegment() != null
                                                                       ? uri.getLastPathSegment() : "")
                                                     : "Wallet exported";
-                                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                            GlobalMethods.ShowMessageDialog(getContext(), null, msg, null);
                                         }
                                     });
                                 } catch (final Exception e) {
@@ -664,7 +663,7 @@ public class WalletsFragment extends Fragment  {
                             String msg = tmpl != null
                                     ? tmpl.replace("[FOLDER]", "").replace("[FILENAME]", filename)
                                     : "Wallet backed up";
-                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                            GlobalMethods.ShowMessageDialog(getContext(), null, msg, null);
                         }
                     });
                 } catch (final Exception e) {

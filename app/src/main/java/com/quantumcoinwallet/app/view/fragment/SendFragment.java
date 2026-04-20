@@ -22,8 +22,6 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.cardview.widget.CardView;
@@ -103,6 +101,12 @@ public class SendFragment extends Fragment  {
     private BarcodeScanner barcodeScanner;
     private ExecutorService cameraExecutor;
     private static final int REQUEST_CAMERA_PERMISSION = 201;
+
+    // Remembered so we can re-open the QR scanner dialog after the user grants the
+    // camera permission via the system prompt.
+    private View pendingQrView;
+    private EditText pendingQrAddressEditText;
+    private String pendingQrLanguageKey;
 
     public static SendFragment newInstance() {
         SendFragment fragment = new SendFragment();
@@ -679,6 +683,32 @@ public class SendFragment extends Fragment  {
     }
 
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != REQUEST_CAMERA_PERMISSION) return;
+        Activity act = getActivity();
+        if (act == null) return;
+        PrefConnect.writeBoolean(act, PrefConnect.CAMERA_PERMISSION_ASKED_ONCE, true);
+        boolean granted = grantResults != null && grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        if (granted) {
+            if (pendingQrView != null && pendingQrAddressEditText != null) {
+                QRCodeDialogFragment(pendingQrView, pendingQrAddressEditText, pendingQrLanguageKey);
+            }
+        } else {
+            String msg = jsonViewModel.getCameraPermissionDeniedByLangValues();
+            GlobalMethods.ShowMessageDialog(act, null,
+                    msg != null && !msg.isEmpty() ? msg
+                            : act.getString(R.string.send_camara_permission_description),
+                    null);
+        }
+        pendingQrView = null;
+        pendingQrAddressEditText = null;
+        pendingQrLanguageKey = null;
+    }
+
     private void QRCodeDialogFragment(View view, final EditText walletAddressEditText, String languageKey) {
         try {
             final AlertDialog dialog = new AlertDialog.Builder(getContext())
@@ -697,16 +727,51 @@ public class SendFragment extends Fragment  {
             okButton.setText(jsonViewModel.getOkByLangValues());
             closeButton.setText(jsonViewModel.getCloseByLangValues());
 
-            if (ActivityCompat.checkSelfPermission(getActivity().getApplicationContext(),
-                    Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                if (ActivityCompat.shouldShowRequestPermissionRationale(getActivity(), Manifest.permission.CAMERA)) {
-                    qrcodeTextView.setText(R.string.send_camara_permission_description);
-                    Toast.makeText(getActivity(), R.string.send_camara_permission_description, Toast.LENGTH_SHORT).show();
+            final Activity act = getActivity();
+            if (act == null) {
+                dialog.dismiss();
+                return;
+            }
+            if (ContextCompat.checkSelfPermission(act, Manifest.permission.CAMERA)
+                    != PackageManager.PERMISSION_GRANTED) {
+                final boolean askedBefore = PrefConnect.readBoolean(act,
+                        PrefConnect.CAMERA_PERMISSION_ASKED_ONCE, false);
+                // Remember args so onRequestPermissionsResult can re-open the dialog on grant.
+                pendingQrView = view;
+                pendingQrAddressEditText = walletAddressEditText;
+                pendingQrLanguageKey = languageKey;
+
+                dialog.dismiss();
+
+                if (GlobalMethods.isPermanentlyDenied(act, Manifest.permission.CAMERA, askedBefore)) {
+                    String msg = jsonViewModel.getCameraPermissionDeniedByLangValues();
+                    GlobalMethods.ShowOpenSettingsDialog(act,
+                            jsonViewModel.getErrorTitleByLangValues(),
+                            msg != null && !msg.isEmpty() ? msg
+                                    : act.getString(R.string.send_camara_permission_description));
+                    return;
+                }
+                if (ActivityCompat.shouldShowRequestPermissionRationale(act, Manifest.permission.CAMERA)) {
+                    new AlertDialog.Builder(act)
+                            .setMessage(R.string.send_camara_permission_description)
+                            .setPositiveButton(android.R.string.ok,
+                                    new android.content.DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(android.content.DialogInterface d, int which) {
+                                            PrefConnect.writeBoolean(act,
+                                                    PrefConnect.CAMERA_PERMISSION_ASKED_ONCE, true);
+                                            ActivityCompat.requestPermissions(act,
+                                                    new String[]{Manifest.permission.CAMERA},
+                                                    REQUEST_CAMERA_PERMISSION);
+                                        }
+                                    })
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show();
                 } else {
-                    ActivityCompat.requestPermissions(getActivity(),
+                    PrefConnect.writeBoolean(act, PrefConnect.CAMERA_PERMISSION_ASKED_ONCE, true);
+                    ActivityCompat.requestPermissions(act,
                             new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
                 }
-                dialog.dismiss();
                 return;
             }
 

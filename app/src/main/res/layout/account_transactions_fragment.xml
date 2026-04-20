@@ -122,21 +122,53 @@
                             android:layout_above="@+id/table_bottom_linear_layout_account_transactions_id"
                             android:orientation="vertical">
 
-                            <LinearLayout
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:orientation="vertical">
-
-                                <include layout="@layout/account_transactions_header"/>
-
-                            </LinearLayout>
-
-                                <androidx.recyclerview.widget.RecyclerView
-                                    android:id="@+id/recycler_account_transactions"
+                                <LinearLayout
+                                    android:id="@+id/tableScrollRow_account_transactions"
                                     android:layout_width="match_parent"
-                                    android:layout_height="match_parent"
-                                    android:paddingBottom="50dp"
-                                    android:clipToPadding="false"/>
+                                    android:layout_height="0dp"
+                                    android:layout_weight="1"
+                                    android:orientation="horizontal">
+
+                                    <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
+                                        android:id="@+id/verticalScroll_account_transactions_left"
+                                        android:layout_width="4dp"
+                                        android:layout_height="match_parent" />
+
+                                    <HorizontalScrollView
+                                        android:id="@+id/horizontalScroll_account_transactions"
+                                        android:layout_width="0dp"
+                                        android:layout_height="match_parent"
+                                        android:layout_weight="1"
+                                        android:scrollbars="horizontal"
+                                        android:scrollbarAlwaysDrawHorizontalTrack="true"
+                                        android:fadeScrollbars="false"
+                                        android:fillViewport="true">
+
+                                        <LinearLayout
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="match_parent"
+                                            android:orientation="vertical">
+
+                                            <include layout="@layout/account_transactions_header"/>
+
+                                            <androidx.recyclerview.widget.RecyclerView
+                                                android:id="@+id/recycler_account_transactions"
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="0dp"
+                                                android:layout_weight="1"
+                                                android:paddingBottom="50dp"
+                                                android:clipToPadding="false"/>
+
+                                        </LinearLayout>
+
+                                    </HorizontalScrollView>
+
+                                    <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
+                                        android:id="@+id/verticalScroll_account_transactions_right"
+                                        android:layout_width="4dp"
+                                        android:layout_height="match_parent" />
+
+                                </LinearLayout>
 
                                 <LinearLayout
                                     android:id="@+id/linear_layout_account_transactions_empty"

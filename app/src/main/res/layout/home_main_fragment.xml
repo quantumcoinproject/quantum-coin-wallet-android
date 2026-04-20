@@ -24,71 +24,137 @@
             android:layout_height="wrap_content"
             android:textSize="14dp"
             android:textStyle="bold"
-            android:textColor="@color/colorCommon1"
+            android:textColor="@color/colorCommon6"
             android:paddingBottom="8dp"
             tools:ignore="HardcodedText" />
 
         <LinearLayout
-            android:id="@+id/tokenList_header_row"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
-            android:baselineAligned="false">
-
-            <TextView
-                android:id="@+id/textView_tokenList_header_symbol"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12dp"
-                android:textStyle="bold"
-                android:textColor="@color/colorCommon10" />
-
-            <TextView
-                android:id="@+id/textView_tokenList_header_balance"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1.4"
-                android:textSize="12dp"
-                android:textStyle="bold"
-                android:textColor="@color/colorCommon10" />
-
-            <TextView
-                android:id="@+id/textView_tokenList_header_contract"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1.4"
-                android:textSize="12dp"
-                android:textStyle="bold"
-                android:textColor="@color/colorCommon10" />
-
-            <TextView
-                android:id="@+id/textView_tokenList_header_name"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1.2"
-                android:textSize="12dp"
-                android:textStyle="bold"
-                android:textColor="@color/colorCommon10" />
-
-        </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:alpha="0.25"
-            android:background="@drawable/separator_line_vertical" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerView_tokenList"
+            android:id="@+id/tokenList_scrollRow"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:scrollbars="vertical" />
+            android:orientation="horizontal">
+
+            <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
+                android:id="@+id/verticalScroll_tokenList_left"
+                android:layout_width="4dp"
+                android:layout_height="match_parent" />
+
+        <HorizontalScrollView
+            android:id="@+id/horizontalScroll_tokenList"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scrollbars="horizontal"
+            android:scrollbarAlwaysDrawHorizontalTrack="true"
+            android:fadeScrollbars="false"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/tokenList_header_row"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:baselineAligned="false">
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="match_parent"
+                        android:alpha="0.15"
+                        android:background="@drawable/separator_line_vertical" />
+
+                    <TextView
+                        android:id="@+id/textView_tokenList_header_symbol"
+                        android:layout_width="90dp"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textSize="12dp"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="match_parent"
+                        android:alpha="0.15"
+                        android:background="@drawable/separator_line_vertical" />
+
+                    <TextView
+                        android:id="@+id/textView_tokenList_header_balance"
+                        android:layout_width="130dp"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textSize="12dp"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="match_parent"
+                        android:alpha="0.15"
+                        android:background="@drawable/separator_line_vertical" />
+
+                    <TextView
+                        android:id="@+id/textView_tokenList_header_contract"
+                        android:layout_width="140dp"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textSize="12dp"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="match_parent"
+                        android:alpha="0.15"
+                        android:background="@drawable/separator_line_vertical" />
+
+                    <TextView
+                        android:id="@+id/textView_tokenList_header_name"
+                        android:layout_width="130dp"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textSize="12dp"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="match_parent"
+                        android:alpha="0.15"
+                        android:background="@drawable/separator_line_vertical" />
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:alpha="0.25"
+                    android:background="@drawable/separator_line_vertical" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerView_tokenList"
+                    android:layout_width="wrap_content"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:scrollbars="vertical" />
+
+            </LinearLayout>
+
+        </HorizontalScrollView>
+
+            <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
+                android:id="@+id/verticalScroll_tokenList_right"
+                android:layout_width="4dp"
+                android:layout_height="match_parent" />
+
+        </LinearLayout>
 
         <TextView
             android:id="@+id/textView_tokenList_empty"

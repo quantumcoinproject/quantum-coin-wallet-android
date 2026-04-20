@@ -70,6 +70,11 @@ public class AccountTransactionSummary {
   @SerializedName(SERIALIZED_NAME_TRANSACTION_TYPE)
   private TransactionType transactionType;
 
+  /** Receipt / execution status from the scan API (e.g. {@code 0x1} success); matches desktop {@code txn.status}. */
+  public static final String SERIALIZED_NAME_STATUS = "status";
+  @SerializedName(SERIALIZED_NAME_STATUS)
+  private Object status = null;
+
   public static final String SERIALIZED_NAME_RECEIPT = "receipt";
   @SerializedName(SERIALIZED_NAME_RECEIPT)
   private Receipt receipt = null;
@@ -272,6 +277,20 @@ public class AccountTransactionSummary {
     this.transactionType = transactionType;
   }
 
+  public AccountTransactionSummary status(Object status) {
+    this.status = status;
+    return this;
+  }
+
+  @ApiModelProperty(value = "")
+  public Object getStatus() {
+    return status;
+  }
+
+  public void setStatus(Object status) {
+    this.status = status;
+  }
+
   public AccountTransactionSummary receipt(Receipt receipt) {
     this.receipt = receipt;
     return this;
@@ -311,12 +330,13 @@ public class AccountTransactionSummary {
         Objects.equals(this.gas, accountTransactionSummary.gas) &&
         Objects.equals(this.gasPrice, accountTransactionSummary.gasPrice) &&
         Objects.equals(this.transactionType, accountTransactionSummary.transactionType) &&
+        Objects.equals(this.status, accountTransactionSummary.status) &&
         Objects.equals(this.receipt, accountTransactionSummary.receipt);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(hash, blockNumber, blockHash, createdAt, nonce, from, to, value, gas, gasPrice, transactionType, receipt);
+    return Objects.hash(hash, blockNumber, blockHash, createdAt, nonce, from, to, value, gas, gasPrice, transactionType, status, receipt);
   }
 
 
@@ -335,6 +355,7 @@ public class AccountTransactionSummary {
     sb.append("    gas: ").append(toIndentedString(gas)).append("\n");
     sb.append("    gasPrice: ").append(toIndentedString(gasPrice)).append("\n");
     sb.append("    transactionType: ").append(toIndentedString(transactionType)).append("\n");
+    sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    receipt: ").append(toIndentedString(receipt)).append("\n");
     sb.append("}");
     return sb.toString();

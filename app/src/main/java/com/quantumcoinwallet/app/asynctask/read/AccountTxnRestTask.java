@@ -38,9 +38,11 @@ public class AccountTxnRestTask {
         final int pageIndex;
         try {
             pageIndex = Integer.parseInt(params[1]);
-            if (pageIndex < 0) throw new NumberFormatException("negative");
+            // -1 is a sentinel forwarded to the server meaning "return the
+            // latest page"; anything more negative is an outright bug.
+            if (pageIndex < -1) throw new NumberFormatException("pageIndex < -1");
         } catch (NumberFormatException nfe) {
-            notifyFailure(new ApiException("pageIndex must be a non-negative integer"));
+            notifyFailure(new ApiException("pageIndex must be -1 or a non-negative integer"));
             return;
         }
 
@@ -56,6 +58,11 @@ public class AccountTxnRestTask {
                             address, pageIndex);
                 } catch (ApiException e) {
                     apiException = e;
+                } catch (RuntimeException e) {
+                    // e.g. Gson JsonSyntaxException when the server returns a
+                    // value the model can't parse. Surface as a failure so the
+                    // UI isn't left hanging.
+                    apiException = new ApiException(e);
                 }
 
                 final AccountTransactionSummaryResponse rsp = accountTransactionSummaryResponse;
