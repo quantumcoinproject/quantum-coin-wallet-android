@@ -107,7 +107,7 @@ jobs:
           path: ${{ env.main_project_module }}/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
-  Debug Build:
+  DebugBuild:
     name: Debug APK
     runs-on: ubuntu-latest
     needs: BuildArtifacts
