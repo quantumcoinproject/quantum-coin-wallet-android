@@ -6,11 +6,22 @@
 <!--        android:endColor="#8025EC6B"-->
 <!--        android:angle="0" />-->
 <!--</shape>-->
+<!-- The width/height intentionally declare a 1dp intrinsic size rather than
+     the viewport's 385x224. When this drawable is used as a View background
+     (e.g. top_linear_layout_home_id in home_activity.xml), the View's
+     minimum height is bounded below by the background's intrinsic height
+     (View.getSuggestedMinimumHeight() == max(minHeight, background.getMinimumHeight())).
+     With a 224dp intrinsic height, the banner was forced to ~224dp on every
+     device even though its content (50dp logo + title text) is only ~80dp,
+     producing visible empty gradient space below the logo. Backgrounds are
+     stretched to the View's bounds regardless of intrinsic size, and the
+     viewportWidth/viewportHeight below (which drive the gradient math) are
+     unchanged, so the rendered gradient is visually identical. -->
 <vector
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="385dp"
-    android:height="224dp"
+    android:width="1dp"
+    android:height="1dp"
     android:viewportWidth="385"
     android:viewportHeight="224"
     >
