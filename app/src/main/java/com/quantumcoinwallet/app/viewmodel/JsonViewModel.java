@@ -337,6 +337,9 @@ public class JsonViewModel extends ViewModel{
     public String getBackupToCloudByLangValues() {
         try { return _jsonInteract.getBackupToCloudByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
+    public String getCloudBackupInfoByLangValues() {
+        try { return _jsonInteract.getCloudBackupInfoByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
     public String getBackupToFileByLangValues() {
         try { return _jsonInteract.getBackupToFileByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }

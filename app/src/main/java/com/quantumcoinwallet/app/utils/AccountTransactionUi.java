@@ -15,6 +15,28 @@ public final class AccountTransactionUi {
     }
 
     /**
+     * Null/empty-safe conversion for a transaction address or hash. Callers
+     * should use this for {@code to}, {@code from}, and {@code hash}: the
+     * {@code to} field in particular is nullable on-chain (contract-creation
+     * transactions) and can also arrive as whitespace after serialization,
+     * which would otherwise break downstream URL formatting and click guards.
+     *
+     * @param raw value from the transaction summary (may be {@code null})
+     * @return the trimmed string form, or {@code ""} when the input is null
+     *         or blank (never returns {@code null})
+     */
+    public static String safeAddress(Object raw) {
+        if (raw == null) {
+            return "";
+        }
+        String s = raw.toString();
+        if (s == null) {
+            return "";
+        }
+        return s.trim();
+    }
+
+    /**
      * Mirrors desktop: {@code txn.status !== null && txn.status == "0x1"}; if the
      * root field is absent, fall back to {@link Receipt#getStatus()}.
      */

@@ -674,6 +674,7 @@ public class HomeActivity extends FragmentActivity implements
             android.widget.EditText passwordEditText = (android.widget.EditText) dialog.findViewById(
                     R.id.editText_unlock_langValues_enter_a_password);
             passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
+            GlobalMethods.focusAndShowKeyboard(passwordEditText, dialog);
 
             Button unlockButton = (Button) dialog.findViewById(
                     R.id.button_unlock_langValues_unlock);
@@ -894,6 +895,27 @@ public class HomeActivity extends FragmentActivity implements
         walletAddressTextView.setText(walletAddress);
     }
 
+    /**
+     * The offline/retry strip ({@code linerLayout_home_offline}) is a sibling of
+     * {@code frame_home_container_id} and lives outside the fragment container, so
+     * an in-flight balance refresh can surface it even when the user is on a
+     * wallet-flow / settings / transactions screen. Only show it when the
+     * currently attached fragment is {@link HomeMainFragment} (or before any
+     * fragment is attached, to preserve existing cold-start behavior).
+     */
+    private boolean shouldShowHomeOfflineOverlay() {
+        try {
+            Fragment current = getSupportFragmentManager()
+                    .findFragmentById(R.id.frame_home_container_id);
+            if (current == null) {
+                return true;
+            }
+            return current instanceof HomeMainFragment;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
     //Get balance task
     private void getBalanceByAccount(String address, TextView balanceValueTextView, ProgressBar progressBar) {
         try {
@@ -931,7 +953,7 @@ public class HomeActivity extends FragmentActivity implements
                             GlobalMethods.ApiExceptionSourceCodeRoute(getApplicationContext(), code,
                                     getString(R.string.apierror),
                                     TAG + " : AccountBalanceRestTask : " + e.toString());
-                        } else {
+                        } else if (shouldShowHomeOfflineOverlay()) {
                             GlobalMethods.OfflineOrExceptionError(getApplicationContext(),
                                     linerLayoutOffline, imageViewRetry, textViewTitleRetry,
                                     textViewSubTitleRetry, true);
@@ -939,7 +961,7 @@ public class HomeActivity extends FragmentActivity implements
                     }
                 });
                 task.execute(taskParams);
-            } else {
+            } else if (shouldShowHomeOfflineOverlay()) {
                 GlobalMethods.OfflineOrExceptionError(getApplicationContext(),
                         linerLayoutOffline, imageViewRetry, textViewTitleRetry,
                         textViewSubTitleRetry, false);

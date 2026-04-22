@@ -176,6 +176,7 @@
       "restore-partial-progress": "[COUNT] wallet(s) were restored. Enter password for the remaining.",
       "camera-permission-denied": "Camera access has been blocked. Open Settings and grant the Camera permission to scan QR codes.",
       "backup-to-cloud": "Backup to cloud",
+      "cloud-backup-info": "You will be able to see cloud options only if configured in the phone",
       "backup-to-file": "Backup to a file",
       "backup-done": "Done",
       "backup-saved-short": "Saved",

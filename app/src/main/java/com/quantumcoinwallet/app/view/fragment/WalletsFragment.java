@@ -1,6 +1,7 @@
 package com.quantumcoinwallet.app.view.fragment;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -326,6 +327,7 @@ public class WalletsFragment extends Fragment  {
             unlockWalletTextView.setText(jsonViewModel.getUnlockWalletByLangValues());
             unlockPasswordTextView.setText(jsonViewModel.getEnterQuantumWalletPasswordByLangValues());
             passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
+            GlobalMethods.focusAndShowKeyboard(passwordEditText, dialog);
             unlockButton.setText(jsonViewModel.getUnlockByLangValues());
             closeButton.setText(jsonViewModel.getCloseByLangValues());
             unlockButton.setOnClickListener(new View.OnClickListener() {
@@ -552,7 +554,12 @@ public class WalletsFragment extends Fragment  {
             @Override
             public void onClick(View v) {
                 choiceDlg.dismiss();
-                startCloudBackupFromWalletRow(walletAddress, walletPassword);
+                showCloudBackupInfoAndContinue(new Runnable() {
+                    @Override
+                    public void run() {
+                        startCloudBackupFromWalletRow(walletAddress, walletPassword);
+                    }
+                });
             }
         });
         fileBtn.setOnClickListener(new View.OnClickListener() {
@@ -564,6 +571,34 @@ public class WalletsFragment extends Fragment  {
         });
 
         choiceDlg.show();
+    }
+
+    /**
+     * Show an OK-only confirmation explaining the Android cloud-folder picker
+     * depends on phone configuration, and only continue with {@code next} when
+     * the user acknowledges.
+     */
+    private void showCloudBackupInfoAndContinue(final Runnable next) {
+        if (getContext() == null) {
+            if (next != null) next.run();
+            return;
+        }
+        String message = jsonViewModel.getCloudBackupInfoByLangValues();
+        if (message == null || message.isEmpty()) {
+            message = "You will be able to see cloud options only if configured in the phone";
+        }
+        new AlertDialog.Builder(getContext())
+                .setTitle(jsonViewModel.getBackupByLangValues())
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton(jsonViewModel.getOkByLangValues(), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        if (next != null) next.run();
+                    }
+                })
+                .show();
     }
 
     private void startCloudBackupFromWalletRow(final String walletAddress, final String walletPassword) {

@@ -5,7 +5,6 @@ import android.content.Context;
 import android.text.InputType;
 import android.text.method.PasswordTransformationMethod;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -182,10 +181,7 @@ public class BackupPasswordDialog {
         });
 
         dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setSoftInputMode(
-                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-        }
+        GlobalMethods.focusAndShowKeyboard(pwd, dialog);
     }
 
     /**
@@ -272,6 +268,7 @@ public class BackupPasswordDialog {
         });
 
         dialog.show();
+        GlobalMethods.focusAndShowKeyboard(pwd, dialog);
     }
 
     /**
@@ -393,6 +390,7 @@ public class BackupPasswordDialog {
         });
 
         dialog.show();
+        GlobalMethods.focusAndShowKeyboard(pwd, dialog);
     }
 
     private static int dp(Context ctx, int value) {

@@ -67,6 +67,7 @@
             android:textAlignment="center" />
 
         <View
+            android:id="@+id/view_account_transaction_header_date_separator"
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="@drawable/separator_line_vertical"
