@@ -15,11 +15,9 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummary;
+import com.quantumcoinwallet.app.utils.AccountTransactionUi;
 import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
-
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -42,6 +40,7 @@ public class AccountPendingTransactionAdapter extends
 
         TextView textViewTransHash;
         TextView textViewDate;
+        View viewDateSeparator;
 
         TextView textViewFrom;
         TextView textViewTo;
@@ -55,6 +54,7 @@ public class AccountPendingTransactionAdapter extends
                 this.imageViewInOut = (ImageView) itemView.findViewById(R.id.imageView_account_transactions_adapter_in_out);
                 this.textViewQuantity = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_quantity);
                 this.textViewDate = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_date);
+                this.viewDateSeparator = itemView.findViewById(R.id.view_account_transactions_adapter_date_separator);
                 this.textViewFrom = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_from);
                 this.textViewTo = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_to);
                 this.textViewTransHash = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_trans_hash);
@@ -83,11 +83,10 @@ public class AccountPendingTransactionAdapter extends
         try {
             AccountPendingTransactionSummary txn = accountPendingTransactionSummaries.get(position);
 
-            String hash = txn.getHash() != null ? txn.getHash().toString() : "";
-            String from = txn.getFrom() != null ? txn.getFrom().toString() : "";
-            String to = txn.getTo() != null ? txn.getTo().toString() : "";
+            String hash = AccountTransactionUi.safeAddress(txn.getHash());
+            String from = AccountTransactionUi.safeAddress(txn.getFrom());
+            String to = AccountTransactionUi.safeAddress(txn.getTo());
             String rawValue = txn.getValue() != null ? txn.getValue().toString() : null;
-            String rawDate = txn.getCreatedAt() != null ? txn.getCreatedAt().toString() : null;
 
             // Desktop: pending rows always use the outgoing (up) template.
             if (holder.imageViewFailed != null) {
@@ -95,16 +94,13 @@ public class AccountPendingTransactionAdapter extends
             }
             holder.imageViewInOut.setImageResource(R.drawable.arrow_up_circle_outline);
 
-            try {
-                if (rawDate != null && rawDate.length() > 0) {
-                    String formattedDateString = OffsetDateTime.parse(rawDate)
-                            .format(DateTimeFormatter.ofPattern("E, dd MMM yyyy HH:mm:ss"));
-                    holder.textViewDate.setText(formattedDateString + " GMT");
-                } else {
-                    holder.textViewDate.setText("");
-                }
-            } catch (Exception e) {
-                holder.textViewDate.setText("");
+            // Pending list intentionally omits the Date column; a completed row reused
+            // by the RecyclerView may still have it visible, so force hide here.
+            if (holder.textViewDate != null) {
+                holder.textViewDate.setVisibility(View.GONE);
+            }
+            if (holder.viewDateSeparator != null) {
+                holder.viewDateSeparator.setVisibility(View.GONE);
             }
 
             try {

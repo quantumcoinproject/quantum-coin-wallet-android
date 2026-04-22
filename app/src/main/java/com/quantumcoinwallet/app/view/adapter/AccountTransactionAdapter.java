@@ -43,6 +43,7 @@ public class AccountTransactionAdapter extends
 
         TextView textViewTransHash;
         TextView textViewDate;
+        View viewDateSeparator;
 
         TextView textViewFrom;
         TextView textViewTo;
@@ -56,6 +57,7 @@ public class AccountTransactionAdapter extends
                 this.imageViewInOut = (ImageView) itemView.findViewById(R.id.imageView_account_transactions_adapter_in_out);
                 this.textViewQuantity = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_quantity);
                 this.textViewDate = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_date);
+                this.viewDateSeparator = itemView.findViewById(R.id.view_account_transactions_adapter_date_separator);
                 this.textViewFrom = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_from);
                 this.textViewTo = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_to);
                 this.textViewTransHash = (TextView) itemView.findViewById(R.id.textView_account_transactions_adapter_trans_hash);
@@ -84,9 +86,9 @@ public class AccountTransactionAdapter extends
         try {
             AccountTransactionSummary txn = accountTransactionSummaries.get(position);
 
-            String hash = txn.getHash() != null ? txn.getHash().toString() : "";
-            String from = txn.getFrom() != null ? txn.getFrom().toString() : "";
-            String to = txn.getTo() != null ? txn.getTo().toString() : "";
+            String hash = AccountTransactionUi.safeAddress(txn.getHash());
+            String from = AccountTransactionUi.safeAddress(txn.getFrom());
+            String to = AccountTransactionUi.safeAddress(txn.getTo());
             String rawValue = txn.getValue() != null ? txn.getValue().toString() : null;
             String rawDate = txn.getCreatedAt() != null ? txn.getCreatedAt().toString() : null;
 
@@ -99,6 +101,15 @@ public class AccountTransactionAdapter extends
             holder.imageViewInOut.setImageResource(outgoing
                     ? R.drawable.arrow_up_circle_outline
                     : R.drawable.arrow_down_circle_outline);
+
+            // Completed list keeps the Date column. Force VISIBLE in case this row view
+            // was previously bound by the pending adapter (which hides these).
+            if (holder.textViewDate != null) {
+                holder.textViewDate.setVisibility(View.VISIBLE);
+            }
+            if (holder.viewDateSeparator != null) {
+                holder.viewDateSeparator.setVisibility(View.VISIBLE);
+            }
 
             try {
                 if (rawDate != null && rawDate.length() > 0) {

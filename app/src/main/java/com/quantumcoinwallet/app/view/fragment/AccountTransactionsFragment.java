@@ -126,6 +126,8 @@ public class AccountTransactionsFragment extends Fragment  {
 
         TextView accountTransactionHeaderInOutTextView = (TextView) getView().findViewById(R.id.textView_account_transaction_header_langValues_in_out);
         TextView accountTransactionHeaderQuantityTextView = (TextView) getView().findViewById(R.id.textView_account_transaction_header_langValues_quantity);
+        final TextView accountTransactionHeaderDateTextView = (TextView) getView().findViewById(R.id.textView_account_transaction_header_langValues_date);
+        final View accountTransactionHeaderDateSeparator = getView().findViewById(R.id.view_account_transaction_header_date_separator);
         TextView accountTransactionHeaderFromTextView = (TextView) getView().findViewById(R.id.textView_account_transaction_header_langValues_from);
         TextView accountTransactionHeaderToTextView = (TextView) getView().findViewById(R.id.textView_account_transaction_header_langValues_to);
         TextView accountTransactionHeaderTransactionHashTextView = (TextView) getView().findViewById(R.id.textView_account_transaction_header_langValues_trans_hash);
@@ -211,6 +213,13 @@ public class AccountTransactionsFragment extends Fragment  {
 
                 accountPendingTransactionSummaries.clear();
 
+                if (accountTransactionHeaderDateTextView != null) {
+                    accountTransactionHeaderDateTextView.setVisibility(View.VISIBLE);
+                }
+                if (accountTransactionHeaderDateSeparator != null) {
+                    accountTransactionHeaderDateSeparator.setVisibility(View.VISIBLE);
+                }
+
                 recycler.setAdapter(accountTransactionAdapter);
                 ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
             }
@@ -231,6 +240,13 @@ public class AccountTransactionsFragment extends Fragment  {
                 pageCount = 0;
 
                 accountTransactionSummaries.clear();
+
+                if (accountTransactionHeaderDateTextView != null) {
+                    accountTransactionHeaderDateTextView.setVisibility(View.GONE);
+                }
+                if (accountTransactionHeaderDateSeparator != null) {
+                    accountTransactionHeaderDateSeparator.setVisibility(View.GONE);
+                }
 
                 recycler.setAdapter(accountPendingTransactionAdapter);
                 ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);

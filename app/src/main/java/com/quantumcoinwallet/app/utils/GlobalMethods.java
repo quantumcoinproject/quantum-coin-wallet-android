@@ -1,6 +1,7 @@
 package com.quantumcoinwallet.app.utils;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.net.ConnectivityManager;
@@ -10,6 +11,10 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -433,6 +438,43 @@ public class GlobalMethods {
             data[i/2] = (Integer.decode("0x"+s.charAt(i)+s.charAt(i+1))).byteValue();
         }
         return data;
+    }
+
+    /**
+     * Request focus on {@code field} and open the soft keyboard. Works for
+     * password prompts shown inside a {@link Dialog}: the window flag alone is
+     * not reliable on every OEM so we also request an explicit IME show on the
+     * field's handler once it is attached.
+     */
+    public static void focusAndShowKeyboard(final EditText field, final Dialog dialog) {
+        if (field == null) {
+            return;
+        }
+        if (dialog != null) {
+            Window window = dialog.getWindow();
+            if (window != null) {
+                window.setSoftInputMode(
+                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                                | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            }
+        }
+        field.setFocusable(true);
+        field.setFocusableInTouchMode(true);
+        field.requestFocus();
+        field.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Context ctx = field.getContext();
+                    if (ctx == null) return;
+                    InputMethodManager imm = (InputMethodManager) ctx.getSystemService(
+                            Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) {
+                        imm.showSoftInput(field, InputMethodManager.SHOW_IMPLICIT);
+                    }
+                } catch (Exception ignored) { }
+            }
+        });
     }
 }
 

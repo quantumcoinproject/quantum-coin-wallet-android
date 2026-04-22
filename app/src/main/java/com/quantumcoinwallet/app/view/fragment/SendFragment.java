@@ -333,6 +333,7 @@ public class SendFragment extends Fragment  {
 
             EditText passwordEditText = (EditText) dialog.findViewById(R.id.editText_unlock_langValues_enter_a_password);
             passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
+            GlobalMethods.focusAndShowKeyboard(passwordEditText, dialog);
 
             Button unlockButton = (Button) dialog.findViewById(R.id.button_unlock_langValues_unlock);
             unlockButton.setText(jsonViewModel.getUnlockByLangValues());

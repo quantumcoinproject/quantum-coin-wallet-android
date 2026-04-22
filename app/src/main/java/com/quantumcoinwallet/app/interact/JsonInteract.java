@@ -130,6 +130,7 @@ public class JsonInteract {
     private static final String data_lang_key_restore_partial_progress = "restore-partial-progress";
     private static final String data_lang_key_camera_permission_denied = "camera-permission-denied";
     private static final String data_lang_key_backup_to_cloud = "backup-to-cloud";
+    private static final String data_lang_key_cloud_backup_info = "cloud-backup-info";
     private static final String data_lang_key_backup_to_file = "backup-to-file";
     private static final String data_lang_key_backup_done = "backup-done";
     private static final String data_lang_key_backup_saved_short = "backup-saved-short";
@@ -543,6 +544,9 @@ public class JsonInteract {
     }
     public String getBackupToCloudByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_backup_to_cloud);
+    }
+    public String getCloudBackupInfoByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_cloud_backup_info);
     }
     public String getBackupToFileByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_backup_to_file);

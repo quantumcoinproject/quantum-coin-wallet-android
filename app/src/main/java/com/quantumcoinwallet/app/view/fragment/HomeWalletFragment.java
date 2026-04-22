@@ -93,6 +93,17 @@ public class HomeWalletFragment extends Fragment {
     private TextView backupCloudStatusTextView;
     private TextView backupFileStatusTextView;
 
+    // Phone-backup radio step (shown in place of a yes/no dialog). Held as fields
+    // because showBackupPromptIfNeeded() lives outside onViewCreated and needs
+    // to toggle these views from multiple call sites.
+    private LinearLayout homePhoneBackupLinearLayout;
+    private TextView homePhoneBackupTitleTextView;
+    private TextView homePhoneBackupDescriptionTextView;
+    private RadioButton homePhoneBackupYesRadioButton;
+    private RadioButton homePhoneBackupNoRadioButton;
+    private Button homePhoneBackupNextButton;
+    private Runnable pendingPhoneBackupOnComplete;
+
     public static HomeWalletFragment newInstance() {
         HomeWalletFragment fragment = new HomeWalletFragment();
         return fragment;
@@ -291,6 +302,13 @@ public class HomeWalletFragment extends Fragment {
         RadioButton homeWalletTypeAdvancedRadioButton = (RadioButton) getView().findViewById(R.id.radioButton_home_wallet_type_advanced);
         Button homeWalletTypeNextButton = (Button) getView().findViewById(R.id.button_home_wallet_type_next);
 
+        homePhoneBackupLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_phone_backup);
+        homePhoneBackupTitleTextView = (TextView) getView().findViewById(R.id.textView_home_phone_backup_title);
+        homePhoneBackupDescriptionTextView = (TextView) getView().findViewById(R.id.textView_home_phone_backup_description);
+        homePhoneBackupYesRadioButton = (RadioButton) getView().findViewById(R.id.radioButton_home_phone_backup_yes);
+        homePhoneBackupNoRadioButton = (RadioButton) getView().findViewById(R.id.radioButton_home_phone_backup_no);
+        homePhoneBackupNextButton = (Button) getView().findViewById(R.id.button_home_phone_backup_next);
+
         LinearLayout homeSeedWordLengthLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_seed_word_length);
         TextView homeSeedWordLengthTitleTextView = (TextView) getView().findViewById(R.id.textView_home_seed_word_length_title);
         TextView homeSeedWordLengthDescriptionTextView = (TextView) getView().findViewById(R.id.textView_home_seed_word_length_description);
@@ -413,6 +431,13 @@ public class HomeWalletFragment extends Fragment {
                         } else {
                             mHomeWalletListener.onHomeWalletCompleteByWallets();
                         }
+                    } else if (homePhoneBackupLinearLayout != null
+                            && homePhoneBackupLinearLayout.getVisibility() == View.VISIBLE) {
+                        // Cancel the pending continuation; the user will need to tap
+                        // Next on create-or-restore again to re-enter this step.
+                        pendingPhoneBackupOnComplete = null;
+                        homePhoneBackupLinearLayout.setVisibility(View.GONE);
+                        homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
                     } else if (homeWalletTypeLinearLayout.getVisibility()==View.VISIBLE) {
                         homeWalletTypeLinearLayout.setVisibility(View.GONE);
                         homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
@@ -454,25 +479,25 @@ public class HomeWalletFragment extends Fragment {
                     Runnable proceed = new Runnable() {
                         @Override
                         public void run() {
-                            homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
                             homeWalletTypeLinearLayout.setVisibility(View.VISIBLE);
                             WalletTypeView(homeWalletTypeTitleTextView, homeWalletTypeDescriptionTextView,
                                     homeWalletTypeDefaultRadioButton, homeWalletTypeAdvancedRadioButton, homeWalletTypeNextButton);
                         }
                     };
+                    homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
                     showBackupPromptIfNeeded(proceed);
                 } else if (homeCreateRestoreWalletRadioButton_1.isChecked() == true) {
                     tempSeedWords = null;
                     Runnable proceed = new Runnable() {
                         @Override
                         public void run() {
-                            homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
                             homeSeedWordLengthLinearLayout.setVisibility(View.VISIBLE);
                             SeedWordLengthView(homeSeedWordLengthTitleTextView, homeSeedWordLengthDescriptionTextView,
                                     homeSeedWordLength32RadioButton, homeSeedWordLength36RadioButton, homeSeedWordLength48RadioButton,
                                     homeSeedWordLengthNextButton);
                         }
                     };
+                    homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
                     showBackupPromptIfNeeded(proceed);
                 } else if (homeCreateRestoreWalletRadioButton_2.isChecked() == true) {
                     startRestoreFromFileFlow();
@@ -489,6 +514,33 @@ public class HomeWalletFragment extends Fragment {
                     messageDialogFragment.setCancelable(false);
                     messageDialogFragment.setArguments(bundleRoute);
                     messageDialogFragment.show(fragmentManager, "");
+                }
+            }
+        });
+
+        homePhoneBackupNextButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean yes = homePhoneBackupYesRadioButton.isChecked();
+                boolean no = homePhoneBackupNoRadioButton.isChecked();
+                if (!yes && !no) {
+                    String message = jsonViewModel.getSelectOptionByErrors();
+                    Bundle bundleRoute = new Bundle();
+                    bundleRoute.putString("languageKey", languageKey);
+                    bundleRoute.putString("message", message);
+                    FragmentManager fragmentManager = getFragmentManager();
+                    MessageInformationDialogFragment messageDialogFragment = MessageInformationDialogFragment.newInstance();
+                    messageDialogFragment.setCancelable(false);
+                    messageDialogFragment.setArguments(bundleRoute);
+                    messageDialogFragment.show(fragmentManager, "");
+                    return;
+                }
+                PrefConnect.writeBoolean(getContext(), PrefConnect.BACKUP_ENABLED_KEY, yes);
+                homePhoneBackupLinearLayout.setVisibility(View.GONE);
+                Runnable onComplete = pendingPhoneBackupOnComplete;
+                pendingPhoneBackupOnComplete = null;
+                if (onComplete != null) {
+                    onComplete.run();
                 }
             }
         });
@@ -1154,27 +1206,32 @@ public class HomeWalletFragment extends Fragment {
             return;
         }
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle(jsonViewModel.getBackupByLangValues());
-        builder.setMessage(jsonViewModel.getBackupPromptByLangValues());
-        builder.setCancelable(false);
-        builder.setPositiveButton(jsonViewModel.getYesByLangValues(), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                PrefConnect.writeBoolean(getContext(), PrefConnect.BACKUP_ENABLED_KEY, true);
-                dialog.dismiss();
-                onComplete.run();
-            }
-        });
-        builder.setNegativeButton(jsonViewModel.getNoByLangValues(), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                PrefConnect.writeBoolean(getContext(), PrefConnect.BACKUP_ENABLED_KEY, false);
-                dialog.dismiss();
-                onComplete.run();
-            }
-        });
-        builder.show();
+        // Show the phone-backup radio step instead of a yes/no dialog. The
+        // caller is responsible for hiding whatever section is currently
+        // visible (see createRestoreWalletNextButton click handler).
+        pendingPhoneBackupOnComplete = onComplete;
+        if (homePhoneBackupYesRadioButton != null) {
+            homePhoneBackupYesRadioButton.setChecked(false);
+        }
+        if (homePhoneBackupNoRadioButton != null) {
+            homePhoneBackupNoRadioButton.setChecked(false);
+        }
+        PhoneBackupView(homePhoneBackupTitleTextView, homePhoneBackupDescriptionTextView,
+                homePhoneBackupYesRadioButton, homePhoneBackupNoRadioButton,
+                homePhoneBackupNextButton);
+        homePhoneBackupLinearLayout.setVisibility(View.VISIBLE);
+    }
+
+    private void PhoneBackupView(TextView titleTextView, TextView descriptionTextView,
+                                 RadioButton yesRadioButton, RadioButton noRadioButton,
+                                 Button nextButton) {
+        titleTextView.setText(jsonViewModel.getPhoneBackupByLangValues());
+        descriptionTextView.setText(jsonViewModel.getBackupPromptByLangValues());
+        yesRadioButton.setText(jsonViewModel.getYesByLangValues());
+        noRadioButton.setText(jsonViewModel.getNoByLangValues());
+        yesRadioButton.setTag(1);
+        noRadioButton.setTag(0);
+        nextButton.setText(jsonViewModel.getNextByLangValues());
     }
 
     private void launchFolderPicker() {
@@ -1221,7 +1278,12 @@ public class HomeWalletFragment extends Fragment {
         cloudBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startCloudBackupFromOptionsScreen();
+                showCloudBackupInfoAndContinue(new Runnable() {
+                    @Override
+                    public void run() {
+                        startCloudBackupFromOptionsScreen();
+                    }
+                });
             }
         });
         fileBtn.setOnClickListener(new View.OnClickListener() {
@@ -1256,6 +1318,34 @@ public class HomeWalletFragment extends Fragment {
             View v = getView().findViewById(id);
             if (v != null) v.setVisibility(View.GONE);
         }
+    }
+
+    /**
+     * Show an OK-only confirmation explaining the Android cloud-folder picker
+     * depends on phone configuration, and only continue with {@code next} when
+     * the user acknowledges.
+     */
+    private void showCloudBackupInfoAndContinue(final Runnable next) {
+        if (getContext() == null) {
+            if (next != null) next.run();
+            return;
+        }
+        String message = jsonViewModel.getCloudBackupInfoByLangValues();
+        if (message == null || message.isEmpty()) {
+            message = "You will be able to see cloud options only if configured in the phone";
+        }
+        new AlertDialog.Builder(getContext())
+                .setTitle(jsonViewModel.getBackupByLangValues())
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton(jsonViewModel.getOkByLangValues(), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        if (next != null) next.run();
+                    }
+                })
+                .show();
     }
 
     private void startCloudBackupFromOptionsScreen() {
