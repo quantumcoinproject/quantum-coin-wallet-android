@@ -60,6 +60,7 @@ public class JsonInteract {
     private static final String data_lang_key_seed_words_info_4 = "seed-words-info-4";
     private static final String data_lang_key_seed_words_show = "seed-words-show";
     private static final String data_lang_key_verify_seed_words = "verify-seed-words";
+    private static final String data_lang_key_enter_seed_words = "enter-seed-words";
     private static final String data_lang_key_waitWalletSave = "waitWalletSave";
     private static final String data_lang_key_waitWalletOpen = "waitWalletOpen";
     private static final String data_lang_key_waitUnlock = "waitUnlock";
@@ -145,6 +146,9 @@ public class JsonInteract {
     private static final String data_lang_key_contract = "contract";
     private static final String data_lang_key_symbol = "symbol";
     private static final String data_lang_key_asset_to_send = "asset-to-send";
+    private static final String data_lang_key_back = "back";
+    private static final String data_lang_key_confirm_wallet = "confirm-wallet";
+    private static final String data_lang_key_confirm_wallet_description = "confirm-wallet-description";
 
 
     private static final String data_lang_key_errors = "errors";
@@ -333,6 +337,9 @@ public class JsonInteract {
     }
     public String getVerifySeedWordsByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_verify_seed_words);
+    }
+    public String getEnterSeedWordsByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_enter_seed_words);
     }
     public String getWaitWalletSaveByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_waitWalletSave);
@@ -587,6 +594,15 @@ public class JsonInteract {
     }
     public String getAssetToSendByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_asset_to_send);
+    }
+    public String getBackByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_back);
+    }
+    public String getConfirmWalletByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_confirm_wallet);
+    }
+    public String getConfirmWalletDescriptionByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_confirm_wallet_description);
     }
 
     public String getSelectOptionByErrors() throws JSONException{

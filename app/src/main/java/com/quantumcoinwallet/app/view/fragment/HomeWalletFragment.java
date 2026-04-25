@@ -42,7 +42,12 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.quantumcoinwallet.app.R;
+import com.quantumcoinwallet.app.api.read.ApiException;
+import com.quantumcoinwallet.app.api.read.model.BalanceResponse;
+import com.quantumcoinwallet.app.asynctask.read.AccountBalanceRestTask;
+import com.quantumcoinwallet.app.entity.ServiceException;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
+import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
@@ -103,6 +108,14 @@ public class HomeWalletFragment extends Fragment {
     private RadioButton homePhoneBackupNoRadioButton;
     private Button homePhoneBackupNextButton;
     private Runnable pendingPhoneBackupOnComplete;
+
+    // Confirm-Wallet step (held as fields because showConfirmWalletScreen()
+    // and the back-arrow handler both need to toggle visibility).
+    private LinearLayout homeConfirmWalletLinearLayout;
+    private LinearLayout homeSeedWordsEditLinearLayoutRef;
+    private TextView homeConfirmWalletAddressValueTextView;
+    private TextView homeConfirmWalletBalanceValueTextView;
+    private ProgressBar homeConfirmWalletBalanceProgressBar;
 
     public static HomeWalletFragment newInstance() {
         HomeWalletFragment fragment = new HomeWalletFragment();
@@ -336,10 +349,16 @@ public class HomeWalletFragment extends Fragment {
         Button homeSeedWordsViewNextButton = (Button) getView().findViewById(R.id.button_home_seed_words_view_next);
 
         LinearLayout homeSeedWordsEditLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_seed_words_edit);
+        homeSeedWordsEditLinearLayoutRef = homeSeedWordsEditLinearLayout;
         TextView homeSeedWordsEditTitleTextView = (TextView) getView().findViewById(R.id.textView_home_seed_words_edit_title);
         TextView homeSeedWordsEditSkip = (TextView) getView().findViewById(R.id.textView_home_seed_words_edit_skip);
         TextView[] homeSeedWordsEditCaptionTextViews = HomeSeedWordsEditCaptionTextViews();
         homeSeedWordsViewAutoCompleteTextViews = HomeSeedWordsViewAutoCompleteTextView();
+
+        homeConfirmWalletLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_confirm_wallet);
+        homeConfirmWalletAddressValueTextView = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_address_value);
+        homeConfirmWalletBalanceValueTextView = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_balance_value);
+        homeConfirmWalletBalanceProgressBar = (ProgressBar) getView().findViewById(R.id.progress_home_confirm_wallet_balance);
 
         int index=0;
         for (AutoCompleteTextView homeSeedWordsViewAutoCompleteTextView : homeSeedWordsViewAutoCompleteTextViews) {
@@ -450,6 +469,10 @@ public class HomeWalletFragment extends Fragment {
                     } else if (homeSeedWordsViewLinearLayout.getVisibility()==View.VISIBLE) {
                         homeSeedWordsViewLinearLayout.setVisibility(View.GONE);
                         homeSeedWordsLinearLayout.setVisibility(View.VISIBLE);
+                    } else if (homeConfirmWalletLinearLayout != null
+                            && homeConfirmWalletLinearLayout.getVisibility() == View.VISIBLE) {
+                        homeConfirmWalletLinearLayout.setVisibility(View.GONE);
+                        homeSeedWordsEditLinearLayout.setVisibility(View.VISIBLE);
                     } else if (homeSeedWordsEditLinearLayout.getVisibility()==View.VISIBLE) {
                         if (homeCreateRestoreWalletRadioButton_0.isChecked()==true){
                             homeSeedWordsEditLinearLayout.setVisibility(View.GONE);
@@ -596,7 +619,7 @@ public class HomeWalletFragment extends Fragment {
                 homeSeedWordLengthLinearLayout.setVisibility(View.GONE);
                 homeSeedWordsEditLinearLayout.setVisibility(View.VISIBLE);
                 homeSeedWordsEditSkip.setVisibility(View.GONE);
-                ShowEditSeedScreen(homeSeedWordsEditTitleTextView, homeSeedWordsAutoCompleteNextButton);
+                ShowEditSeedScreen(homeSeedWordsEditTitleTextView, homeSeedWordsAutoCompleteNextButton, true);
                 updateSeedRowVisibility(homeSeedWordsViewCaptionTextViews, homeSeedWordsViewTextViews,
                         homeSeedWordsEditCaptionTextViews, homeSeedWordsViewAutoCompleteTextViews, selectedWordCount);
 
@@ -714,7 +737,7 @@ public class HomeWalletFragment extends Fragment {
                 homeSeedWordsViewLinearLayout.setVisibility(View.GONE);
                 homeSeedWordsEditLinearLayout.setVisibility(View.VISIBLE);
                 homeSeedWordsEditSkip.setVisibility(View.VISIBLE);
-                ShowEditSeedScreen(homeSeedWordsEditTitleTextView, homeSeedWordsAutoCompleteNextButton);
+                ShowEditSeedScreen(homeSeedWordsEditTitleTextView, homeSeedWordsAutoCompleteNextButton, false);
 
                 homeSeedWordsViewAutoCompleteTextViews[autoCompleteCurrentIndex].requestFocus();
 
@@ -769,7 +792,11 @@ public class HomeWalletFragment extends Fragment {
                         seedWords[i] = actv.getText().toString().toLowerCase();
                     }
 
-                    saveWalletFromSeedWords(seedWords, progressBar);
+                    if (homeCreateRestoreWalletRadioButton_1.isChecked()) {
+                        showConfirmWalletScreen(seedWords, progressBar);
+                    } else {
+                        saveWalletFromSeedWords(seedWords, progressBar);
+                    }
 
                 } catch (Exception e) {
                     progressBar.setVisibility(View.GONE);
@@ -1090,9 +1117,235 @@ public class HomeWalletFragment extends Fragment {
         };
     }
 
-    private void ShowEditSeedScreen(TextView homeSeedWordsEditTitleTextView, Button homeSeedWordsEditNextButton) {
-        homeSeedWordsEditTitleTextView.setText(jsonViewModel.getVerifySeedWordsByLangValues());
+    private void ShowEditSeedScreen(TextView homeSeedWordsEditTitleTextView, Button homeSeedWordsEditNextButton,
+                                    boolean restoreFromSeedFlow) {
+        homeSeedWordsEditTitleTextView.setText(restoreFromSeedFlow
+                ? jsonViewModel.getEnterSeedWordsByLangValues()
+                : jsonViewModel.getVerifySeedWordsByLangValues());
         homeSeedWordsEditNextButton.setText(jsonViewModel.getNextByLangValues());
+    }
+
+    /**
+     * Intermediate confirmation step shown after the user verifies (or skips) seed
+     * words and before the backup-options screen. The wallet is NOT persisted here;
+     * the user can press Back to edit the seed words they entered, or Next to commit
+     * via {@link #saveWalletFromSeedWords}.
+     *
+     * <p>Address resolution: for the create-then-verify happy path the wallet was
+     * already derived in {@code ShowNewSeedScreen} and cached in {@code tempAddress}
+     * / {@code tempPrivateKeyBase64} / {@code tempPublicKeyBase64}, so we reuse it.
+     * For the restore-from-seed path we run {@code walletFromPhrase} on a worker
+     * thread to derive the address, populating the same temp fields so that the
+     * existing reuse-cached short-circuit in {@link #saveWalletFromSeedWords} skips
+     * recomputation when Next is finally pressed.
+     */
+    private void showConfirmWalletScreen(final String[] seedWords, final ProgressBar progressBar) {
+        if (getView() == null || homeConfirmWalletLinearLayout == null) return;
+
+        TextView titleTextView = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_title);
+        TextView descriptionTextView = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_description);
+        TextView addressLabelTextView = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_address_label);
+        TextView balanceLabelTextView = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_balance_label);
+        Button backButton = (Button) getView().findViewById(R.id.button_home_confirm_wallet_back);
+        Button nextButton = (Button) getView().findViewById(R.id.button_home_confirm_wallet_next);
+        final ImageButton copyButton = (ImageButton) getView().findViewById(R.id.imageButton_home_confirm_wallet_copy);
+        final ImageButton exploreButton = (ImageButton) getView().findViewById(R.id.imageButton_home_confirm_wallet_explorer);
+        final TextView copiedToast = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_copied);
+
+        if (titleTextView != null) titleTextView.setText(jsonViewModel.getConfirmWalletByLangValues());
+        if (descriptionTextView != null) descriptionTextView.setText(jsonViewModel.getConfirmWalletDescriptionByLangValues());
+        if (addressLabelTextView != null) addressLabelTextView.setText(jsonViewModel.getAddressByLangValues());
+        if (balanceLabelTextView != null) balanceLabelTextView.setText(jsonViewModel.getBalanceByLangValues());
+        if (backButton != null) backButton.setText(jsonViewModel.getBackByLangValues());
+        if (nextButton != null) nextButton.setText(jsonViewModel.getNextByLangValues());
+        if (copiedToast != null) copiedToast.setText(jsonViewModel.getCopiedByLangValues());
+
+        if (copyButton != null) {
+            copyButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (homeConfirmWalletAddressValueTextView == null) return;
+                    String addr = homeConfirmWalletAddressValueTextView.getText().toString();
+                    if (addr.isEmpty()) return;
+                    com.quantumcoinwallet.app.utils.SecureClipboard.copyAddress(
+                            getActivity(), "confirmWalletAddress", addr);
+                    if (copiedToast != null) {
+                        copiedToast.setVisibility(View.VISIBLE);
+                        new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                copiedToast.setVisibility(View.GONE);
+                            }
+                        }, 600);
+                    }
+                }
+            });
+        }
+        if (exploreButton != null) {
+            exploreButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (homeConfirmWalletAddressValueTextView == null) return;
+                    String addr = homeConfirmWalletAddressValueTextView.getText().toString();
+                    if (addr.isEmpty() || GlobalMethods.BLOCK_EXPLORER_URL == null) return;
+                    String url = GlobalMethods.BLOCK_EXPLORER_URL
+                            + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", addr);
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                    } catch (Exception ex) {
+                        GlobalMethods.ExceptionError(getContext(), TAG, ex);
+                    }
+                }
+            });
+        }
+
+        if (homeSeedWordsEditLinearLayoutRef != null) {
+            homeSeedWordsEditLinearLayoutRef.setVisibility(View.GONE);
+        }
+        homeConfirmWalletLinearLayout.setVisibility(View.VISIBLE);
+
+        if (homeConfirmWalletAddressValueTextView != null) {
+            homeConfirmWalletAddressValueTextView.setText("");
+        }
+        if (homeConfirmWalletBalanceValueTextView != null) {
+            homeConfirmWalletBalanceValueTextView.setText("");
+        }
+
+        if (backButton != null) {
+            backButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    homeConfirmWalletLinearLayout.setVisibility(View.GONE);
+                    if (homeSeedWordsEditLinearLayoutRef != null) {
+                        homeSeedWordsEditLinearLayoutRef.setVisibility(View.VISIBLE);
+                    }
+                }
+            });
+        }
+        if (nextButton != null) {
+            nextButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (tempSeedWords == null) {
+                        return;
+                    }
+                    saveWalletFromSeedWords(tempSeedWords, progressBar);
+                }
+            });
+        }
+
+        boolean addressAlreadyCached = tempAddress != null
+                && tempPrivateKeyBase64 != null
+                && tempPublicKeyBase64 != null
+                && tempSeedWords != null
+                && tempSeedWords.length == seedWords.length
+                && java.util.Arrays.equals(tempSeedWords, seedWords);
+
+        if (addressAlreadyCached) {
+            populateConfirmWalletAddressAndBalance(tempAddress);
+            return;
+        }
+
+        final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
+                .show(getContext(), jsonViewModel.getWaitWalletOpenByLangValues());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    KeyViewModel.getBridge().initializeOffline();
+                    String walletResult = KeyViewModel.getBridge().walletFromPhrase(seedWords);
+                    JSONObject json = new JSONObject(walletResult);
+                    JSONObject data = json.getJSONObject("data");
+                    final String derivedAddress = data.getString("address");
+                    final String derivedPrivateKey = data.getString("privateKey");
+                    final String derivedPublicKey = data.getString("publicKey");
+                    if (getActivity() == null) return;
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                            tempSeedWords = seedWords;
+                            tempAddress = derivedAddress;
+                            tempPrivateKeyBase64 = derivedPrivateKey;
+                            tempPublicKeyBase64 = derivedPublicKey;
+                            populateConfirmWalletAddressAndBalance(derivedAddress);
+                        }
+                    });
+                } catch (final Exception e) {
+                    timber.log.Timber.w(e, "confirm wallet derive failed");
+                    if (getActivity() == null) return;
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                            homeConfirmWalletLinearLayout.setVisibility(View.GONE);
+                            if (homeSeedWordsEditLinearLayoutRef != null) {
+                                homeSeedWordsEditLinearLayoutRef.setVisibility(View.VISIBLE);
+                            }
+                            GlobalMethods.ShowErrorDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(),
+                                    e.getMessage() == null ? "" : e.getMessage());
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    /**
+     * Sets the address text and kicks off a balance fetch. Balance failures
+     * (offline / API error) leave a "-" placeholder; Next remains enabled in all
+     * cases.
+     */
+    private void populateConfirmWalletAddressAndBalance(final String address) {
+        if (homeConfirmWalletAddressValueTextView != null) {
+            homeConfirmWalletAddressValueTextView.setText(address == null ? "" : address);
+        }
+        if (homeConfirmWalletBalanceValueTextView != null) {
+            homeConfirmWalletBalanceValueTextView.setText("-");
+        }
+        if (address == null || address.isEmpty()) return;
+        if (!GlobalMethods.IsNetworkAvailable(getContext())) return;
+
+        if (homeConfirmWalletBalanceProgressBar != null) {
+            homeConfirmWalletBalanceProgressBar.setVisibility(View.VISIBLE);
+        }
+        try {
+            String[] taskParams = { address };
+            AccountBalanceRestTask task = new AccountBalanceRestTask(getContext(),
+                    new AccountBalanceRestTask.TaskListener() {
+                        @Override
+                        public void onFinished(BalanceResponse balanceResponse) throws ServiceException {
+                            if (homeConfirmWalletBalanceProgressBar != null) {
+                                homeConfirmWalletBalanceProgressBar.setVisibility(View.GONE);
+                            }
+                            if (balanceResponse != null && balanceResponse.getResult() != null
+                                    && balanceResponse.getResult().getBalance() != null
+                                    && homeConfirmWalletBalanceValueTextView != null) {
+                                String value = balanceResponse.getResult().getBalance().toString();
+                                String quantity = CoinUtils.formatWei(value);
+                                String coinsLabel = jsonViewModel.getCoinsByLangValues();
+                                String text = (coinsLabel != null && !coinsLabel.isEmpty())
+                                        ? quantity + " " + coinsLabel
+                                        : quantity;
+                                homeConfirmWalletBalanceValueTextView.setText(text);
+                            }
+                        }
+                        @Override
+                        public void onFailure(ApiException e) {
+                            if (homeConfirmWalletBalanceProgressBar != null) {
+                                homeConfirmWalletBalanceProgressBar.setVisibility(View.GONE);
+                            }
+                            // Leave the "-" placeholder in place; Next stays enabled.
+                        }
+                    });
+            task.execute(taskParams);
+        } catch (Exception e) {
+            if (homeConfirmWalletBalanceProgressBar != null) {
+                homeConfirmWalletBalanceProgressBar.setVisibility(View.GONE);
+            }
+            timber.log.Timber.w(e, "confirm wallet balance fetch failed");
+        }
     }
 
     private void saveWalletFromSeedWords(final String[] seedWords, final ProgressBar progressBar) {
@@ -1312,6 +1565,7 @@ public class HomeWalletFragment extends Fragment {
                 R.id.linear_layout_home_seed_words,
                 R.id.linear_layout_home_seed_words_view,
                 R.id.linear_layout_home_seed_words_edit,
+                R.id.linear_layout_home_confirm_wallet,
                 R.id.linear_layout_home_backup_options
         };
         for (int id : ids) {
@@ -2074,6 +2328,17 @@ public class HomeWalletFragment extends Fragment {
                         return;
                     }
                     SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                    // On a fresh install the file-restore screen is the first touch of
+                    // SecureStorage, so the backup password also bootstraps the app's
+                    // main key (mirrors create-wallet at L1097-1104 and the cloud-restore
+                    // path in attemptBatchDecrypt). Skipped on subsequent restores when
+                    // SecureStorage is already initialized + unlocked.
+                    if (!secureStorage.isInitialized(getContext())) {
+                        secureStorage.createMainKey(getContext(), backupPassword);
+                    }
+                    if (!secureStorage.isUnlocked()) {
+                        secureStorage.unlock(getContext(), backupPassword);
+                    }
                     if (!secureStorage.isUnlocked()) {
                         throw new IllegalStateException("SecureStorage is locked");
                     }
