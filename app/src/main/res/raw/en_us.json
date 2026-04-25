@@ -106,6 +106,7 @@
       "seed-words-info-4": "4. If these seed words are stolen or someone else gets access to them, your wallet is compromised.",
       "seed-words-show": "5. Click here to reveal the seed words.",
       "verify-seed-words": "Verify Seed Words",
+      "enter-seed-words": "Enter Seed Words",
       "waitWalletSave": "Please wait while your wallet is being saved with strong encryption. This can take upto a minute or so to complete...",
       "waitWalletOpen": "Please wait while your wallet is being decrypted and opened. This can take upto a minute...",
       "waitUnlock": "Please wait while your wallet is being decrypted and unlocked. This can take upto a minute.",
@@ -189,7 +190,10 @@
       "no-tokens": "No tokens for this address",
       "contract": "Contract",
       "symbol": "Symbol",
-      "asset-to-send": "Asset to send"
+      "asset-to-send": "Asset to send",
+      "back": "Back",
+      "confirm-wallet": "Confirm Wallet",
+      "confirm-wallet-description": "Check your wallet address. If this is not the correct address, you may press back to review and edit the seed words."
     },
     "errors": {
       "selectOption": "Please select an option.",

@@ -166,6 +166,9 @@ public class JsonViewModel extends ViewModel{
     public String getVerifySeedWordsByLangValues() {
         try { return _jsonInteract.getVerifySeedWordsByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
+    public String getEnterSeedWordsByLangValues() {
+        try { return _jsonInteract.getEnterSeedWordsByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
     public String getWaitWalletSaveByLangValues() {
         try { return _jsonInteract.getWaitWalletSaveByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
@@ -418,6 +421,15 @@ public class JsonViewModel extends ViewModel{
     }
     public String getAssetToSendByLangValues() {
         try { return _jsonInteract.getAssetToSendByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getBackByLangValues() {
+        try { return _jsonInteract.getBackByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getConfirmWalletByLangValues() {
+        try { return _jsonInteract.getConfirmWalletByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getConfirmWalletDescriptionByLangValues() {
+        try { return _jsonInteract.getConfirmWalletDescriptionByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
 
     public String getSelectOptionByErrors() {
