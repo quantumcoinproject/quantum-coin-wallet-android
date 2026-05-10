@@ -17,9 +17,37 @@ import java.util.Map;
 
 import timber.log.Timber;
 
+/**
+ * SharedPreferences accessor for boot-time / non-secret app
+ * settings.
+ * <p>the keys defined in this class
+ * are restricted to:
+ * <ul>
+ *   <li>booleans / small strings the app reads <em>before</em>
+ *       unlock (so they cannot live in the strongbox),</li>
+ *   <li>permission-prompt state ({@code CAMERA_PERMISSION_ASKED_ONCE}),</li>
+ *   <li>cloud-backup folder URI (read pre-unlock by the backup
+ *       restore picker),</li>
+ *   <li>backup enable/disable toggle (read by the backup agent
+ *       in a separate process where the strongbox cannot be
+ *       unlocked),</li>
+ *   <li>the legacy in-memory wallet address &harr; index maps
+ *       (lazily populated from the strongbox payload after
+ *       unlock; kept as static fields for the pre-existing
+ *       call-site contract).</li>
+ * </ul>
+ * Wallet bytes, networks, per-address passwords, and any other
+ * secret-or-sensitive data live in the strongbox slot files
+ * managed by {@link com.quantumcoinwallet.app.keystorage.UnlockCoordinator}
+ * and are never written to SharedPreferences.</p>
+ * <p><b>Migration note:</b>
+ * {@link #BLOCKCHAIN_NETWORK_LIST} is retained as a transitional
+ * read-only fallback for the in-progress migration that moves
+ * user-added networks into the strongbox payload. New writes go
+ * to {@code StrongboxPayload.networks}; the read path will be
+ * collapsed to strongbox-only when the network UI refactor lands.</p>
+ */
 public class PrefConnect {
-    //Key
-    //public static String privatekey = "privatekey";
 
     public static String walletAddress = "walletAddress";
     public static final String PREF_NAME = "DP_QUANTUM_COIN_WALLET_APP_PREF";
@@ -27,12 +55,12 @@ public class PrefConnect {
     public static final int MAX_WALLETS = 128;
     public static String MAX_WALLET_INDEX_KEY = "MaxWalletIndex";
     public static String WALLET_KEY_PREFIX = "WALLET_";
-    public static String WALLET_KEY_ADDRESS_INDEX = "ADDRESS_INDEX";
-    public static String WALLET_KEY_INDEX_ADDRESS = "INDEX_ADDRESS";
 
-    public static String WALLET_KEY_PASSWORD = "WALLET_PASSWORD";
-    public static Map<String, String> WALLET_ADDRESS_TO_INDEX_MAP = new HashMap<>(); //key is address, value is index
-    public static Map<String, String> WALLET_INDEX_TO_ADDRESS_MAP = new HashMap<>(); //key is index, value is address
+    /** In-memory wallet address &rarr; index map, populated from
+     *  the strongbox payload after unlock. NOT persisted in
+     *  SharedPreferences. Cleared on lock. */
+    public static Map<String, String> WALLET_ADDRESS_TO_INDEX_MAP = new HashMap<>();
+    public static Map<String, String> WALLET_INDEX_TO_ADDRESS_MAP = new HashMap<>();
     public static boolean  WALLET_ADDRESS_TO_INDEX_MAP_LOADED = false;
 
     public static String WALLET_CURRENT_ADDRESS_INDEX_KEY = "WALLET_CURRENT_ADDRESS_INDEX_KEY";
@@ -40,6 +68,10 @@ public class PrefConnect {
 
     public static String BLOCKCHAIN_NETWORK_ID_INDEX_KEY = "BLOCKCHAIN_NETWORK_ID_INDEX_KEY";
 
+    /** Transitional: see class header. New custom networks live
+     *  in {@code StrongboxPayload.networks}; this key is read
+     *  only as a migration fallback by
+     *  {@code GlobalMethods.BlockChainNetworkRead}. */
     public static String BLOCKCHAIN_NETWORK_LIST = "BLOCKCHAIN_NETWORK_LIST";
 
     public static String ADVANCED_SIGNING_ENABLED_KEY = "ADVANCED_SIGNING_ENABLED";

@@ -182,7 +182,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_a_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -196,7 +196,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_a_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -210,7 +210,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_a_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -224,7 +224,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_a_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -296,7 +296,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_b_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -310,7 +310,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_b_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -324,7 +324,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_b_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -338,7 +338,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_b_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -410,7 +410,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_c_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -424,7 +424,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_c_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -438,7 +438,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_c_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -452,7 +452,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_c_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -524,7 +524,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_d_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -538,7 +538,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_d_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -552,7 +552,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_d_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -566,7 +566,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_d_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -638,7 +638,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_e_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -652,7 +652,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_e_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -666,7 +666,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_e_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -680,7 +680,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_e_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -752,7 +752,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_f_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -766,7 +766,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_f_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -780,7 +780,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_f_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -794,7 +794,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_f_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -866,7 +866,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_g_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -880,7 +880,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_g_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -894,7 +894,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_g_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -908,7 +908,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_g_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -927,7 +927,7 @@
                                     android:layout_weight="1"
                                     android:layout_marginBottom="5dp"
                                     android:textAlignment="center"
-                                    android:textColor="@color/colorCommonSeedH"
+                                    android:textColor="@color/colorCommonSeedHLabel"
                                     android:textSize="14dp"
                                     android:text="H1" />
 
@@ -938,7 +938,7 @@
                                     android:layout_marginBottom="5dp"
                                     android:layout_weight="1"
                                     android:textAlignment="center"
-                                    android:textColor="@color/colorCommonSeedH"
+                                    android:textColor="@color/colorCommonSeedHLabel"
                                     android:textSize="14dp"
                                     android:text="H2" />
 
@@ -949,7 +949,7 @@
                                     android:layout_marginBottom="5dp"
                                     android:layout_weight="1"
                                     android:textAlignment="center"
-                                    android:textColor="@color/colorCommonSeedH"
+                                    android:textColor="@color/colorCommonSeedHLabel"
                                     android:textSize="14dp"
                                     android:text="H3" />
 
@@ -960,7 +960,7 @@
                                     android:layout_marginBottom="5dp"
                                     android:layout_weight="1"
                                     android:textAlignment="center"
-                                    android:textColor="@color/colorCommonSeedH"
+                                    android:textColor="@color/colorCommonSeedHLabel"
                                     android:textSize="14dp"
                                     android:text="H4" />
 
@@ -981,7 +981,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_h_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -995,7 +995,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_h_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1009,7 +1009,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_h_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1023,7 +1023,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_h_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1095,7 +1095,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_i_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1109,7 +1109,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_i_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1123,7 +1123,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_i_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1137,7 +1137,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_i_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1209,7 +1209,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_j_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1223,7 +1223,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_j_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1237,7 +1237,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_j_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1251,7 +1251,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_j_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1323,7 +1323,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_k_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1337,7 +1337,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_k_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1351,7 +1351,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_k_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1365,7 +1365,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_k_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1437,7 +1437,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_l_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1451,7 +1451,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_l_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1465,7 +1465,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_l_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1479,7 +1479,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_l_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 

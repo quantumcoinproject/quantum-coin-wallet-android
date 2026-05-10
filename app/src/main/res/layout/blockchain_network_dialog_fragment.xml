@@ -89,12 +89,26 @@
                             android:layout_height="wrap_content"
                             android:gravity="right"
                             android:orientation="horizontal">
+                            <!--
+                                 Cancel button uses a dialog-scoped
+                                 selector that hard-codes a constant
+                                 gray (#807d7d) so the background
+                                 stays gray in BOTH light and dark
+                                 modes. The shared button_gray_selector
+                                 would otherwise flip to white in
+                                 night (via @color/colorCommon3) and
+                                 the button would lose its gray look.
+                                 The text color follows colorCommon7
+                                 (white in light, black in dark) so
+                                 it stays readable on the gray fill
+                                 in both themes.
+                            -->
                             <Button
                                 android:id="@+id/button_blockchain_network_dialog_cancel"
                                 android:layout_width="wrap_content"
                                 android:layout_height="43dp"
                                 android:layout_gravity="center_vertical|right"
-                                android:background="@drawable/button_gray_selector"
+                                android:background="@drawable/button_network_cancel_selector"
                                 android:contentDescription="@string/empty"
                                 android:padding="5dp"
                                 android:textAllCaps="false"

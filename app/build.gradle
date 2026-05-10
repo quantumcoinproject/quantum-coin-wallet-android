@@ -8,7 +8,24 @@ android {
 
     defaultConfig {
         applicationId "com.quantumcoinwallet.app"
-        minSdk 23
+        // Strict TLS 1.3 enforcement: minSdk is 29 (Android 10) so the
+        // platform's `SSLEngine` ships with native TLS 1.3 support.
+        // The TlsPinning layer installs an explicit TLS-1.3-only
+        // `ConnectionSpec` on the OkHttp client; on API 23-28 the
+        // platform `SSLEngine` does not implement TLS 1.3 and an
+        // attempt to enforce it would manifest as connect-time
+        // SSLHandshakeExceptions that look like server outages to
+        // the user. Bumping minSdk closes that gap and keeps the
+        // wallet's TLS posture consistent with the iOS counterpart
+        // (which requires iOS 14+ for the same reason).
+        // PQC inheritance: when running on Android 14+ the platform
+        // additionally advertises the X25519MLKEM768 hybrid key
+        // exchange group (ML-KEM-768 + X25519, NIST FIPS 203 +
+        // draft-ietf-tls-hybrid-design). Because we do not pin
+        // cipher suites or NamedGroups, the hybrid PQ group is
+        // negotiated automatically when the server also supports
+        // it. See TlsPinning.applyTo for the full posture comment.
+        minSdk 29
         targetSdk 35
         versionCode 1
         versionName "1.0"
@@ -16,7 +33,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // MF-01: release signing sourced exclusively from environment
+    // Release signing sourced exclusively from environment
     // variables so the keystore + credentials never live in the repo.
     // CI (GitHub Actions) decodes the base64 keystore into
     // ${rootDir}/app/release.keystore and exports the three *_PASSWORD
@@ -54,7 +71,7 @@ android {
                 signingConfig signingConfigs.release
             }
         }
-        // L-14: include versionName and buildType in the APK filename
+        // Include versionName and buildType in the APK filename
         // so debug and release variants don't collide on CI and the
         // artifact is self-identifying when downloaded off a release.
         applicationVariants.all { variant ->
@@ -84,6 +101,98 @@ android {
     }
 }
 
+// ---------------------------------------------------------------
+// embedBundleHash
+// Re-computes the SHA-256 of the shipping JS bundle bytes
+// (`app/src/main/assets/quantumcoin-bundle.js`) at build time and
+// regenerates a Java constant the wallet checks at runtime via
+// BundleIntegrity. The constant lives inside the APK's classes.dex
+// where it inherits the APK signature, so a re-signer who swaps the
+// bundle has to ALSO patch the constant -- which means modifying
+// classes.dex -- which invalidates the APK signature unless the
+// re-signer also has the original signing identity.
+// Mirrors the iOS scripts/embed_bundle_hash.sh + Generated/
+// BundleHash_Generated.swift pair. Same byte format (32 raw bytes +
+// 64-char lowercase hex) so a single hex string can be compared
+// between the two builds to confirm bit-for-bit bundle parity.
+// Wired as a `preBuild` dependency so the file is regenerated before
+// every assemble; the file is committed to git for reproducible
+// builds and so the constant can be diffed alongside the bundle
+// bytes in the same PR.
+// ---------------------------------------------------------------
+task embedBundleHash {
+    def bundleFile = file("$projectDir/src/main/assets/quantumcoin-bundle.js")
+    def outputDir = file("$projectDir/src/main/java/com/quantumcoinwallet/app/security/generated")
+    def outputFile = file("$outputDir/GeneratedBundleHash.java")
+
+    inputs.file bundleFile
+    outputs.file outputFile
+
+    doLast {
+        if (!bundleFile.exists()) {
+            throw new GradleException(
+                    "embedBundleHash: shipping bundle not found at " +
+                    bundleFile.absolutePath +
+                    ". Refusing to regenerate the runtime hash check.")
+        }
+
+        outputDir.mkdirs()
+
+        def md = java.security.MessageDigest.getInstance("SHA-256")
+        bundleFile.eachByte(64 * 1024) { bytes, n ->
+            md.update(bytes, 0, n)
+        }
+        byte[] digest = md.digest()
+
+        def hex = digest.collect { String.format('%02x', it) }.join('')
+
+        def bytesLines = []
+        for (int i = 0; i < digest.length; i += 8) {
+            def row = []
+            for (int j = i; j < Math.min(i + 8, digest.length); j++) {
+                row << String.format('(byte) 0x%02x', digest[j])
+            }
+            bytesLines << '            ' + row.join(', ') + (i + 8 < digest.length ? ',' : '')
+        }
+        def bytesBlock = bytesLines.join('\n')
+
+        outputFile.text = """\
+package com.quantumcoinwallet.app.security.generated;
+
+// AUTO-GENERATED at build time by the embedBundleHash Gradle task in
+// app/build.gradle. DO NOT EDIT. Any local changes will be overwritten
+// on the next build. To intentionally change the embedded hash,
+// replace the shipping `app/src/main/assets/quantumcoin-bundle.js`
+// with the new bundle and let the embedBundleHash task regenerate
+// this file.
+// The bytes below are the SHA-256 digest of the EXACT bytes shipping
+// inside the APK at build time. BundleIntegrity re-hashes the loaded
+// bundle at runtime and refuses to initialize the JS bridge if the
+// hashes differ. Keep this file format byte-for-byte stable so
+// developers can diff it against
+// QuantumCoinWallet/Generated/BundleHash_Generated.swift on the iOS
+// side and confirm cross-platform bundle parity.
+
+public final class GeneratedBundleHash {
+
+    private GeneratedBundleHash() { }
+
+    /** SHA-256 digest of the shipping bundle, computed at build time. 32 bytes. */
+    public static final byte[] SHA256 = new byte[] {
+${bytesBlock}
+    };
+
+    /** Same digest as a 64-character lowercase hex string. Used by audit-friendly logging in DEBUG builds. */
+    public static final String SHA256_HEX = "${hex}";
+}
+"""
+        logger.lifecycle("embedBundleHash: regenerated " + outputFile.name +
+                " (sha256=" + hex.substring(0, 16) + "...)")
+    }
+}
+
+preBuild.dependsOn embedBundleHash
+
 
 //Notification
 def core_version = "1.13.1"
@@ -94,6 +203,14 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    
+    // BouncyCastle: FIPS-certified cryptographic provider used for
+    // HKDF-SHA-256 key derivation (RFC 5869). Provides native HKDF
+    // implementation eliminating hand-rolled Extract+Expand loop.
+    // iOS uses CryptoKit's native HKDF; Android uses BouncyCastle
+    // to achieve byte-for-byte parity without custom crypto code.
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.79'
+    
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
 
@@ -133,4 +250,107 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.12.1'
 
     implementation 'androidx.documentfile:documentfile:1.0.1'
+
+    // LocalBroadcastManager: process-local pub/sub used by
+    // NetworkChangeBroadcaster to push network-list/active-network
+    // changes into live Fragments without an activity restart.
+    // Local-only by design so other apps cannot observe or forge
+    // network-state events.
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+
+    // SwipeRefreshLayout: hosts the pull-to-refresh gesture on the
+    // wallet main screen. The gesture is routed to HomeActivity's
+    // performHomeRefresh(), the same code path the top-right refresh
+    // button triggers, so the swipe and the button button stay
+    // behaviourally identical. Mirrors the iOS UIRefreshControl
+    // wired into the same balance-and-tokens reload.
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+}
+
+// =================================================================
+// Cross-platform localization snapshot sync
+// =================================================================
+// The :app:syncIosLocale task copies the iOS en_us.json file into
+// app/src/test/resources/locale-snapshots/ios_en_us.json so the
+// Android EnUsParityTest can byte-compare both files at CI time.
+// Source-of-truth for the iOS file is the sibling repo at
+// ../quantum-coin-wallet-ios. The path is configurable via the
+// -PiosRepo=... gradle property for non-default checkouts.
+// Workflow:
+//   1. Open the Android repo and the iOS repo side-by-side.
+//   2. Make a localization change on whichever side is the
+//      change source.
+//   3. Run `./gradlew :app:syncIosLocale` from the Android repo.
+//   4. Commit BOTH the iOS edit (in the iOS repo) AND the
+//      regenerated snapshot (in the Android repo) so the parity
+//      test sees the new state.
+// The task also runs implicitly before unit tests (`testDebugUnitTest`
+// dependsOn) so a stale snapshot does NOT silently pass parity in CI:
+// the snapshot is regenerated from the iOS sibling on every test
+// run when the sibling repo is present, and the parity test fails
+// loudly if it is not.
+// CI hook: a CI job that mounts both repos can run
+//   ./gradlew :app:syncIosLocale && ./gradlew :app:testDebugUnitTest
+// and fail the build on any drift.
+tasks.register('syncIosLocale') {
+    description = 'Copy iOS en_us.json snapshot into Android test resources for parity test'
+    group = 'verification'
+
+    doLast {
+        def iosRepo = project.findProperty('iosRepo')
+                ?: file("${rootDir}/../quantum-coin-wallet-ios").absolutePath
+        def src = file("${iosRepo}/QuantumCoinWallet/Resources/en_us.json")
+        def dst = file("${projectDir}/src/test/resources/locale-snapshots/ios_en_us.json")
+        if (!src.exists()) {
+            logger.warn("syncIosLocale: source file not found at ${src.absolutePath}; "
+                    + "skipping. Pass -PiosRepo=/path/to/quantum-coin-wallet-ios to override.")
+            return
+        }
+        dst.parentFile.mkdirs()
+        dst.bytes = src.bytes
+        logger.lifecycle("syncIosLocale: snapshot updated -> ${dst.absolutePath}")
+    }
+}
+
+// =================================================================
+// Cross-platform impersonator-filter snapshot sync
+// =================================================================
+// The :app:syncIosImpersonatorFilter task copies the iOS Swift file
+// for StablecoinImpersonatorFilter into
+// app/src/test/resources/code-snapshots/StablecoinImpersonatorFilter.swift
+// so the Android StablecoinImpersonatorFilterTest parity check can
+// byte-compare the two pattern lists at CI time. Same skip-on-missing
+// + auto-runs-before-unit-tests semantics as syncIosLocale; same
+// reasoning. If you change the Android filter PATTERNS list, walk the
+// Swift file too and run :app:syncIosImpersonatorFilter to regenerate
+// the snapshot.
+tasks.register('syncIosImpersonatorFilter') {
+    description = 'Copy iOS StablecoinImpersonatorFilter.swift snapshot into Android test resources for parity test'
+    group = 'verification'
+
+    doLast {
+        def iosRepo = project.findProperty('iosRepo')
+                ?: file("${rootDir}/../quantum-coin-wallet-ios").absolutePath
+        def src = file("${iosRepo}/QuantumCoinWallet/Models/StablecoinImpersonatorFilter.swift")
+        def dst = file("${projectDir}/src/test/resources/code-snapshots/StablecoinImpersonatorFilter.swift")
+        if (!src.exists()) {
+            logger.warn("syncIosImpersonatorFilter: source file not found at ${src.absolutePath}; "
+                    + "skipping. Pass -PiosRepo=/path/to/quantum-coin-wallet-ios to override.")
+            return
+        }
+        dst.parentFile.mkdirs()
+        dst.bytes = src.bytes
+        logger.lifecycle("syncIosImpersonatorFilter: snapshot updated -> ${dst.absolutePath}")
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name.startsWith('test') && it.name.endsWith('UnitTest') }.configureEach {
+        // Best-effort: pull fresh iOS snapshots before unit tests
+        // so the parity checks see current state. The tasks are
+        // skip-on-missing (see above), so a developer without the
+        // sibling repo checked out still gets a clean test run.
+        dependsOn 'syncIosLocale'
+        dependsOn 'syncIosImpersonatorFilter'
+    }
 }

@@ -2,7 +2,7 @@
 <!--
   Network Security Configuration for QuantumCoin Wallet.
 
-  Goals (MF-17):
+  Goals:
     - Disallow all cleartext traffic in release builds.
     - Trust only the default Android CA set (no user-installed roots) for
       wallet/scan/rpc traffic, which is what matters for a crypto wallet.

@@ -1,10 +1,6 @@
 package com.quantumcoinwallet.app.view.fragment;
 
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.graphics.Typeface;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,52 +8,24 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.ToggleButton;
-
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-
-import org.json.JSONObject;
-
-import com.quantumcoinwallet.app.backup.CloudBackupManager;
-import com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog;
 
 import androidx.appcompat.app.AlertDialog;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.quantumcoinwallet.app.R;
-import com.quantumcoinwallet.app.api.read.model.AccountPendingTransactionSummary;
 import com.quantumcoinwallet.app.keystorage.SecureStorage;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 import com.quantumcoinwallet.app.utils.GridAutoFitLayoutManager;
 import com.quantumcoinwallet.app.utils.PrefConnect;
 import com.quantumcoinwallet.app.utils.Utility;
-import com.quantumcoinwallet.app.view.adapter.AccountPendingTransactionAdapter;
-import com.quantumcoinwallet.app.view.adapter.AccountTransactionAdapter;
 import com.quantumcoinwallet.app.view.adapter.WalletAdapter;
 import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 import com.quantumcoinwallet.app.viewmodel.KeyViewModel;
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.button.MaterialButtonToggleGroup;
 
-import org.apache.commons.lang3.ObjectUtils;
-import org.w3c.dom.Text;
-
-import java.security.InvalidKeyException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -69,13 +37,6 @@ public class WalletsFragment extends Fragment  {
     private KeyViewModel keyViewModel;
     private OnWalletsCompleteListener mWalletsListener;
 
-    private ActivityResultLauncher<Intent> exportCreateDocumentLauncher;
-    private ActivityResultLauncher<Intent> cloudBackupFolderPickerLauncher;
-    private String pendingExportEncryptedJson;
-    private String pendingExportWalletAddress;
-    private String pendingCloudBackupEncryptedJson;
-    private String pendingCloudBackupAddress;
-
     public static WalletsFragment newInstance() {
         WalletsFragment fragment = new WalletsFragment();
         return fragment;
@@ -83,96 +44,6 @@ public class WalletsFragment extends Fragment  {
 
     public WalletsFragment() {
 
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        exportCreateDocumentLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        markActivityUnlocked();
-                        final String encryptedJson = pendingExportEncryptedJson;
-                        final String address = pendingExportWalletAddress;
-                        pendingExportEncryptedJson = null;
-                        pendingExportWalletAddress = null;
-                        if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK
-                                || result.getData() == null || result.getData().getData() == null
-                                || encryptedJson == null) {
-                            return;
-                        }
-                        final Uri uri = result.getData().getData();
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                OutputStream os = null;
-                                try {
-                                    os = getContext().getContentResolver().openOutputStream(uri);
-                                    if (os == null) throw new IllegalStateException("openOutputStream returned null");
-                                    os.write(encryptedJson.getBytes(StandardCharsets.UTF_8));
-                                    os.flush();
-                                    getActivity().runOnUiThread(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            String tmpl = jsonViewModel.getBackupSavedByLangValues();
-                                            String msg = tmpl != null
-                                                    ? tmpl.replace("[FOLDER]", "")
-                                                          .replace("[FILENAME]",
-                                                                  uri.getLastPathSegment() != null
-                                                                      ? uri.getLastPathSegment() : "")
-                                                    : "Wallet exported";
-                                            GlobalMethods.ShowMessageDialog(getContext(), null, msg, null);
-                                        }
-                                    });
-                                } catch (final Exception e) {
-                                    android.util.Log.e(TAG, "export failed", e);
-                                    getActivity().runOnUiThread(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
-                                            String msg = tmpl != null
-                                                    ? tmpl.replace("[ERROR]",
-                                                            e.getMessage() == null ? "" : e.getMessage())
-                                                    : ("Export failed: " + e.getMessage());
-                                            GlobalMethods.ShowErrorDialog(getContext(),
-                                                    jsonViewModel.getErrorTitleByLangValues(), msg);
-                                        }
-                                    });
-                                } finally {
-                                    if (os != null) { try { os.close(); } catch (Exception ignore) {} }
-                                }
-                            }
-                        }).start();
-                    }
-                });
-        cloudBackupFolderPickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        markActivityUnlocked();
-                        final String encryptedJson = pendingCloudBackupEncryptedJson;
-                        final String address = pendingCloudBackupAddress;
-                        pendingCloudBackupEncryptedJson = null;
-                        pendingCloudBackupAddress = null;
-                        if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK
-                                || result.getData() == null || result.getData().getData() == null
-                                || encryptedJson == null || address == null) {
-                            return;
-                        }
-                        final Uri treeUri = result.getData().getData();
-                        try {
-                            int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
-                            getContext().getContentResolver().takePersistableUriPermission(treeUri, takeFlags);
-                        } catch (Exception ignore) { }
-                        PrefConnect.writeString(getContext(),
-                                PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, treeUri.toString());
-                        writeCloudBackupToFolder(treeUri, encryptedJson, address);
-                    }
-                });
     }
 
     @Override
@@ -290,6 +161,14 @@ public class WalletsFragment extends Fragment  {
         public abstract void onWalletsCompleteByCreateOrRestore();
         public abstract void onWalletsCompleteBySwitchAddress(String walletAddress);
         public abstract void onWalletsCompleteByReveal(String walletAddress);
+        /**
+         * Tap-on-backup-icon → unlock-succeeded → push the dedicated
+         * BackupOptionsFragment (mirrors iOS WalletsViewController
+         * → BackupOptionsViewController via beginTransactionNow).
+         * Replaces the old in-place AlertDialog backup chooser.
+         */
+        public abstract void onWalletsCompleteByBackup(String walletAddress,
+                                                       String walletPassword);
     }
 
     public void onAttach(Context context) {
@@ -321,6 +200,30 @@ public class WalletsFragment extends Fragment  {
             TextView unlockPasswordTextView = (TextView) dialog.findViewById(R.id.textView_unlock_langValues_enter_wallet_password);
 
             EditText passwordEditText = (EditText) dialog.findViewById(R.id.editText_unlock_langValues_enter_a_password);
+            // Per-context autofill identity for the strongbox unlock
+            // password. Same context as Send / HomeActivity unlock so
+            // a password manager surfaces the SAME entry across all
+            // three surfaces.
+            com.quantumcoinwallet.app.security.CredentialIdentifier.apply(
+                    passwordEditText,
+                    com.quantumcoinwallet.app.security.CredentialIdentifier.Context.STRONGBOX_UNLOCK,
+                    null);
+            // Inject the invisible username field so the autofill
+            // provider scopes its suggestion / save to the strongbox
+            // slot. iOS counterpart is
+            // `UsernameField.make(CredentialIdentifier.strongboxUsername)`.
+            // Container is looked up by stable ID; walking up from the
+            // EditText would land on the TextInputLayout, whose
+            // addView(EditText) override would clobber the input
+            // field's LayoutParams and crash on next measure.
+            android.view.ViewGroup unlockRoot = (android.view.ViewGroup)
+                    dialog.findViewById(R.id.linear_layout_unlock_content);
+            if (unlockRoot != null) {
+                com.quantumcoinwallet.app.security.CredentialIdentifier.attachUsernameField(
+                        unlockRoot,
+                        com.quantumcoinwallet.app.security.CredentialIdentifier
+                                .strongboxUsername(getContext()));
+            }
             Button unlockButton = (Button) dialog.findViewById(R.id.button_unlock_langValues_unlock);
             Button closeButton = (Button) dialog.findViewById(R.id.button_unlock_langValues_close);
 
@@ -330,6 +233,13 @@ public class WalletsFragment extends Fragment  {
             GlobalMethods.focusAndShowKeyboard(passwordEditText, dialog);
             unlockButton.setText(jsonViewModel.getUnlockByLangValues());
             closeButton.setText(jsonViewModel.getCloseByLangValues());
+            // WalletsFragment exposes a NON-mandatory
+            // unlock — the user invoked it from the wallet-list
+            // overflow menu (e.g. to copy a private key) and may
+            // legitimately back out without performing the action.
+            // The wrapper exposes the close button and re-enables the
+            // back key.
+            com.quantumcoinwallet.app.view.dialog.UnlockDialogs.applyMandatory(dialog, false);
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     String walletPassword = passwordEditText.getText().toString();
@@ -385,13 +295,39 @@ public class WalletsFragment extends Fragment  {
             @Override
             public void run() {
                 boolean unlocked = false;
+                String lockoutMessage = null;
                 try {
-                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-                    unlocked = secureStorage.unlock(getContext(), walletPassword);
+                    // Brute-force gate: refuse to even pay
+                    // scrypt cost when the limiter has us
+                    // locked out. See iOS UnlockAttemptLimiter
+                    // for the matching pre-scrypt check on the
+                    // strongbox-unlock channel.
+                    com.quantumcoinwallet.app.security.UnlockAttemptLimiter.Decision lim =
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .currentDecision(getContext());
+                    if (lim.kind == com.quantumcoinwallet.app.security.UnlockAttemptLimiter.DecisionKind.LOCKED) {
+                        lockoutMessage = com.quantumcoinwallet.app.security
+                                .UnlockAttemptLimiter.userFacingLockoutMessage(lim.remainingSeconds, jsonViewModel);
+                    } else {
+                        SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+                        unlocked = secureStorage.unlock(getContext(), walletPassword);
+                        if (unlocked) {
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .recordSuccess(getContext(),
+                                            com.quantumcoinwallet.app.security
+                                                    .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
+                        } else {
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .recordFailure(getContext(),
+                                            com.quantumcoinwallet.app.security
+                                                    .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
+                        }
+                    }
                 } catch (Exception e) {
-                    android.util.Log.e(TAG, "unlock failed", e);
+                    com.quantumcoinwallet.app.Logger.e(TAG, "unlock failed", e);
                 }
                 final boolean ok = unlocked;
+                final String lockoutMessageFinal = lockoutMessage;
                 if (getActivity() == null) return;
                 getActivity().runOnUiThread(new Runnable() {
                     @Override
@@ -402,14 +338,19 @@ public class WalletsFragment extends Fragment  {
                             if (closeButton != null) closeButton.setEnabled(true);
                             if (passwordEditText != null) {
                                 passwordEditText.setEnabled(true);
-                                passwordEditText.setText("");
+                                // Preserve typed password on failure
+                                // so a one-character typo is easy to
+                                // fix. Mirrors SendFragment.
                                 passwordEditText.requestFocus();
                             }
                             android.content.Context ctx = getContext();
                             if (ctx != null) {
+                                String errorMessage = lockoutMessageFinal != null
+                                        ? lockoutMessageFinal
+                                        : jsonViewModel.getWalletPasswordMismatchByErrors();
                                 GlobalMethods.ShowErrorDialog(ctx,
                                         jsonViewModel.getErrorTitleByLangValues(),
-                                        jsonViewModel.getWalletPasswordMismatchByErrors());
+                                        errorMessage);
                             }
                             return;
                         }
@@ -419,323 +360,20 @@ public class WalletsFragment extends Fragment  {
                                 mWalletsListener.onWalletsCompleteByReveal(walletAddress);
                                 break;
                             case 2:
-                                showBackupChoiceDialog(walletAddress, walletPassword);
+                                // Hand off to HomeActivity which pushes
+                                // BackupOptionsFragment (replaces the
+                                // pre-existing AlertDialog backup chooser
+                                // for iOS BackupOptionsViewController parity).
+                                if (mWalletsListener != null) {
+                                    mWalletsListener.onWalletsCompleteByBackup(
+                                            walletAddress, walletPassword);
+                                }
                                 break;
                         }
                     }
                 });
             }
         }).start();
-    }
-
-    private void startExportFlow(final String walletAddress, final String walletPassword) {
-        BackupPasswordDialog.show(getContext(), jsonViewModel,
-                new BackupPasswordDialog.OnBackupPasswordListener() {
-                    @Override
-                    public void onPasswordSelected(final String backupPassword) {
-                        encryptAndPickExportLocation(walletAddress, walletPassword, backupPassword);
-                    }
-                    @Override
-                    public void onCanceled() { }
-                });
-    }
-
-    private void encryptAndPickExportLocation(final String walletAddress,
-                                              final String unlockPassword,
-                                              final String backupPassword) {
-        final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
-                .show(getContext(), jsonViewModel.getWaitWalletSaveByLangValues());
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-                    String indexKey = PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.get(walletAddress);
-                    if (indexKey == null) throw new IllegalStateException("wallet index missing");
-                    String walletJsonStr = secureStorage.loadWallet(getContext(),
-                            Integer.parseInt(indexKey));
-                    JSONObject walletJson = new JSONObject(walletJsonStr);
-                    final CloudBackupManager.EncryptedResult enc =
-                            CloudBackupManager.encryptWallet(walletJson, backupPassword);
-                    final String filename = CloudBackupManager.buildFilename(enc.address);
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            launchExportSavePicker(enc.json, enc.address, filename);
-                        }
-                    });
-                } catch (final Exception e) {
-                    android.util.Log.e(TAG, "encryptAndPickExportLocation failed", e);
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
-                            String msg = tmpl != null
-                                    ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
-                                    : ("Export failed: " + e.getMessage());
-                            GlobalMethods.ShowErrorDialog(getContext(),
-                                    jsonViewModel.getErrorTitleByLangValues(), msg);
-                        }
-                    });
-                }
-            }
-        }).start();
-    }
-
-    private void launchExportSavePicker(String encryptedJson, String address, String filename) {
-        pendingExportEncryptedJson = encryptedJson;
-        pendingExportWalletAddress = address;
-        try {
-            setSuppressNextResumeLock(true);
-            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType(CloudBackupManager.BACKUP_MIME_TYPE);
-            intent.putExtra(Intent.EXTRA_TITLE, filename);
-
-            String folderUriStr = PrefConnect.readString(getContext(),
-                    PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
-            if (folderUriStr != null && !folderUriStr.isEmpty()) {
-                try {
-                    intent.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI,
-                            Uri.parse(folderUriStr));
-                } catch (Exception ignore) { }
-            }
-            exportCreateDocumentLauncher.launch(intent);
-        } catch (Exception e) {
-            setSuppressNextResumeLock(false);
-            GlobalMethods.ExceptionError(getContext(), TAG, e);
-            pendingExportEncryptedJson = null;
-            pendingExportWalletAddress = null;
-        }
-    }
-
-    private void showBackupChoiceDialog(final String walletAddress, final String walletPassword) {
-        final String cloudLabel = jsonViewModel.getBackupToCloudByLangValues();
-        final String fileLabel = jsonViewModel.getBackupToFileByLangValues();
-
-        LinearLayout container = new LinearLayout(getContext());
-        container.setOrientation(LinearLayout.VERTICAL);
-        int padPx = (int) (16 * getResources().getDisplayMetrics().density);
-        container.setPadding(padPx, padPx, padPx, padPx);
-
-        Button cloudBtn = new Button(getContext());
-        cloudBtn.setText(cloudLabel);
-        cloudBtn.setAllCaps(false);
-        cloudBtn.setBackgroundResource(R.drawable.button_green_selector);
-        cloudBtn.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon7));
-        LinearLayout.LayoutParams cloudLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                (int) (48 * getResources().getDisplayMetrics().density));
-        cloudLp.setMargins(0, 0, 0, padPx / 2);
-        cloudBtn.setLayoutParams(cloudLp);
-
-        Button fileBtn = new Button(getContext());
-        fileBtn.setText(fileLabel);
-        fileBtn.setAllCaps(false);
-        fileBtn.setBackgroundResource(R.drawable.button_green_selector);
-        fileBtn.setTextColor(ContextCompat.getColor(getContext(), R.color.colorCommon7));
-        LinearLayout.LayoutParams fileLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                (int) (48 * getResources().getDisplayMetrics().density));
-        fileBtn.setLayoutParams(fileLp);
-
-        container.addView(cloudBtn);
-        container.addView(fileBtn);
-
-        final AlertDialog choiceDlg = new AlertDialog.Builder(getContext())
-                .setTitle(jsonViewModel.getBackupByLangValues())
-                .setView(container)
-                .setNegativeButton(jsonViewModel.getCancelByLangValues(), null)
-                .create();
-
-        cloudBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                choiceDlg.dismiss();
-                showCloudBackupInfoAndContinue(new Runnable() {
-                    @Override
-                    public void run() {
-                        startCloudBackupFromWalletRow(walletAddress, walletPassword);
-                    }
-                });
-            }
-        });
-        fileBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                choiceDlg.dismiss();
-                startExportFlow(walletAddress, walletPassword);
-            }
-        });
-
-        choiceDlg.show();
-    }
-
-    /**
-     * Show an OK-only confirmation explaining the Android cloud-folder picker
-     * depends on phone configuration, and only continue with {@code next} when
-     * the user acknowledges.
-     */
-    private void showCloudBackupInfoAndContinue(final Runnable next) {
-        if (getContext() == null) {
-            if (next != null) next.run();
-            return;
-        }
-        String message = jsonViewModel.getCloudBackupInfoByLangValues();
-        if (message == null || message.isEmpty()) {
-            message = "You will be able to see cloud options only if configured in the phone";
-        }
-        new AlertDialog.Builder(getContext())
-                .setTitle(jsonViewModel.getBackupByLangValues())
-                .setMessage(message)
-                .setCancelable(false)
-                .setPositiveButton(jsonViewModel.getOkByLangValues(), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                        if (next != null) next.run();
-                    }
-                })
-                .show();
-    }
-
-    private void startCloudBackupFromWalletRow(final String walletAddress, final String walletPassword) {
-        BackupPasswordDialog.show(getContext(), jsonViewModel,
-                new BackupPasswordDialog.OnBackupPasswordListener() {
-                    @Override
-                    public void onPasswordSelected(final String backupPassword) {
-                        encryptAndStartCloudBackup(walletAddress, walletPassword, backupPassword);
-                    }
-                    @Override
-                    public void onCanceled() { }
-                });
-    }
-
-    private void encryptAndStartCloudBackup(final String walletAddress,
-                                            final String unlockPassword,
-                                            final String backupPassword) {
-        final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
-                .show(getContext(), jsonViewModel.getWaitWalletSaveByLangValues());
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    SecureStorage secureStorage = KeyViewModel.getSecureStorage();
-                    String indexKey = PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.get(walletAddress);
-                    if (indexKey == null) throw new IllegalStateException("wallet index missing");
-                    String walletJsonStr = secureStorage.loadWallet(getContext(),
-                            Integer.parseInt(indexKey));
-                    JSONObject walletJson = new JSONObject(walletJsonStr);
-                    final CloudBackupManager.EncryptedResult enc =
-                            CloudBackupManager.encryptWallet(walletJson, backupPassword);
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            dispatchCloudBackup(enc.json, enc.address);
-                        }
-                    });
-                } catch (final Exception e) {
-                    android.util.Log.e(TAG, "encryptAndStartCloudBackup failed", e);
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
-                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
-                            String msg = tmpl != null
-                                    ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
-                                    : ("Backup failed: " + e.getMessage());
-                            GlobalMethods.ShowErrorDialog(getContext(),
-                                    jsonViewModel.getErrorTitleByLangValues(), msg);
-                        }
-                    });
-                }
-            }
-        }).start();
-    }
-
-    private void dispatchCloudBackup(final String encryptedJson, final String address) {
-        String folderUriStr = PrefConnect.readString(getContext(),
-                PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
-        if (folderUriStr == null || folderUriStr.isEmpty()) {
-            pendingCloudBackupEncryptedJson = encryptedJson;
-            pendingCloudBackupAddress = address;
-            try {
-                setSuppressNextResumeLock(true);
-                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                        | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-                cloudBackupFolderPickerLauncher.launch(intent);
-            } catch (Exception e) {
-                setSuppressNextResumeLock(false);
-                pendingCloudBackupEncryptedJson = null;
-                pendingCloudBackupAddress = null;
-                GlobalMethods.ExceptionError(getContext(), TAG, e);
-            }
-            return;
-        }
-        writeCloudBackupToFolder(Uri.parse(folderUriStr), encryptedJson, address);
-    }
-
-    private void writeCloudBackupToFolder(final Uri folderUri, final String encryptedJson,
-                                          final String address) {
-        final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_wallets);
-        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    final String filename = CloudBackupManager.buildFilename(address);
-                    CloudBackupManager.writeToSafFolder(getContext(), folderUri, filename, encryptedJson);
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (progressBar != null) progressBar.setVisibility(View.GONE);
-                            String tmpl = jsonViewModel.getBackupSavedByLangValues();
-                            String msg = tmpl != null
-                                    ? tmpl.replace("[FOLDER]", "").replace("[FILENAME]", filename)
-                                    : "Wallet backed up";
-                            GlobalMethods.ShowMessageDialog(getContext(), null, msg, null);
-                        }
-                    });
-                } catch (final Exception e) {
-                    android.util.Log.e(TAG, "writeCloudBackupToFolder failed", e);
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (progressBar != null) progressBar.setVisibility(View.GONE);
-                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
-                            String msg = tmpl != null
-                                    ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
-                                    : ("Backup failed: " + e.getMessage());
-                            GlobalMethods.ShowErrorDialog(getContext(),
-                                    jsonViewModel.getErrorTitleByLangValues(), msg);
-                        }
-                    });
-                }
-            }
-        }).start();
-    }
-
-    private void markActivityUnlocked() {
-        try {
-            android.app.Activity act = getActivity();
-            if (act instanceof com.quantumcoinwallet.app.view.activities.HomeActivity) {
-                ((com.quantumcoinwallet.app.view.activities.HomeActivity) act).markUnlockedNow();
-            }
-        } catch (Exception ignore) { }
-    }
-
-    private void setSuppressNextResumeLock(boolean suppress) {
-        try {
-            android.app.Activity act = getActivity();
-            if (act instanceof com.quantumcoinwallet.app.view.activities.HomeActivity) {
-                ((com.quantumcoinwallet.app.view.activities.HomeActivity) act).setSuppressNextResumeLock(suppress);
-            }
-        } catch (Exception ignore) { }
     }
 
 }

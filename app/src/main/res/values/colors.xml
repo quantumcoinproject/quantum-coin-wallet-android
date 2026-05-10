@@ -107,4 +107,55 @@
   <color name="colorCommonSeedK">#DF1313</color>
   <color name="colorCommonSeedL">#003F4D</color>
 
+  <!--
+      Light-mode values for the H seed tile's label color
+      and border color. In light mode the tile background is black
+      and the label above it inherits the standard text color, so the
+      "label" alias just resolves to the tile color (black). The dark
+      override in values-night flips both to white. Drawables that
+      reference these stay theme-portable.
+  -->
+  <color name="colorCommonSeedHLabel">#000000</color>
+  <color name="colorCommonSeedHBorder">@color/colorCommon3</color>
+
+  <!--
+      Text color for the seed-WORD glyphs displayed inside the colored
+      tiles on the New-seed / Reveal-seed screens. White in BOTH light
+      and dark mode (no values-night override). The 12 tile fills
+      (colorCommonSeedA..L, e.g. bg_seed_view_a_curve = blue, b_curve
+      = green, k_curve = red, h_curve = black) are deliberately
+      identical across themes for color-identity reasons, and they
+      are saturated deep-tones (or pure black for the H tile), so a
+      single white glyph gives uniformly high in-tile contrast in
+      both themes. Keeping the resource scoped to the seed-view cells
+      (rather than reusing colorCommon7) means we don't perturb the
+      ~60 other usages of colorCommon7 / colorCommon6 that would flip
+      if we retuned them directly.
+      <p>Note: this color is for the READ-ONLY seed display only;
+      seed-entry (typing) cells use bg_seed_edit_* backgrounds and a
+      different text color that follows the standard text palette.
+  -->
+  <color name="colorSeedViewWord">#FFFFFFFF</color>
+
+  <!--
+      Muted secondary text color (e.g. the contract-address line that
+      appears under the asset spinner on the Send screen, or the
+      empty-state caption on the token list). Sits one step below
+      colorCommon6 / colorCommon3 in the typographic hierarchy: it
+      should always be legible against the screen background but
+      visually quieter than primary or secondary body copy.
+
+      Light value (#5C5C5E) intentionally matches the previous
+      colorCommon10 light value so the appearance in light mode is
+      unchanged from before this resource was introduced. The dark
+      override (values-night/colors.xml) flips to a soft mid-gray
+      (#B0B0B0) so the same text remains readable against the dark
+      background; using colorCommon10 directly was the source of a
+      "black-on-black" dark-mode bug because that resource is also
+      consumed as a *dialog background* in dark mode and cannot be
+      retuned without breaking the dialog chrome.
+  -->
+  <color name="colorMutedSecondaryText">#5C5C5E</color>
+
+
 </resources>

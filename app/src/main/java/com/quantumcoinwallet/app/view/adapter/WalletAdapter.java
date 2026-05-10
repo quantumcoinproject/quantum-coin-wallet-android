@@ -95,9 +95,12 @@ public class WalletAdapter extends
             holder.imageViewExplore.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    context.startActivity(new Intent(Intent.ACTION_VIEW,
-                            Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", address)))
-                    );
+                    // Validate + percent-encode the address
+                    // before letting the system browser see it.
+                    Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                            .blockExplorerAccountUrl(address);
+                    if (u == null) return;
+                    context.startActivity(new Intent(Intent.ACTION_VIEW, u));
                 }
             });
 
@@ -111,7 +114,14 @@ public class WalletAdapter extends
             String indexKey = String.valueOf(position);
             Boolean hasSeedBoxed = com.quantumcoinwallet.app.utils.PrefConnect
                     .WALLET_INDEX_HAS_SEED_MAP.get(indexKey);
-            boolean hasSeed = hasSeedBoxed == null ? true : hasSeedBoxed;
+            // Default to false on a missing map entry: every
+            // create/restore path that produces a seed pushes
+            // hasSeed=true into the map, so a missing entry
+            // means "no seed". Safer to under-show the reveal
+            // affordance than to over-show it on a key-only
+            // import (which would route the user to a flow
+            // that ultimately reveals an empty seed phrase).
+            boolean hasSeed = hasSeedBoxed != null && hasSeedBoxed;
             if (holder.revealSeedContainer != null) {
                 holder.revealSeedContainer.setVisibility(hasSeed ? View.VISIBLE : View.INVISIBLE);
             }

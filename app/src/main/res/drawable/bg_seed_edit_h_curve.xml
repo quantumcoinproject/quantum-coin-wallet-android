@@ -5,7 +5,13 @@
     android:shape="rectangle">
     <solid android:color="@color/colorCommon7" />
     <corners android:radius="5dp" />
+    <!--
+        Edit-mode border for the H seed text input. Uses
+        colorCommonSeedHBorder so the border flips to white in dark
+        mode (where colorCommonSeedH stays black for color identity
+        and would otherwise be invisible against the dark background).
+    -->
     <stroke
         android:width="2dp"
-        android:color="@color/colorCommonSeedH" />
+        android:color="@color/colorCommonSeedHBorder" />
 </shape>

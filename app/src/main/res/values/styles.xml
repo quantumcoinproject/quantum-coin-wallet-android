@@ -1,4 +1,45 @@
 <resources>
+    <!--
+        Default style for every <Button> widget in the app.
+
+        Under the MaterialComponents app theme, plain <Button> tags are
+        auto-inflated as MaterialButton via MaterialComponentsViewInflater
+        and inherit Widget.MaterialComponents.Button. That style applies:
+          - backgroundTint = ?attr/colorPrimary
+          - insetTop / insetBottom = 6dp (transparent margins)
+          - stateListAnimator = mtrl_btn_state_list_anim (elevation lift)
+          - elevation = 2dp
+        Those defaults bleed onto every button that sets a custom
+        android:background drawable. The most visible symptom was the
+        Unlock dialog button rendering as a different shade than the
+        Next button on the Send / Add-Network / Create-Wallet screens,
+        even though both XML buttons reference @drawable/button_green_selector:
+        in an AlertDialog context the inflater can resolve the Material
+        tint differently from the host activity context, so the same
+        drawable visibly shifts color when shown inside a dialog.
+
+        By neutralising backgroundTint, insets, elevation, and the
+        state-list animator at the materialButtonStyle level, every
+        unstyled <Button> in the app renders its `android:background`
+        drawable as-drawn, with no Material chrome layered on top. The
+        button still functions as a MaterialButton (so it cooperates
+        with the Material inflater pipeline), it just stops repainting
+        the custom drawable.
+
+        Buttons that DO want Material chrome can still opt in by
+        setting style="..." explicitly (e.g. BottomSegmentedButton
+        below uses Widget.MaterialComponents.Button.OutlinedButton)
+        because an explicit style on a view overrides the theme-level
+        materialButtonStyle default.
+    -->
+    <style name="AppButtonPlain" parent="Widget.MaterialComponents.Button">
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevation">0dp</item>
+    </style>
+
     <!-- home activity styles -->
     <style name="transaction_list_headings">
         <item name="android:fontFamily">@font/relay_poppins_medium</item>

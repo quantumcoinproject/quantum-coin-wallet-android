@@ -20,6 +20,7 @@ import android.text.style.UnderlineSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -76,6 +77,89 @@ public class HomeWalletFragment extends Fragment {
     private KeyViewModel keyViewModel;
     private String[] tempSeedWords;
     private String tempAddress;
+
+    /**
+     * Confirm-Wallet rationale -- detailed design notes for
+     * future maintainers; expand carefully if changing semantics.
+     *
+     * <p>The Confirm-Wallet step is the LAST checkpoint before a fresh
+     * (or restored) wallet is committed to disk + the strongbox + the
+     * recovery snapshots. iOS ships a structurally identical screen
+     * ({@code ConfirmWalletViewController}). The user is shown the
+     * derived address + the on-chain balance for that address and is
+     * asked to tap Next to commit. The decisions below are deliberate:
+     *
+     * <ol>
+     *   <li><b>Why a balance fetch at all?</b> Without it, restore-by-
+     *   typo (24 words with one swap producing a syntactically valid
+     *   alternate seed) silently lands on an empty mnemonic. Showing
+     *   a non-zero balance lets the user catch this before commit.
+     *   We tolerate offline / API failure (Next stays enabled with a
+     *   "-" placeholder) because forcing reachability would lock
+     *   users out during legitimate offline restores -- a strictly
+     *   worse failure mode than the typo case.</li>
+     *
+     *   <li><b>Why the two-layer idempotency guard</b> ({@link
+     *   #confirmWalletSaveInProgress} below + the runtime
+     *   button-disable in
+     *   {@link #persistConfirmedWalletWithUnlock(android.view.View)})?
+     *   A single layer would let an iOS-style multitouch synthesize
+     *   two click events before the boolean flip latches. The
+     *   button-disable is the visual signal; the boolean is the
+     *   correctness guarantee. Both must be released together when
+     *   the save completes (success path) OR fails before the unlock
+     *   prompt is shown (failure path) -- otherwise Next stays grey
+     *   forever. See {@link #rearmConfirmWalletNextButton}.</li>
+     *
+     *   <li><b>Why no full-screen WaitDialog during phrase derivation?</b>
+     *   The derivation runs &lt;200ms on hardware-from-2018+, and a
+     *   visible WaitDialog stacked on the Confirm-Wallet panel is
+     *   confusing UX (the user thinks they need to wait for a
+     *   network call). iOS made the same call. The OnFinish handler
+     *   re-enables Next and reveals any deriver errors inline.</li>
+     *
+     *   <li><b>Why is balance label format byte-equal to iOS?</b> See
+     *   the longer note on
+     *   {@link #populateConfirmWalletAddressAndBalance(String)} --
+     *   visible drift across platforms here weakens a cross-platform
+     *   anti-phishing assumption.</li>
+     *
+     *   <li><b>Why does the address row support tap-to-copy on the
+     *   text itself</b> (not just the icon)? Users tap addresses out
+     *   of habit; refusing the tap on the text body teaches them to
+     *   tap on QR code icons instead, which is the wrong long-term
+     *   habit (because the QR icon on the Send screen is for SCAN,
+     *   not COPY). iOS has the same affordance.</li>
+     *
+     *   <li><b>Why does the back button preserve the typed phrase?</b>
+     *   Restore typing is high-friction; losing 24 typed words to
+     *   a stray Back tap is a UX regression severe enough that
+     *   users will paste their seed somewhere unsafe to avoid
+     *   re-typing. The Restore branch carries
+     *   {@code enteredRestorePhrase} across the round-trip exactly
+     *   as iOS does in its {@code .seedShow} step.</li>
+     * </ol>
+     *
+     * <p>Idempotency guard for the Confirm-Wallet -> Next button.
+     * Prevents a double-tap (or repeat tap during an in-flight save)
+     * from spawning a second {@code saveWalletFromSeedWords} call,
+     * which would attempt to derive + persist + initialize the
+     * strongbox twice and race with itself. Mirrors iOS
+     * {@code ConfirmWalletViewController.isCommitting}.
+     */
+    private boolean confirmWalletSaveInProgress = false;
+    /**
+     * In-flight Confirm-Wallet balance fetch, kept so a re-entry to
+     * {@link #populateConfirmWalletAddressAndBalance(String)} (e.g.
+     * after the user back-navigates to Seed-Edit and returns) or a
+     * Next press can supersede the prior task. Without this guard a
+     * stale callback from a slow earlier fetch would re-toggle the
+     * inline balance progress bar back to {@code VISIBLE} after a
+     * fresher fetch had already cleared it, which manifests to the
+     * user as "the refresh keeps spinning". UI-thread only.
+     */
+    private com.quantumcoinwallet.app.asynctask.read.AccountBalanceRestTask
+            confirmWalletBalanceTask;
     private String tempPrivateKeyBase64;
     private String tempPublicKeyBase64;
     private SeedWordAutoCompleteAdapter seedWordAutoCompleteAdapter;
@@ -124,6 +208,117 @@ public class HomeWalletFragment extends Fragment {
 
     public HomeWalletFragment() {
 
+    }
+
+    /**
+     * Single source of truth for the in-screen "go back one step"
+     * action invoked by both the toolbar back-arrow ImageButton and
+     * the OS / hardware back button (via
+     * {@code HomeActivity.onBackPressed}). Walks the multi-step
+     * wallet-setup wizard one step backward through the visibility-
+     * toggled sub-panels.
+     *
+     * <p>Returns {@code true} if this fragment consumed the back
+     * gesture (the pre-existing in-app back-arrow always does, so
+     * this is currently always {@code true} when the view is laid
+     * out). The activity uses the return value to decide whether
+     * to fall through to the platform default back action.</p>
+     */
+    public boolean handleBackPressed() {
+        View root = getView();
+        if (root == null) return false;
+        // Look up the wizard sub-panels on demand. They are local
+        // variables in onViewCreated, not class fields, so the OS-back
+        // path re-binds them through findViewById each time. Cheap
+        // (single-pass walk through the inflated view tree, all by
+        // id) and avoids the alternative of lifting ~12 locals to
+        // class fields and managing their lifetime.
+        View backupOptions = root.findViewById(R.id.linear_layout_home_backup_options);
+        if (backupOptions != null && backupOptions.getVisibility() == View.VISIBLE) {
+            finishBackupAndNavigateToHome();
+            return true;
+        }
+        View createRestore = root.findViewById(R.id.linear_layout_home_create_restore_wallet);
+        View setWalletTop = root.findViewById(R.id.top_linear_layout_home_wallet_id);
+        View setWallet = root.findViewById(R.id.linear_layout_home_set_wallet);
+        View walletType = root.findViewById(R.id.linear_layout_home_wallet_type);
+        View seedWordLength = root.findViewById(R.id.linear_layout_home_seed_word_length);
+        View seedWords = root.findViewById(R.id.linear_layout_home_seed_words);
+        View seedWordsView = root.findViewById(R.id.linear_layout_home_seed_words_view);
+        View seedWordsEdit = root.findViewById(R.id.linear_layout_home_seed_words_edit);
+        android.widget.RadioButton radio0 = (android.widget.RadioButton)
+                root.findViewById(R.id.radioButton_home_create_restore_wallet_0);
+        android.widget.RadioButton radio1 = (android.widget.RadioButton)
+                root.findViewById(R.id.radioButton_home_create_restore_wallet_1);
+        // Recompute firstTimeSetup the same way onViewCreated does
+        // (strongbox initialized => not first-time).
+        boolean firstTime = true;
+        try {
+            firstTime = !com.quantumcoinwallet.app.viewmodel.KeyViewModel
+                    .getSecureStorage().isInitialized(getContext());
+        } catch (Throwable ignore) { }
+
+        if (createRestore != null && createRestore.getVisibility() == View.VISIBLE) {
+            if (firstTime) {
+                createRestore.setVisibility(View.GONE);
+                if (setWalletTop != null) setWalletTop.setVisibility(View.GONE);
+                if (setWallet != null) setWallet.setVisibility(View.VISIBLE);
+            } else if (mHomeWalletListener != null) {
+                mHomeWalletListener.onHomeWalletCompleteByWallets();
+            }
+            return true;
+        }
+        if (homePhoneBackupLinearLayout != null
+                && homePhoneBackupLinearLayout.getVisibility() == View.VISIBLE) {
+            pendingPhoneBackupOnComplete = null;
+            homePhoneBackupLinearLayout.setVisibility(View.GONE);
+            if (firstTime) {
+                if (setWalletTop != null) setWalletTop.setVisibility(View.GONE);
+                if (setWallet != null) setWallet.setVisibility(View.VISIBLE);
+            } else if (createRestore != null) {
+                createRestore.setVisibility(View.VISIBLE);
+            }
+            return true;
+        }
+        if (walletType != null && walletType.getVisibility() == View.VISIBLE) {
+            walletType.setVisibility(View.GONE);
+            if (createRestore != null) createRestore.setVisibility(View.VISIBLE);
+            return true;
+        }
+        if (seedWordLength != null && seedWordLength.getVisibility() == View.VISIBLE) {
+            seedWordLength.setVisibility(View.GONE);
+            if (createRestore != null) createRestore.setVisibility(View.VISIBLE);
+            return true;
+        }
+        if (seedWords != null && seedWords.getVisibility() == View.VISIBLE) {
+            seedWords.setVisibility(View.GONE);
+            if (walletType != null) walletType.setVisibility(View.VISIBLE);
+            return true;
+        }
+        if (seedWordsView != null && seedWordsView.getVisibility() == View.VISIBLE) {
+            seedWordsView.setVisibility(View.GONE);
+            if (seedWords != null) seedWords.setVisibility(View.VISIBLE);
+            return true;
+        }
+        if (homeConfirmWalletLinearLayout != null
+                && homeConfirmWalletLinearLayout.getVisibility() == View.VISIBLE) {
+            homeConfirmWalletLinearLayout.setVisibility(View.GONE);
+            if (seedWordsEdit != null) seedWordsEdit.setVisibility(View.VISIBLE);
+            return true;
+        }
+        if (seedWordsEdit != null && seedWordsEdit.getVisibility() == View.VISIBLE) {
+            if (radio0 != null && radio0.isChecked()) {
+                seedWordsEdit.setVisibility(View.GONE);
+                if (seedWordsView != null) seedWordsView.setVisibility(View.VISIBLE);
+                return true;
+            }
+            if (radio1 != null && radio1.isChecked()) {
+                seedWordsEdit.setVisibility(View.GONE);
+                if (seedWordLength != null) seedWordLength.setVisibility(View.VISIBLE);
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -225,7 +420,7 @@ public class HomeWalletFragment extends Fragment {
                                         }
                                     });
                                 } catch (final Exception e) {
-                                    android.util.Log.e(TAG, "backup export failed", e);
+                                    com.quantumcoinwallet.app.Logger.e(TAG, "backup export failed", e);
                                     getActivity().runOnUiThread(new Runnable() {
                                         @Override
                                         public void run() {
@@ -332,6 +527,15 @@ public class HomeWalletFragment extends Fragment {
         Button homeSeedWordLengthNextButton = (Button) getView().findViewById(R.id.button_home_seed_word_length_next);
 
         LinearLayout homeSeedWordsLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_seed_words);
+        // Hide seed-related surfaces from accessibility services.
+        // Mirrors iOS isAccessibilityElement = false on the analogous
+        // surfaces. A malicious accessibility service is one of the
+        // only ways to read seed text inside the app process without
+        // root, so we explicitly mark every seed container as
+        // IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS so VoiceOver
+        // / TalkBack will not enumerate or speak the contents.
+        homeSeedWordsLinearLayout.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         TextView homeSeedWordsTitleTextView = (TextView) getView().findViewById(R.id.textView_home_seed_words_title);
         TextView homeSeedWords1 = (TextView) getView().findViewById(R.id.textView_home_seed_words_1);
         TextView homeSeedWords2 = (TextView) getView().findViewById(R.id.textView_home_seed_words_2);
@@ -340,6 +544,9 @@ public class HomeWalletFragment extends Fragment {
         TextView homeSeedWordsShow = (TextView) getView().findViewById(R.id.textView_home_seed_words_show);
 
         LinearLayout homeSeedWordsViewLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_seed_words_view);
+        // See homeSeedWordsLinearLayout above for rationale.
+        homeSeedWordsViewLinearLayout.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         TextView homeSeedWordsViewTitleTextView = (TextView) getView().findViewById(R.id.textView_home_seed_words_view_title);
         TextView[] homeSeedWordsViewCaptionTextViews = HomeSeedWordsViewCaptionTextViews();
         TextView[] homeSeedWordsViewTextViews = HomeSeedWordsViewTextViews();
@@ -349,6 +556,11 @@ public class HomeWalletFragment extends Fragment {
         Button homeSeedWordsViewNextButton = (Button) getView().findViewById(R.id.button_home_seed_words_view_next);
 
         LinearLayout homeSeedWordsEditLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_seed_words_edit);
+        // See homeSeedWordsLinearLayout above for rationale.
+        // Restore-from-seed entry surface is just as sensitive as
+        // reveal/new because the value being entered IS the seed.
+        homeSeedWordsEditLinearLayout.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         homeSeedWordsEditLinearLayoutRef = homeSeedWordsEditLinearLayout;
         TextView homeSeedWordsEditTitleTextView = (TextView) getView().findViewById(R.id.textView_home_seed_words_edit_title);
         TextView homeSeedWordsEditSkip = (TextView) getView().findViewById(R.id.textView_home_seed_words_edit_skip);
@@ -356,6 +568,15 @@ public class HomeWalletFragment extends Fragment {
         homeSeedWordsViewAutoCompleteTextViews = HomeSeedWordsViewAutoCompleteTextView();
 
         homeConfirmWalletLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_confirm_wallet);
+        // Confirm-wallet (verify-after-restore) screen renders
+        // the user's address + balance derived from the just-entered
+        // seed. We mark it NO_HIDE_DESCENDANTS so the address row is
+        // not enumerated by accessibility services. The address row
+        // also has its own setImportantForAccessibility annotation so
+        // a screen reader user can opt in to hearing the address by
+        // explicitly focusing it via swipe gesture.
+        homeConfirmWalletLinearLayout.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         homeConfirmWalletAddressValueTextView = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_address_value);
         homeConfirmWalletBalanceValueTextView = (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_balance_value);
         homeConfirmWalletBalanceProgressBar = (ProgressBar) getView().findViewById(R.id.progress_home_confirm_wallet_balance);
@@ -364,28 +585,15 @@ public class HomeWalletFragment extends Fragment {
         for (AutoCompleteTextView homeSeedWordsViewAutoCompleteTextView : homeSeedWordsViewAutoCompleteTextViews) {
             homeSeedWordsViewAutoCompleteTextView.addTextChangedListener(GetTextWatcher(homeSeedWordsViewAutoCompleteTextView, index));
             index = index + 1;
-            homeSeedWordsViewAutoCompleteTextView.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void  onFocusChange(View view, boolean hasFocus) {
-                    if (hasFocus) {
-                        if(autoCompleteIndexStatus == true){
-                            if(homeSeedWordsViewAutoCompleteTextViews[autoCompleteCurrentIndex].getText().length() < 3){
-                                homeSeedWordsViewAutoCompleteTextViews[autoCompleteCurrentIndex].requestFocus();
-                            }
-                        }
-                        autoCompleteIndexStatus = false;
-                    } else {
-                        if(homeSeedWordsViewAutoCompleteTextView.length()>2) {
-                            if(tempSeedWords != null) {
-                                if (!homeSeedWordsViewAutoCompleteTextView.getText().toString().equalsIgnoreCase(homeSeedWordsViewTextViews[autoCompleteCurrentIndex].getText().toString())) {
-                                    homeSeedWordsViewAutoCompleteTextView.setText("");
-                                    autoCompleteIndexStatus = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            // The previous OnFocusChangeListener cleared the cell on focus
+            // loss whenever its text didn't match
+            // homeSeedWordsViewTextViews[autoCompleteCurrentIndex]. That
+            // index is mutated by the TextWatcher of whichever cell the
+            // user typed in last, so the comparison frequently raced to
+            // the wrong slot and silently wiped a correctly-entered
+            // word. All seed validation now happens at Next-button time
+            // with named-cell error messages (see the
+            // homeSeedWordsAutoCompleteNextButton handler below).
         }
 
         Button homeSeedWordsAutoCompleteNextButton = (Button) getView().findViewById(R.id.button_home_seed_words_autoComplete_next);
@@ -410,17 +618,42 @@ public class HomeWalletFragment extends Fragment {
         homeSetWalletNextButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 String message = jsonViewModel.getPasswordSpecByErrors();
-                if (homeSetWalletPasswordEditText.getText().length() > GlobalMethods.MINIMUM_PASSWORD_LENGTH) {
-                    if (homeSetWalletPasswordEditText.getText().toString().equals(homeSetWalletRetypePasswordEditText.getText().toString())) {
+                String pwRaw = homeSetWalletPasswordEditText.getText().toString();
+                if (pwRaw.length() > GlobalMethods.MINIMUM_PASSWORD_LENGTH) {
+                    // Reject leading/trailing whitespace at create
+                    // time. The unlock path in HomeActivity unconditionally
+                    // calls `password.trim()` before SecureStorage.unlock,
+                    // so a spaced password at create time would derive a
+                    // different scrypt key than every subsequent unlock and
+                    // the user would be permanently locked out of their
+                    // strongbox. Mirrors BackupPasswordDialog.java:234-239
+                    // and iOS HomeWalletViewController.swift:173.
+                    if (!pwRaw.equals(pwRaw.trim())) {
+                        message = jsonViewModel.getPasswordSpaceByErrors();
+                    } else if (pwRaw.equals(homeSetWalletRetypePasswordEditText.getText().toString())) {
+                        // Phone-backup yes/no decision is made
+                        // RIGHT AFTER the user sets the wallet password,
+                        // BEFORE the Create/Restore choice. Mirrors iOS
+                        // first-time flow where the user is asked about
+                        // backup once and that single answer governs both
+                        // Create and Restore branches downstream. Removes
+                        // the prior duplicate prompts inside each branch.
                         homeSetWalletLinearLayout.setVisibility(View.GONE);
                         homeSetWalletTopLinearLayout.setVisibility(View.VISIBLE);
-                        homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
-                        CreateRestoreWalletView(homeCreateRestoreWalletTitleTextView, homeCreateRestoreWalletDescriptionTextView, homeCreateRestoreWalletRadioButton_0,
-                                homeCreateRestoreWalletRadioButton_1, homeCreateRestoreWalletRadioButton_2, homeCreateRestoreWalletRadioButton_3,
-                                homeCreateRestoreWalletNextButton);
+                        Runnable proceedToCreateRestore = new Runnable() {
+                            @Override
+                            public void run() {
+                                homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
+                                CreateRestoreWalletView(homeCreateRestoreWalletTitleTextView, homeCreateRestoreWalletDescriptionTextView, homeCreateRestoreWalletRadioButton_0,
+                                        homeCreateRestoreWalletRadioButton_1, homeCreateRestoreWalletRadioButton_2, homeCreateRestoreWalletRadioButton_3,
+                                        homeCreateRestoreWalletNextButton);
+                            }
+                        };
+                        showBackupPromptIfNeeded(proceedToCreateRestore);
                         return;
+                    } else {
+                        message = jsonViewModel.getRetypePasswordMismatchByErrors();
                     }
-                    message = jsonViewModel.getRetypePasswordMismatchByErrors();
                 }
                 Bundle bundleRoute = new Bundle();
                 bundleRoute.putString("languageKey",languageKey);
@@ -436,53 +669,7 @@ public class HomeWalletFragment extends Fragment {
 
         homeWalletBackArrowImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                    View backupOptions = getView() != null
-                            ? getView().findViewById(R.id.linear_layout_home_backup_options) : null;
-                    if (backupOptions != null && backupOptions.getVisibility() == View.VISIBLE) {
-                        finishBackupAndNavigateToHome();
-                        return;
-                    }
-                    if (homeCreateRestoreWalletLinearLayout.getVisibility()==View.VISIBLE) {
-                        if (firstTimeSetup) {
-                            homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
-                            homeSetWalletTopLinearLayout.setVisibility(View.GONE);
-                            homeSetWalletLinearLayout.setVisibility(View.VISIBLE);
-                        } else {
-                            mHomeWalletListener.onHomeWalletCompleteByWallets();
-                        }
-                    } else if (homePhoneBackupLinearLayout != null
-                            && homePhoneBackupLinearLayout.getVisibility() == View.VISIBLE) {
-                        // Cancel the pending continuation; the user will need to tap
-                        // Next on create-or-restore again to re-enter this step.
-                        pendingPhoneBackupOnComplete = null;
-                        homePhoneBackupLinearLayout.setVisibility(View.GONE);
-                        homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
-                    } else if (homeWalletTypeLinearLayout.getVisibility()==View.VISIBLE) {
-                        homeWalletTypeLinearLayout.setVisibility(View.GONE);
-                        homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
-                    } else if (homeSeedWordLengthLinearLayout.getVisibility()==View.VISIBLE) {
-                        homeSeedWordLengthLinearLayout.setVisibility(View.GONE);
-                        homeCreateRestoreWalletLinearLayout.setVisibility(View.VISIBLE);
-                    } else if (homeSeedWordsLinearLayout.getVisibility()==View.VISIBLE) {
-                        homeSeedWordsLinearLayout.setVisibility(View.GONE);
-                        homeWalletTypeLinearLayout.setVisibility(View.VISIBLE);
-                    } else if (homeSeedWordsViewLinearLayout.getVisibility()==View.VISIBLE) {
-                        homeSeedWordsViewLinearLayout.setVisibility(View.GONE);
-                        homeSeedWordsLinearLayout.setVisibility(View.VISIBLE);
-                    } else if (homeConfirmWalletLinearLayout != null
-                            && homeConfirmWalletLinearLayout.getVisibility() == View.VISIBLE) {
-                        homeConfirmWalletLinearLayout.setVisibility(View.GONE);
-                        homeSeedWordsEditLinearLayout.setVisibility(View.VISIBLE);
-                    } else if (homeSeedWordsEditLinearLayout.getVisibility()==View.VISIBLE) {
-                        if (homeCreateRestoreWalletRadioButton_0.isChecked()==true){
-                            homeSeedWordsEditLinearLayout.setVisibility(View.GONE);
-                            homeSeedWordsViewLinearLayout.setVisibility(View.VISIBLE);
-                        }
-                        if (homeCreateRestoreWalletRadioButton_1.isChecked()==true){
-                            homeSeedWordsEditLinearLayout.setVisibility(View.GONE);
-                            homeSeedWordLengthLinearLayout.setVisibility(View.VISIBLE);
-                        }
-                    }
+                handleBackPressed();
             }
         });
 
@@ -498,30 +685,22 @@ public class HomeWalletFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 if (homeCreateRestoreWalletRadioButton_0.isChecked() == true) {
+                    // Phone-backup decision was already made on
+                    // the password screen. Just advance to wallet type.
                     tempSeedWords = null;
-                    Runnable proceed = new Runnable() {
-                        @Override
-                        public void run() {
-                            homeWalletTypeLinearLayout.setVisibility(View.VISIBLE);
-                            WalletTypeView(homeWalletTypeTitleTextView, homeWalletTypeDescriptionTextView,
-                                    homeWalletTypeDefaultRadioButton, homeWalletTypeAdvancedRadioButton, homeWalletTypeNextButton);
-                        }
-                    };
                     homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
-                    showBackupPromptIfNeeded(proceed);
+                    homeWalletTypeLinearLayout.setVisibility(View.VISIBLE);
+                    WalletTypeView(homeWalletTypeTitleTextView, homeWalletTypeDescriptionTextView,
+                            homeWalletTypeDefaultRadioButton, homeWalletTypeAdvancedRadioButton, homeWalletTypeNextButton);
                 } else if (homeCreateRestoreWalletRadioButton_1.isChecked() == true) {
+                    // Phone-backup decision was already made on
+                    // the password screen. Just advance to seed length.
                     tempSeedWords = null;
-                    Runnable proceed = new Runnable() {
-                        @Override
-                        public void run() {
-                            homeSeedWordLengthLinearLayout.setVisibility(View.VISIBLE);
-                            SeedWordLengthView(homeSeedWordLengthTitleTextView, homeSeedWordLengthDescriptionTextView,
-                                    homeSeedWordLength32RadioButton, homeSeedWordLength36RadioButton, homeSeedWordLength48RadioButton,
-                                    homeSeedWordLengthNextButton);
-                        }
-                    };
                     homeCreateRestoreWalletLinearLayout.setVisibility(View.GONE);
-                    showBackupPromptIfNeeded(proceed);
+                    homeSeedWordLengthLinearLayout.setVisibility(View.VISIBLE);
+                    SeedWordLengthView(homeSeedWordLengthTitleTextView, homeSeedWordLengthDescriptionTextView,
+                            homeSeedWordLength32RadioButton, homeSeedWordLength36RadioButton, homeSeedWordLength48RadioButton,
+                            homeSeedWordLengthNextButton);
                 } else if (homeCreateRestoreWalletRadioButton_2.isChecked() == true) {
                     startRestoreFromFileFlow();
                 } else if (homeCreateRestoreWalletRadioButton_3.isChecked() == true) {
@@ -711,6 +890,14 @@ public class HomeWalletFragment extends Fragment {
         homeSeedWordsViewCopied.setText(jsonViewModel.getCopiedByLangValues());
         homeSeedWordsEditSkip.setText(jsonViewModel.getSkipByLangValues());
 
+        // The seed-copy affordances are removed entirely on Android
+        // 10-12 (API 29-32) where the platform cannot mark the
+        // ClipData with android.content.extra.IS_SENSITIVE. See
+        // RevealWalletFragment for the full rationale; the same
+        // policy applies here on the new-wallet seed-display screen.
+        boolean homeSeedCopyAvailable = com.quantumcoinwallet.app.utils.SecureClipboard
+                .isSeedClipboardCopyHardened();
+
         View.OnClickListener homeCopyClickListener = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -728,8 +915,17 @@ public class HomeWalletFragment extends Fragment {
                 }, 600);
             }
         };
-        homeSeedWordsViewCopyClipboardImageButton.setOnClickListener(homeCopyClickListener);
-        homeSeedWordsViewCopyLink.setOnClickListener(homeCopyClickListener);
+        if (homeSeedCopyAvailable) {
+            homeSeedWordsViewCopyClipboardImageButton.setOnClickListener(homeCopyClickListener);
+            homeSeedWordsViewCopyLink.setOnClickListener(homeCopyClickListener);
+        } else {
+            if (homeSeedWordsViewCopyClipboardImageButton != null) {
+                homeSeedWordsViewCopyClipboardImageButton.setVisibility(View.GONE);
+            }
+            if (homeSeedWordsViewCopyLink != null) {
+                homeSeedWordsViewCopyLink.setVisibility(View.GONE);
+            }
+        }
 
         homeSeedWordsViewNextButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -748,6 +944,7 @@ public class HomeWalletFragment extends Fragment {
         });
 
 
+        final TextView[] captionTextViewsForValidation = homeSeedWordsEditCaptionTextViews;
         homeSeedWordsAutoCompleteNextButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -756,43 +953,82 @@ public class HomeWalletFragment extends Fragment {
                         walletPassword = homeSetWalletPasswordEditText.getText().toString();
                     }
 
-                    int wordCount;
-                    if (tempSeedWords != null) {
-                        wordCount = tempSeedWords.length;
-                    } else {
-                        wordCount = 0;
-                        for (AutoCompleteTextView actv : homeSeedWordsViewAutoCompleteTextViews) {
-                            if (actv.getText().length() > 0) {
-                                wordCount++;
-                            } else {
-                                break;
-                            }
-                        }
-                        if (wordCount == 0) {
-                            homeSeedWordsViewAutoCompleteTextViews[0].requestFocus();
-                            return;
-                        }
-                    }
+                    // Determine which flow we are validating. radio_1 is
+                    // the restore-from-seed path (user types their OWN
+                    // words from an existing backup); the negation is
+                    // the create-then-verify path (user re-types the
+                    // words we just generated and showed them on the
+                    // previous screen). The same branch is used after
+                    // validation below to choose between
+                    // showConfirmWalletScreen (restore) and
+                    // saveWalletFromSeedWords (create).
+                    final boolean isRestoreFromSeedFlow =
+                            homeCreateRestoreWalletRadioButton_1.isChecked();
+
+                    // Validate up to selectedWordCount (or tempSeedWords.length
+                    // in the create-then-verify flow). Iterating up to the
+                    // user's chosen length means a skipped middle cell is
+                    // surfaced as an "empty A1/B2/..." error instead of being
+                    // silently truncated by the old "count contiguous filled
+                    // cells from start" calculation.
+                    final int wordCount = (tempSeedWords != null)
+                            ? tempSeedWords.length : selectedWordCount;
 
                     final String[] seedWords = new String[wordCount];
                     for (int i = 0; i < wordCount; i++) {
-                        AutoCompleteTextView actv = homeSeedWordsViewAutoCompleteTextViews[i];
-                        if (actv.getText().length() == 0) {
-                            actv.requestFocus();
+                        final AutoCompleteTextView actv =
+                                homeSeedWordsViewAutoCompleteTextViews[i];
+                        final String label = (captionTextViewsForValidation != null
+                                && i < captionTextViewsForValidation.length
+                                && captionTextViewsForValidation[i] != null)
+                                ? captionTextViewsForValidation[i].getText().toString()
+                                : ("#" + (i + 1));
+                        final String entered = actv.getText().toString();
+
+                        if (entered.length() == 0) {
+                            showSeedCellError(actv,
+                                    jsonViewModel.getSeedWordEmptyByErrors(),
+                                    "Please enter the seed word in [LABEL].",
+                                    label);
                             return;
                         }
-                        if (!GlobalMethods.SEED_WORD_SET.contains(actv.getText().toString().toLowerCase())) {
-                            actv.setText("");
+                        if (!GlobalMethods.SEED_WORD_SET.contains(entered.toLowerCase())) {
+                            showSeedCellError(actv,
+                                    jsonViewModel.getSeedWordInvalidByErrors(),
+                                    "The word in [LABEL] is not a valid seed word.",
+                                    label);
                             return;
                         }
-                        if (tempSeedWords != null && !actv.getText().toString().equalsIgnoreCase(tempSeedWords[i])) {
-                            actv.setText("");
+                        // The "does not match the original seed word"
+                        // check is ONLY meaningful in the create-then-
+                        // verify flow, where tempSeedWords holds the
+                        // randomly-generated phrase we just showed the
+                        // user on the previous screen and the verify
+                        // screen exists specifically to confirm they
+                        // copied it down correctly. In the restore-
+                        // from-seed flow there is no "original" — the
+                        // user IS the source of truth — and
+                        // tempSeedWords is populated by
+                        // showConfirmWalletScreen as a back-navigation
+                        // cache (see M.4.1 in
+                        // HomeWalletFragmentRestoreConfirmTest). Without
+                        // this gate, editing a single word after a
+                        // back-press in the restore flow falsely
+                        // triggers the mismatch error against the
+                        // user's own previously-typed phrase.
+                        if (!isRestoreFromSeedFlow
+                                && tempSeedWords != null
+                                && !entered.equalsIgnoreCase(tempSeedWords[i])) {
+                            showSeedCellError(actv,
+                                    jsonViewModel.getSeedWordMismatchByErrors(),
+                                    "The word in [LABEL] does not match the original seed word.",
+                                    label);
                             return;
                         }
-                        seedWords[i] = actv.getText().toString().toLowerCase();
+                        seedWords[i] = entered.toLowerCase();
                     }
 
-                    if (homeCreateRestoreWalletRadioButton_1.isChecked()) {
+                    if (isRestoreFromSeedFlow) {
                         showConfirmWalletScreen(seedWords, progressBar);
                     } else {
                         saveWalletFromSeedWords(seedWords, progressBar);
@@ -840,6 +1076,9 @@ public class HomeWalletFragment extends Fragment {
     @Override
     public void onDestroyView() {
         walletPassword = null;
+        // Suppress any in-flight Confirm-Wallet balance fetch so its
+        // late callback cannot touch torn-down view fields.
+        cancelInFlightConfirmWalletBalanceTask();
         super.onDestroyView();
     }
 
@@ -873,6 +1112,38 @@ public class HomeWalletFragment extends Fragment {
         setWalletRetypePasswordEditText.setHint(jsonViewModel.getRetypeThePasswordByLangValues());
 
         setWalletNextButton.setText(jsonViewModel.getNextByLangValues());
+
+        // Per-context autofill identity: this is the FIRST-TIME
+        // strongbox set-password flow, mirroring iOS
+        // HomeWalletViewController's `.newPassword` text content type
+        // on its create-wallet password fields. forCreation=true
+        // triggers Google Password Manager / Samsung Pass to offer
+        // the system "Save Password?" sheet on submit. Both fields
+        // share the same STRONGBOX_UNLOCK identity so the manager
+        // fills BOTH with the same generated password.
+        com.quantumcoinwallet.app.security.CredentialIdentifier.apply(
+                setWalletPasswordEditText,
+                com.quantumcoinwallet.app.security.CredentialIdentifier.Context.STRONGBOX_UNLOCK,
+                null, /*forCreation=*/true);
+        com.quantumcoinwallet.app.security.CredentialIdentifier.apply(
+                setWalletRetypePasswordEditText,
+                com.quantumcoinwallet.app.security.CredentialIdentifier.Context.STRONGBOX_UNLOCK,
+                null, /*forCreation=*/true);
+        // Inject an invisible username EditText carrying the
+        // strongbox-scoped username so a password manager scopes the
+        // newly-saved credential to the correct slot. iOS counterpart
+        // is `UsernameField.make(CredentialIdentifier.strongboxUsername)`.
+        android.view.View root = getView();
+        if (root != null) {
+            android.view.ViewGroup container = (android.view.ViewGroup)
+                    root.findViewById(R.id.linear_layout_home_set_wallet);
+            if (container != null) {
+                com.quantumcoinwallet.app.security.CredentialIdentifier.attachUsernameField(
+                        container,
+                        com.quantumcoinwallet.app.security.CredentialIdentifier
+                                .strongboxUsername(getContext()));
+            }
+        }
     }
 
     private void CreateRestoreWalletView(TextView createRestoreWalletTitleTextView, TextView createRestoreWalletDescriptionTextView,
@@ -1126,6 +1397,49 @@ public class HomeWalletFragment extends Fragment {
     }
 
     /**
+     * Show a per-cell seed-word validation error and, after the user
+     * dismisses it with OK, refocus the failing cell and re-pop the
+     * soft keyboard so they can correct the entry without an extra tap.
+     *
+     * <p>The cell text is intentionally NOT cleared: the user might
+     * have typed a single-character typo that's faster to fix than to
+     * retype. The pre-fix flow used to silently {@code setText("")} on
+     * any failure, which made it impossible to tell whether the cell
+     * had been wiped by the app or by an inadvertent gesture.</p>
+     *
+     * @param cell      the failing AutoCompleteTextView (focused on OK)
+     * @param template  localized message with a {@code [LABEL]} placeholder
+     * @param fallback  English fallback used if the locale lookup fails
+     * @param label     human-readable cell label such as "A1" / "B3"
+     */
+    private void showSeedCellError(final AutoCompleteTextView cell,
+                                   String template,
+                                   String fallback,
+                                   String label) {
+        if (cell == null) return;
+        Context ctx = getContext();
+        if (ctx == null) return;
+        String tmpl = (template == null || template.isEmpty()) ? fallback : template;
+        String message = (tmpl == null ? "" : tmpl).replace("[LABEL]", label == null ? "" : label);
+        new AlertDialog.Builder(ctx)
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        cell.requestFocus();
+                        cell.setSelection(cell.getText().length());
+                        InputMethodManager imm = (InputMethodManager)
+                                cell.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                        if (imm != null) {
+                            imm.showSoftInput(cell, InputMethodManager.SHOW_IMPLICIT);
+                        }
+                    }
+                })
+                .show();
+    }
+
+    /**
      * Intermediate confirmation step shown after the user verifies (or skips) seed
      * words and before the backup-options screen. The wallet is NOT persisted here;
      * the user can press Back to edit the seed words they entered, or Next to commit
@@ -1161,6 +1475,11 @@ public class HomeWalletFragment extends Fragment {
         if (copiedToast != null) copiedToast.setText(jsonViewModel.getCopiedByLangValues());
 
         if (copyButton != null) {
+            // a11y -- screen readers should hear "Copy address",
+            // not "image button". Reuses the existing localized "copy"
+            // string; this is OS-side wording, not a new lang key.
+            String copyLabel = jsonViewModel.getCopyByLangValues();
+            copyButton.setContentDescription(copyLabel == null ? "Copy" : copyLabel);
             copyButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -1182,16 +1501,22 @@ public class HomeWalletFragment extends Fragment {
             });
         }
         if (exploreButton != null) {
+            // a11y -- explorer button content description.
+            String explorerLabel = jsonViewModel.getDpscanByLangValues();
+            exploreButton.setContentDescription(
+                    explorerLabel == null ? "Block Explorer" : explorerLabel);
             exploreButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (homeConfirmWalletAddressValueTextView == null) return;
                     String addr = homeConfirmWalletAddressValueTextView.getText().toString();
-                    if (addr.isEmpty() || GlobalMethods.BLOCK_EXPLORER_URL == null) return;
-                    String url = GlobalMethods.BLOCK_EXPLORER_URL
-                            + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", addr);
+                    // Regex-validated + percent-encoded URL
+                    // construction. Returns null on invalid input.
+                    Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                            .blockExplorerAccountUrl(addr);
+                    if (u == null) return;
                     try {
-                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                        startActivity(new Intent(Intent.ACTION_VIEW, u));
                     } catch (Exception ex) {
                         GlobalMethods.ExceptionError(getContext(), TAG, ex);
                     }
@@ -1215,6 +1540,11 @@ public class HomeWalletFragment extends Fragment {
             backButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    // Suppress any in-flight balance fetch so its
+                    // late callback cannot light the inline spinner
+                    // back up on the now-hidden Confirm-Wallet panel.
+                    cancelInFlightConfirmWalletBalanceTask();
+                    hideConfirmWalletBalanceSpinner();
                     homeConfirmWalletLinearLayout.setVisibility(View.GONE);
                     if (homeSeedWordsEditLinearLayoutRef != null) {
                         homeSeedWordsEditLinearLayoutRef.setVisibility(View.VISIBLE);
@@ -1223,13 +1553,44 @@ public class HomeWalletFragment extends Fragment {
             });
         }
         if (nextButton != null) {
+            final Button nextButtonRef = nextButton;
             nextButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (tempSeedWords == null) {
                         return;
                     }
-                    saveWalletFromSeedWords(tempSeedWords, progressBar);
+                    // Idempotency. A second tap before
+                    // saveWalletFromSeedWords completes would attempt
+                    // a duplicate strongbox initialize + persist;
+                    // both calls would race on the same slot pair.
+                    // Guard with an instance flag (cleared by the save
+                    // path on success/failure) and disable the button
+                    // visibly so the user has feedback.
+                    if (confirmWalletSaveInProgress) {
+                        return;
+                    }
+                    // Drop the inline balance spinner before kicking
+                    // off the save so the user sees a single,
+                    // unambiguous "Please wait while saving..."
+                    // overlay instead of a small inline spinner
+                    // racing with the modal one. Also cancels the
+                    // in-flight task so its delayed callback cannot
+                    // re-arm the spinner mid-save.
+                    cancelInFlightConfirmWalletBalanceTask();
+                    hideConfirmWalletBalanceSpinner();
+                    confirmWalletSaveInProgress = true;
+                    nextButtonRef.setEnabled(false);
+                    try {
+                        saveWalletFromSeedWords(tempSeedWords, progressBar);
+                    } catch (Throwable t) {
+                        // Re-enable on synchronous throw; async paths
+                        // re-enable inside their own callbacks via
+                        // resetConfirmWalletSaveGuard().
+                        confirmWalletSaveInProgress = false;
+                        nextButtonRef.setEnabled(true);
+                        throw t;
+                    }
                 }
             });
         }
@@ -1248,6 +1609,16 @@ public class HomeWalletFragment extends Fragment {
 
         final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
                 .show(getContext(), jsonViewModel.getWaitWalletOpenByLangValues());
+        // Posting to the main looper directly (rather than routing
+        // through the host activity's UI-thread executor) means the
+        // dialog still gets dismissed and the error path still runs
+        // even if the fragment has been detached from its hosting
+        // Activity by the time the worker completes. The earlier
+        // activity-null guard could leak the WaitDialog on screen
+        // with no path to dismiss it after a configuration change
+        // or a rapid fragment swap mid-derive.
+        final Handler mainHandlerForDerive =
+                new Handler(android.os.Looper.getMainLooper());
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -1259,11 +1630,21 @@ public class HomeWalletFragment extends Fragment {
                     final String derivedAddress = data.getString("address");
                     final String derivedPrivateKey = data.getString("privateKey");
                     final String derivedPublicKey = data.getString("publicKey");
-                    if (getActivity() == null) return;
-                    getActivity().runOnUiThread(new Runnable() {
+                    mainHandlerForDerive.post(new Runnable() {
                         @Override
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                            // View tree may already be torn down if
+                            // the user navigated away during the
+                            // derive. Bail without touching field
+                            // refs in that case so a stale callback
+                            // does not flip visibility on detached
+                            // views or restart a balance fetch
+                            // against a hidden panel.
+                            if (getView() == null
+                                    || homeConfirmWalletLinearLayout == null) {
+                                return;
+                            }
                             tempSeedWords = seedWords;
                             tempAddress = derivedAddress;
                             tempPrivateKeyBase64 = derivedPrivateKey;
@@ -1273,11 +1654,14 @@ public class HomeWalletFragment extends Fragment {
                     });
                 } catch (final Exception e) {
                     timber.log.Timber.w(e, "confirm wallet derive failed");
-                    if (getActivity() == null) return;
-                    getActivity().runOnUiThread(new Runnable() {
+                    mainHandlerForDerive.post(new Runnable() {
                         @Override
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                            if (getView() == null
+                                    || homeConfirmWalletLinearLayout == null) {
+                                return;
+                            }
                             homeConfirmWalletLinearLayout.setVisibility(View.GONE);
                             if (homeSeedWordsEditLinearLayoutRef != null) {
                                 homeSeedWordsEditLinearLayoutRef.setVisibility(View.VISIBLE);
@@ -1293,19 +1677,70 @@ public class HomeWalletFragment extends Fragment {
     }
 
     /**
-     * Sets the address text and kicks off a balance fetch. Balance failures
-     * (offline / API error) leave a "-" placeholder; Next remains enabled in all
-     * cases.
+     * Confirm-Wallet address-and-balance binding for both the New-Wallet
+     * and Restore-Wallet flows. Mirrors iOS
+     * {@code HomeWalletViewController.fetchAndShowBalance(into:)} byte-for-byte
+     * for the visible balance value, then layers Android-specific
+     * accessibility / tap-to-copy polish on top.
+     *
+     * <p>Why this matters (notes for reviewers): the Confirm-Wallet step is
+     * the LAST chance the user has to verify they are about to commit the
+     * correct address (and corresponding QC balance) to disk. Any visual
+     * mismatch from iOS at this surface invalidates the cross-platform
+     * "the displayed amount is the canonical balance" assurance and is
+     * a soft phishing risk in itself: if Android shows a "0 Coins" string
+     * where iOS shows just "0", an attacker who screenshots one platform
+     * to fake the other has more rope. We therefore:
+     *
+     * <ol>
+     *   <li><b>M.4.4 visible value byte-matches iOS:</b> render exactly
+     *   {@code CoinUtils.formatWei(balance)} in the value TextView. The
+     *   "Coins" suffix used to be appended on Android only; iOS does
+     *   not, so we drop it here. The label (the "Balance:" caption)
+     *   already lives in a separate TextView, exactly as on iOS.</li>
+     *
+     *   <li><b>M.4.5 tap-to-copy address row:</b> the address TextView is
+     *   itself tappable -- not just the explicit copy icon -- because
+     *   users frequently tap addresses out of habit; iOS's UILabel +
+     *   tapGesture supports the same affordance.</li>
+     *
+     *   <li><b>M.4.7 'Balance on &lt;Network Name&gt;' a11y caption:</b>
+     *   we set the value's accessibility caption to
+     *   {@code "Balance on <network>: <value>"} so TalkBack disambiguates
+     *   which chain the balance refers to. The visible label stays
+     *   "Balance:" -- the network qualifier is a screen-reader-only
+     *   refinement (sighted users see the network name in the toolbar).</li>
+     * </ol>
+     *
+     * <p>Balance failures (offline / API error) leave a "-" placeholder
+     * and Next remains enabled in all cases.
      */
     private void populateConfirmWalletAddressAndBalance(final String address) {
         if (homeConfirmWalletAddressValueTextView != null) {
             homeConfirmWalletAddressValueTextView.setText(address == null ? "" : address);
+            wireConfirmAddressTapToCopy();
         }
         if (homeConfirmWalletBalanceValueTextView != null) {
             homeConfirmWalletBalanceValueTextView.setText("-");
         }
-        if (address == null || address.isEmpty()) return;
-        if (!GlobalMethods.IsNetworkAvailable(getContext())) return;
+        // Supersede any in-flight balance task. A re-entry to this
+        // method (e.g. user back-navigated from Confirm-Wallet to
+        // Seed-Edit, edited a word, came back) would otherwise leave
+        // the previous task running, racing with the new one to set
+        // the balance text and toggling the progress bar visibility
+        // out from under the user. The cancelled task's worker still
+        // runs to completion (OkHttp does not expose Call.cancel from
+        // here without restructuring the generated client), but the
+        // listener is suppressed so the UI is not perturbed.
+        cancelInFlightConfirmWalletBalanceTask();
+        if (address == null || address.isEmpty()) {
+            hideConfirmWalletBalanceSpinner();
+            return;
+        }
+        if (!GlobalMethods.IsNetworkAvailable(getContext())) {
+            hideConfirmWalletBalanceSpinner();
+            return;
+        }
 
         if (homeConfirmWalletBalanceProgressBar != null) {
             homeConfirmWalletBalanceProgressBar.setVisibility(View.VISIBLE);
@@ -1316,49 +1751,179 @@ public class HomeWalletFragment extends Fragment {
                     new AccountBalanceRestTask.TaskListener() {
                         @Override
                         public void onFinished(BalanceResponse balanceResponse) throws ServiceException {
-                            if (homeConfirmWalletBalanceProgressBar != null) {
-                                homeConfirmWalletBalanceProgressBar.setVisibility(View.GONE);
-                            }
+                            hideConfirmWalletBalanceSpinner();
                             if (balanceResponse != null && balanceResponse.getResult() != null
                                     && balanceResponse.getResult().getBalance() != null
                                     && homeConfirmWalletBalanceValueTextView != null) {
                                 String value = balanceResponse.getResult().getBalance().toString();
-                                String quantity = CoinUtils.formatWei(value);
-                                String coinsLabel = jsonViewModel.getCoinsByLangValues();
-                                String text = (coinsLabel != null && !coinsLabel.isEmpty())
-                                        ? quantity + " " + coinsLabel
-                                        : quantity;
-                                homeConfirmWalletBalanceValueTextView.setText(text);
+                                // M.4.4: visible value mirrors iOS
+                                // (formatWei numeric only; no "Coins"
+                                // suffix). The "Balance:" label is in a
+                                // separate TextView (see layout).
+                                String visible = CoinUtils.formatWei(value);
+                                homeConfirmWalletBalanceValueTextView.setText(visible);
+                                // M.4.7: a11y caption includes "Balance on
+                                // <network>" so TalkBack disambiguates
+                                // which chain the balance is for. Falls
+                                // back to the legacy "Balance: <value>"
+                                // form when network name is unavailable.
+                                String network = currentNetworkDisplayName();
+                                String coinsSuffix = jsonViewModel.getCoinsByLangValues();
+                                String spoken = visible + (coinsSuffix == null
+                                        || coinsSuffix.isEmpty() ? "" : " " + coinsSuffix);
+                                String caption;
+                                if (network != null && !network.isEmpty()) {
+                                    caption = "Balance on " + network + ": " + spoken;
+                                } else {
+                                    String balanceLabel = jsonViewModel.getBalanceByLangValues();
+                                    caption = (balanceLabel == null || balanceLabel.isEmpty())
+                                            ? spoken : balanceLabel + " " + spoken;
+                                }
+                                homeConfirmWalletBalanceValueTextView.setContentDescription(caption);
                             }
                         }
                         @Override
                         public void onFailure(ApiException e) {
-                            if (homeConfirmWalletBalanceProgressBar != null) {
-                                homeConfirmWalletBalanceProgressBar.setVisibility(View.GONE);
-                            }
+                            hideConfirmWalletBalanceSpinner();
                             // Leave the "-" placeholder in place; Next stays enabled.
                         }
                     });
+            confirmWalletBalanceTask = task;
             task.execute(taskParams);
-        } catch (Exception e) {
-            if (homeConfirmWalletBalanceProgressBar != null) {
-                homeConfirmWalletBalanceProgressBar.setVisibility(View.GONE);
-            }
-            timber.log.Timber.w(e, "confirm wallet balance fetch failed");
+        } catch (Throwable t) {
+            // Catch Throwable, not Exception: a NullPointerException
+            // or OutOfMemoryError during task construction must not
+            // leave the inline spinner stuck VISIBLE. Mirrors the
+            // Throwable-catching defense added to
+            // AccountBalanceRestTask itself.
+            hideConfirmWalletBalanceSpinner();
+            confirmWalletBalanceTask = null;
+            timber.log.Timber.w(t, "confirm wallet balance fetch failed");
         }
+    }
+
+    /**
+     * Hide the inline Confirm-Wallet balance spinner. Idempotent;
+     * safe to call from any callback without first checking whether
+     * the bar was actually shown. Centralised so the visibility flip
+     * has a single source of truth and the regression "spinner stays
+     * VISIBLE forever" cannot recur from a missed branch.
+     */
+    private void hideConfirmWalletBalanceSpinner() {
+        if (homeConfirmWalletBalanceProgressBar != null) {
+            homeConfirmWalletBalanceProgressBar.setVisibility(View.GONE);
+        }
+    }
+
+    /**
+     * Cancel and forget the in-flight Confirm-Wallet balance fetch,
+     * if any. Safe to call repeatedly; called both when a fresher
+     * fetch is about to start and when the user navigates away from
+     * the Confirm-Wallet panel (Next or Back).
+     */
+    private void cancelInFlightConfirmWalletBalanceTask() {
+        if (confirmWalletBalanceTask != null) {
+            try {
+                confirmWalletBalanceTask.cancel();
+            } catch (Throwable ignore) { }
+            confirmWalletBalanceTask = null;
+        }
+    }
+
+    /**
+     * M.4.5: tap-to-copy on the Confirm-Wallet address TextView itself.
+     * Reuses the same SecureClipboard helper as the explicit copy
+     * ImageButton so the auto-clear-after-60s policy applies uniformly.
+     * Idempotent: re-binding the click listener on every populate call
+     * is safe because View only retains the most recent listener.
+     */
+    private void wireConfirmAddressTapToCopy() {
+        if (homeConfirmWalletAddressValueTextView == null) return;
+        homeConfirmWalletAddressValueTextView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String addr = homeConfirmWalletAddressValueTextView.getText() == null
+                        ? "" : homeConfirmWalletAddressValueTextView.getText().toString();
+                if (addr.isEmpty()) return;
+                com.quantumcoinwallet.app.utils.SecureClipboard.copyAddress(
+                        getActivity(), "confirmWalletAddress", addr);
+                final TextView toast = getView() == null ? null
+                        : (TextView) getView().findViewById(R.id.textView_home_confirm_wallet_copied);
+                if (toast != null) {
+                    toast.setVisibility(View.VISIBLE);
+                    new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                        @Override public void run() { toast.setVisibility(View.GONE); }
+                    }, 600);
+                }
+            }
+        });
+        homeConfirmWalletAddressValueTextView.setClickable(true);
+    }
+
+    /**
+     * Resolve the currently selected blockchain network's display name
+     * for the M.4.7 a11y caption. Reads the published volatile snapshot
+     * written by {@link GlobalMethods#setActiveNetwork} so the lookup is
+     * race-free even if the user switches network during the balance
+     * fetch. Returns null if the network selector has not initialized
+     * yet (cold-launch race) so the caller can fall back to the legacy
+     * "Balance: &lt;value&gt;" form.
+     */
+    private String currentNetworkDisplayName() {
+        try {
+            String name = GlobalMethods.BLOCKCHAIN_NAME;
+            if (name != null && !name.trim().isEmpty()) return name.trim();
+        } catch (Throwable ignore) { }
+        return null;
+    }
+
+    /**
+     * Re-arm the Confirm-Wallet -> Next button after an
+     * in-flight {@code saveWalletFromSeedWords} terminates. Idempotent
+     * so multiple async callbacks can call it safely. Must run on the
+     * UI thread (callers are already in {@code runOnUiThread}).
+     */
+    private void resetConfirmWalletSaveGuard() {
+        confirmWalletSaveInProgress = false;
+        if (getView() == null) return;
+        Button nextBtn = (Button) getView().findViewById(R.id.button_home_confirm_wallet_next);
+        if (nextBtn != null) nextBtn.setEnabled(true);
     }
 
     private void saveWalletFromSeedWords(final String[] seedWords, final ProgressBar progressBar) {
         SecureStorage secureStorageGuard = KeyViewModel.getSecureStorage();
-        final boolean needsPassword =
-                !secureStorageGuard.isInitialized(getContext()) || !secureStorageGuard.isUnlocked();
-        if (needsPassword && (walletPassword == null || walletPassword.isEmpty())) {
+        final boolean isInit = secureStorageGuard.isInitialized(getContext());
+        if (walletPassword == null || walletPassword.isEmpty()) {
+            if (isInit) {
+                // (Android, mirrors iOS New-Wallet-from-Wallets flow):
+                // when the user adds a new wallet from the Wallets
+                // screen, the create flow skips the "Set password"
+                // sub-step (the strongbox already has a password).
+                // walletPassword is therefore null/empty when Skip /
+                // Confirm reaches this method. The persist below
+                // re-derives mainKey via scrypt with this password,
+                // so an empty value would surface as a confusing
+                // "passwordWrap open failed: wrong password" error.
+                // Prompt for the strongbox password here using the
+                // same dialog the Send / Add-Network paths use, then
+                // resume by re-entering this method with
+                // walletPassword set.
+                promptStrongboxPasswordForSave(seedWords, progressBar);
+                return;
+            }
             String msg = jsonViewModel.getWalletPasswordNotSetByErrors();
             if (msg == null || msg.isEmpty()) {
                 msg = "Wallet password is not set.";
             }
             GlobalMethods.ShowErrorDialog(getContext(),
                     jsonViewModel.getErrorTitleByLangValues(), msg);
+            // Re-arm Next so the user can recover by backing out to
+            // re-enter their password rather than being stuck on a
+            // permanently-disabled button. Without this, the
+            // confirmWalletSaveInProgress guard set by the click
+            // handler (see showConfirmWalletScreen) blocks every
+            // subsequent tap for the lifetime of the fragment view.
+            resetConfirmWalletSaveGuard();
             return;
         }
         final AlertDialog waitDlg = com.quantumcoinwallet.app.view.dialog.WaitDialog
@@ -1392,6 +1957,11 @@ public class HomeWalletFragment extends Fragment {
                         getActivity().runOnUiThread(new Runnable() {
                             public void run() {
                                 if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                                // A duplicate-wallet bounce
+                                // returns the user to the Confirm
+                                // screen; re-arm Next so they can
+                                // tap Back and pick a different seed.
+                                resetConfirmWalletSaveGuard();
                                 showDuplicateWalletDialog(existingAddress);
                             }
                         });
@@ -1417,8 +1987,8 @@ public class HomeWalletFragment extends Fragment {
                     walletJson.put("publicKey", publicKeyBase64);
                     walletJson.put("seed", seedWordsJoined);
 
-                    secureStorage.saveWallet(getContext(), newIndex, walletJson.toString());
-                    secureStorage.setMaxWalletIndex(getContext(), newIndex);
+                    secureStorage.saveWallet(getContext(), newIndex, walletJson.toString(),
+                            walletPassword);
 
                     walletPassword = null;
 
@@ -1442,6 +2012,12 @@ public class HomeWalletFragment extends Fragment {
                         getActivity().runOnUiThread(new Runnable() {
                             public void run() {
                                 if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                                // Re-arm Next so the user can
+                                // retry after a transient persist
+                                // failure (no-space, IO blip, etc.)
+                                // without having to back out and
+                                // re-derive.
+                                resetConfirmWalletSaveGuard();
                                 GlobalMethods.ShowErrorDialog(getContext(), "Error", errorMsg);
                             }
                         });
@@ -1449,6 +2025,170 @@ public class HomeWalletFragment extends Fragment {
                 }
             }
         }).start();
+    }
+
+    /**
+     * Show the standard strongbox unlock dialog so the user can
+     * supply the existing strongbox password, then resume
+     * {@link #saveWalletFromSeedWords} with that password set in
+     * {@link #walletPassword}. Used exclusively by the
+     * non-first-time New Wallet branch (entered from the Wallets
+     * list) where the create flow skipped the Set-Password
+     * sub-step.
+     *
+     * <p>Behavior mirrors the unlock+verify pattern used by
+     * {@code BlockchainNetworkAddFragment.persistAddedNetworkOrPromptUnlock}
+     * and {@code BlockchainNetworkDialogFragment.promptUnlockAndPersistActiveIndex}:
+     * a foreground {@link com.quantumcoinwallet.app.view.dialog.WaitDialog}
+     * appears the instant the user taps Unlock so the user sees a
+     * spinner across the scrypt-bound verify, then the dialog
+     * dismisses and {@code saveWalletFromSeedWords} re-enters with
+     * the password populated.</p>
+     */
+    private void promptStrongboxPasswordForSave(final String[] seedWords,
+                                                final ProgressBar progressBar) {
+        final Context ctx = getContext();
+        if (ctx == null) {
+            // Re-arm Next so the calling Confirm-Wallet handler is
+            // not stranded with a disabled button when the fragment
+            // is mid-detach. Without this, the user comes back to a
+            // permanently disabled Next.
+            resetConfirmWalletSaveGuard();
+            return;
+        }
+        final SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+        if (secureStorage == null) {
+            resetConfirmWalletSaveGuard();
+            return;
+        }
+        try {
+            final androidx.appcompat.app.AlertDialog dialog =
+                    new androidx.appcompat.app.AlertDialog.Builder(ctx)
+                            .setTitle((CharSequence) "")
+                            .setView((int) R.layout.unlock_dialog_fragment)
+                            .create();
+            dialog.setCancelable(false);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(
+                                android.graphics.Color.TRANSPARENT));
+            }
+            dialog.show();
+
+            TextView unlockTitle = (TextView) dialog
+                    .findViewById(R.id.textView_unlock_langValues_unlock_wallet);
+            TextView unlockBody = (TextView) dialog
+                    .findViewById(R.id.textView_unlock_langValues_enter_wallet_password);
+            final EditText pwd = (EditText) dialog
+                    .findViewById(R.id.editText_unlock_langValues_enter_a_password);
+            final Button unlockBtn = (Button) dialog
+                    .findViewById(R.id.button_unlock_langValues_unlock);
+            final Button closeBtn = (Button) dialog
+                    .findViewById(R.id.button_unlock_langValues_close);
+
+            unlockTitle.setText(jsonViewModel.getUnlockWalletByLangValues());
+            unlockBody.setText(jsonViewModel.getEnterQuantumWalletPasswordByLangValues());
+            pwd.setHint(jsonViewModel.getEnterApasswordByLangValues());
+            unlockBtn.setText(jsonViewModel.getUnlockByLangValues());
+            closeBtn.setText(jsonViewModel.getCloseByLangValues());
+
+            com.quantumcoinwallet.app.security.CredentialIdentifier.apply(
+                    pwd,
+                    com.quantumcoinwallet.app.security.CredentialIdentifier.Context.STRONGBOX_UNLOCK,
+                    null);
+            android.view.ViewGroup unlockRoot = (android.view.ViewGroup)
+                    dialog.findViewById(R.id.linear_layout_unlock_content);
+            if (unlockRoot != null) {
+                com.quantumcoinwallet.app.security.CredentialIdentifier.attachUsernameField(
+                        unlockRoot,
+                        com.quantumcoinwallet.app.security.CredentialIdentifier
+                                .strongboxUsername(ctx));
+            }
+            GlobalMethods.focusAndShowKeyboard(pwd, dialog);
+            // The save can be safely cancelled at this point — the
+            // wallet bytes have not been touched yet — so the
+            // close-button stays enabled.
+            try {
+                com.quantumcoinwallet.app.view.dialog.UnlockDialogs
+                        .applyMandatory(dialog, false);
+            } catch (Throwable ignore) { }
+
+            unlockBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    final String entered = pwd.getText() == null
+                            ? "" : pwd.getText().toString();
+                    if (entered.isEmpty()) {
+                        GlobalMethods.ShowErrorDialog(ctx,
+                                jsonViewModel.getErrorTitleByLangValues(),
+                                jsonViewModel.getEnterApasswordByLangValues());
+                        return;
+                    }
+                    unlockBtn.setEnabled(false);
+                    closeBtn.setEnabled(false);
+                    pwd.setEnabled(false);
+                    final androidx.appcompat.app.AlertDialog waitDlg =
+                            com.quantumcoinwallet.app.view.dialog.WaitDialog
+                                    .show(ctx, jsonViewModel.getWaitUnlockByLangValues());
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            boolean ok;
+                            try {
+                                if (secureStorage.isUnlocked()) {
+                                    ok = secureStorage.getCoordinator()
+                                            .verifyPassword(ctx, entered);
+                                } else {
+                                    ok = secureStorage.unlock(ctx, entered);
+                                }
+                            } catch (Throwable t) {
+                                ok = false;
+                            }
+                            final boolean unlocked = ok;
+                            if (getActivity() == null) return;
+                            getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                                    if (!unlocked) {
+                                        unlockBtn.setEnabled(true);
+                                        closeBtn.setEnabled(true);
+                                        pwd.setEnabled(true);
+                                        // Do NOT clear the password
+                                        // field on failure so the user
+                                        // can fix a one-character typo
+                                        // without retyping the whole
+                                        // string. Mirrors SendFragment.
+                                        pwd.requestFocus();
+                                        GlobalMethods.ShowErrorDialog(ctx,
+                                                jsonViewModel.getErrorTitleByLangValues(),
+                                                jsonViewModel.getWalletPasswordMismatchByErrors());
+                                        return;
+                                    }
+                                    try { dialog.dismiss(); } catch (Throwable ignore) { }
+                                    walletPassword = entered;
+                                    saveWalletFromSeedWords(seedWords, progressBar);
+                                }
+                            });
+                        }
+                    }).start();
+                }
+            });
+            closeBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    try { dialog.dismiss(); } catch (Throwable ignore) { }
+                    // User aborted the unlock prompt before any wallet
+                    // bytes were persisted. Re-arm the Confirm-Save
+                    // guard so the user can retry from the same
+                    // Confirm step without backing out of the flow.
+                    resetConfirmWalletSaveGuard();
+                }
+            });
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(ctx, TAG, e);
+            resetConfirmWalletSaveGuard();
+        }
     }
 
     private void showBackupPromptIfNeeded(final Runnable onComplete) {
@@ -1503,6 +2243,19 @@ public class HomeWalletFragment extends Fragment {
         }
     }
 
+    /**
+     * (Android): on iOS the BackupOptions screen omits the
+     * Next pill in the existing-wallet-backup flow (entered from
+     * Wallets) and shows it only in the post-create flow. On Android
+     * the existing-wallet flow never reaches this method -- it routes
+     * directly to {@code BackupPasswordDialog} via
+     * {@code WalletsFragment}'s backup buttons. This method is only
+     * called from the post-create branch (after
+     * {@code saveWalletFromSeedWords} / {@code saveCreatedWallet}),
+     * so the "Done" pill it shows is the iOS "Next" pill in that
+     * exact same flow. No additional flag is required to honour the
+     * iOS behaviour.
+     */
     private void showBackupOptionsScreen() {
         if (getView() == null) return;
         hideAllHomeWalletLayouts();
@@ -1523,7 +2276,7 @@ public class HomeWalletFragment extends Fragment {
         descriptionTextView.setText(jsonViewModel.getBackupOptionsDescriptionByLangValues());
         cloudBtn.setText(jsonViewModel.getBackupToCloudByLangValues());
         fileBtn.setText(jsonViewModel.getBackupToFileByLangValues());
-        doneBtn.setText(jsonViewModel.getBackupDoneByLangValues());
+        doneBtn.setText(jsonViewModel.getNextByLangValues());
 
         backupCloudStatusTextView.setVisibility(View.GONE);
         backupFileStatusTextView.setVisibility(View.GONE);
@@ -1642,13 +2395,43 @@ public class HomeWalletFragment extends Fragment {
             public void run() {
                 try {
                     String filename = com.quantumcoinwallet.app.backup.CloudBackupManager.buildFilename(address);
-                    com.quantumcoinwallet.app.backup.CloudBackupManager.writeToSafFolder(
-                            getContext(), Uri.parse(folderUriStr), filename, encryptedJson);
+                    // Use the verified write path so we get a
+                    // BackupWriteOutcome that distinguishes (a) cloud
+                    // vs local destination and (b) verify-by-readback
+                    // success/failure. The user-facing modal must
+                    // differ: a cloud destination is "submitted" (may
+                    // not yet be visible from another device until the
+                    // provider syncs); a local destination is "saved".
+                    final com.quantumcoinwallet.app.backup.CloudBackupManager.BackupWriteOutcome outcome =
+                            com.quantumcoinwallet.app.backup.CloudBackupManager.writeToSafFolderVerified(
+                                    getContext(), Uri.parse(folderUriStr), filename, encryptedJson);
+                    if (outcome.kind == com.quantumcoinwallet.app.backup.CloudBackupManager.BackupWriteKind.VERIFY_FAILED) {
+                        throw new java.io.IOException("verify-by-readback failed: "
+                                + (outcome.detail == null ? "unknown" : outcome.detail));
+                    }
                     getActivity().runOnUiThread(new Runnable() {
-                        public void run() { flagCloudBackupSaved(); }
+                        public void run() {
+                            flagCloudBackupSaved();
+                            // Cloud destination -> show explicit
+                            // "submitted, may take a moment to sync"
+                            // dialog so the user knows the bytes
+                            // haven't necessarily reached the cloud
+                            // backend yet. iOS shows the same modal.
+                            if (outcome.kind == com.quantumcoinwallet.app.backup.CloudBackupManager.BackupWriteKind.SUBMITTED_CLOUD) {
+                                String title = jsonViewModel.getBackupSubmittedTitleByLangValues();
+                                String body = jsonViewModel.getBackupSubmittedBodyByLangValues();
+                                if (title == null || title.isEmpty()) title = "Backup submitted";
+                                if (body == null || body.isEmpty()) {
+                                    body = "Your backup has been submitted to the cloud destination. "
+                                         + "It may take a moment to appear on your other devices "
+                                         + "depending on the provider's sync state. Press OK to dismiss.";
+                                }
+                                GlobalMethods.ShowMessageDialog(getContext(), title, body, null);
+                            }
+                        }
                     });
                 } catch (final Exception e) {
-                    android.util.Log.e(TAG, "cloud backup write failed", e);
+                    com.quantumcoinwallet.app.Logger.e(TAG, "cloud backup write failed", e);
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             String tmpl = jsonViewModel.getBackupFailedByLangValues();
@@ -1730,7 +2513,7 @@ public class HomeWalletFragment extends Fragment {
                         }
                     });
                 } catch (final Exception e) {
-                    android.util.Log.e(TAG, "encryptWalletForBackup failed", e);
+                    com.quantumcoinwallet.app.Logger.e(TAG, "encryptWalletForBackup failed", e);
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }
@@ -1928,6 +2711,25 @@ public class HomeWalletFragment extends Fragment {
      *  final summary dialog can hand it to the home listener when the user acknowledges. */
     private String firstRestoredIndexKey = null;
 
+    /** Strongbox password collected once at the start of a cloud-restore session
+     *  via the dedicated unlock-app dialog (split from the per-file backup
+     *  password). Mirrors iOS {@code RestoreFlow.strongboxPassword}: every
+     *  strongbox write performed inside the batch loop reuses this value so a
+     *  user whose strongbox password differs from the backup-file password can
+     *  still complete the restore. Cleared at the end of the session
+     *  ({@link #clearPendingStrongboxPassword}). When {@code null}, the per-file
+     *  backup password is used as the strongbox-write password (matches the iOS
+     *  "post-onboarding" branch where the contract assumes they match). */
+    private String pendingStrongboxPassword = null;
+
+    /** Wipe the strongbox-restore password as soon as the batch completes (or
+     *  is canceled) so we never hold it longer than the active flow. Mirrors
+     *  iOS {@code RestoreFlow.finishBatch} resetting {@code strongboxPassword}
+     *  to nil. */
+    private void clearPendingStrongboxPassword() {
+        pendingStrongboxPassword = null;
+    }
+
     private void showRestoreCloudFilePicker(final Uri folderUri) {
         final Context ctx = getContext();
         if (ctx == null) return;
@@ -1936,9 +2738,15 @@ public class HomeWalletFragment extends Fragment {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                final List<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> candidates =
+                // Use the outcome variant so we can surface
+                // "showing first N of M" / "skipped K oversized"
+                // when the per-folder caps fire instead of silently
+                // dropping older or oversized backups.
+                final com.quantumcoinwallet.app.backup.CloudBackupManager.ScanOutcome scan =
                         com.quantumcoinwallet.app.backup.CloudBackupManager
-                                .scanQualifyingBackups(ctx, folderUri);
+                                .scanQualifyingBackupsWithOutcome(ctx, folderUri);
+                final List<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> candidates =
+                        scan.candidates;
                 if (getActivity() == null) return;
                 getActivity().runOnUiThread(new Runnable() {
                     @Override
@@ -1950,7 +2758,22 @@ public class HomeWalletFragment extends Fragment {
                                     jsonViewModel.getRestoreNoBackupsFoundByLangValues());
                             return;
                         }
+                        if (scan.truncatedByCandidateCap || scan.oversizedFilesSkipped > 0) {
+                            // Best-effort heads-up so a power user
+                            // whose folder hit the caps knows to
+                            // narrow the picker selection. Logged
+                            // verbatim regardless of locale because
+                            // this is a rare diagnostic path; product
+                            // can lift this into the language values
+                            // later if needed.
+                            timber.log.Timber.w("restore scan truncated: shown=%d, total=%d, oversizedSkipped=%d, byCandidateCap=%b",
+                                    candidates.size(),
+                                    scan.totalDotWalletFilesSeen,
+                                    scan.oversizedFilesSkipped,
+                                    scan.truncatedByCandidateCap);
+                        }
                         firstRestoredIndexKey = null;
+                        clearPendingStrongboxPassword();
                         final List<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> pending =
                                 new ArrayList<>();
                         final List<String> restored = new ArrayList<>();
@@ -1967,7 +2790,34 @@ public class HomeWalletFragment extends Fragment {
                         }
                         // When every scanned file is already imported, skip the password
                         // dialog entirely and jump straight to the summary.
-                        runBatchedRestorePass(pending, restored, alreadyExists, skipped);
+                        if (pending.isEmpty()) {
+                            runBatchedRestorePass(pending, restored, alreadyExists, skipped);
+                            return;
+                        }
+                        // Item 10 / iOS RestoreFlow.bootstrapOrUnlock parity: gate the
+                        // backup-password batch dialog on a one-shot strongbox-unlock
+                        // (or create) prompt when the strongbox is locked / uninitialized.
+                        // Decouples the per-file backup password from the strongbox
+                        // unlock password so a user whose two passwords differ can still
+                        // complete the restore.
+                        ensureStrongboxReadyForRestore(new Runnable() {
+                            @Override
+                            public void run() {
+                                runBatchedRestorePass(pending, restored, alreadyExists, skipped);
+                            }
+                        }, new Runnable() {
+                            @Override
+                            public void run() {
+                                // User canceled the strongbox-unlock prompt: treat all
+                                // pending candidates as skipped and surface the summary
+                                // (consistent with `BackupPasswordDialog.onCanceled`).
+                                for (com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate c : pending) {
+                                    skipped.add(c.address);
+                                }
+                                pending.clear();
+                                showRestoreSummaryDialog(restored, alreadyExists, skipped);
+                            }
+                        });
                     }
                 });
             }
@@ -1988,6 +2838,8 @@ public class HomeWalletFragment extends Fragment {
             final List<String> skipped) {
         if (getContext() == null) return;
         if (pending.isEmpty()) {
+            // Wipe the cached strongbox password as soon as the batch finishes.
+            clearPendingStrongboxPassword();
             showRestoreSummaryDialog(restored, alreadyExists, skipped);
             return;
         }
@@ -2009,9 +2861,255 @@ public class HomeWalletFragment extends Fragment {
                             skipped.add(c.address);
                         }
                         pending.clear();
+                        clearPendingStrongboxPassword();
                         showRestoreSummaryDialog(restored, alreadyExists, skipped);
                     }
                 });
+    }
+
+    /**
+     * One-shot pre-batch prompt that captures the strongbox-write
+     * password into {@link #pendingStrongboxPassword} for the rest
+     * of the restore session.
+     *
+     * <p>The dialog is shown unconditionally — even when the
+     * strongbox is already unlocked — because the per-file BACKUP
+     * password (collected later in
+     * {@link com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog})
+     * can legitimately differ from the device's strongbox
+     * password (see {@link com.quantumcoinwallet.app.backup.BackupExecutor}
+     * which lets the user pick any backup password at export time).
+     * Falling back to "use the backup password as the strongbox
+     * password when unlocked" produced a silent failure: every file
+     * decrypted correctly, then the very first
+     * {@code coordinator.persist} threw {@code WrongPasswordException}
+     * and the loop short-circuited with "no wallets decrypted",
+     * even though the backup password was correct.</p>
+     *
+     * <ul>
+     *   <li>Strongbox uninitialized (fresh install) → user enters a
+     *       new password, {@code createMainKey} runs, password is
+     *       cached.</li>
+     *   <li>Strongbox initialized but locked → user enters the
+     *       device password, {@code unlock} runs, password is
+     *       cached.</li>
+     *   <li>Strongbox already unlocked → user enters the device
+     *       password, the cheap {@code verifyPassword} validates
+     *       it without churning live state, password is cached.</li>
+     * </ul>
+     *
+     * <p>All three paths feed the same brute-force limiter
+     * ({@code UnlockAttemptLimiter.STRONGBOX_UNLOCK}).</p>
+     */
+    private void ensureStrongboxReadyForRestore(@NonNull final Runnable onReady,
+                                                @NonNull final Runnable onCancel) {
+        final Context ctx = getContext();
+        if (ctx == null) {
+            onCancel.run();
+            return;
+        }
+        SecureStorage secureStorage = KeyViewModel.getSecureStorage();
+        showStrongboxRestoreUnlockDialog(secureStorage, onReady, onCancel);
+    }
+
+    /** Build and show the strongbox unlock/create dialog used by
+     *  {@link #ensureStrongboxReadyForRestore}. The dialog uses the standard
+     *  {@code R.layout.unlock_dialog_fragment} for visual parity with the
+     *  HomeActivity / WalletsFragment unlock dialogs. */
+    private void showStrongboxRestoreUnlockDialog(@NonNull final SecureStorage secureStorage,
+                                                  @NonNull final Runnable onReady,
+                                                  @NonNull final Runnable onCancel) {
+        final Context ctx = getContext();
+        if (ctx == null) {
+            onCancel.run();
+            return;
+        }
+        try {
+            final androidx.appcompat.app.AlertDialog dialog =
+                    new androidx.appcompat.app.AlertDialog.Builder(ctx)
+                            .setTitle((CharSequence) "")
+                            .setView((int) R.layout.unlock_dialog_fragment)
+                            .create();
+            dialog.dismiss();
+            dialog.setCancelable(false);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(
+                                android.graphics.Color.TRANSPARENT));
+            }
+            dialog.show();
+
+            final TextView unlockWalletTextView = (TextView) dialog
+                    .findViewById(R.id.textView_unlock_langValues_unlock_wallet);
+            final TextView unlockPasswordTextView = (TextView) dialog
+                    .findViewById(R.id.textView_unlock_langValues_enter_wallet_password);
+            final EditText passwordEditText = (EditText) dialog
+                    .findViewById(R.id.editText_unlock_langValues_enter_a_password);
+            com.quantumcoinwallet.app.security.CredentialIdentifier.apply(
+                    passwordEditText,
+                    com.quantumcoinwallet.app.security.CredentialIdentifier.Context.STRONGBOX_UNLOCK,
+                    null);
+            android.view.ViewGroup unlockRoot = (android.view.ViewGroup)
+                    dialog.findViewById(R.id.linear_layout_unlock_content);
+            if (unlockRoot != null) {
+                com.quantumcoinwallet.app.security.CredentialIdentifier.attachUsernameField(
+                        unlockRoot,
+                        com.quantumcoinwallet.app.security.CredentialIdentifier
+                                .strongboxUsername(ctx));
+            }
+            final Button unlockButton = (Button) dialog
+                    .findViewById(R.id.button_unlock_langValues_unlock);
+            final Button closeButton = (Button) dialog
+                    .findViewById(R.id.button_unlock_langValues_close);
+
+            unlockWalletTextView.setText(jsonViewModel.getUnlockWalletByLangValues());
+            unlockPasswordTextView.setText(jsonViewModel.getEnterQuantumWalletPasswordByLangValues());
+            passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
+            GlobalMethods.focusAndShowKeyboard(passwordEditText, dialog);
+            unlockButton.setText(jsonViewModel.getUnlockByLangValues());
+            closeButton.setText(jsonViewModel.getCloseByLangValues());
+            // The strongbox unlock for restore is OPTIONAL — the user may
+            // legitimately back out before any backup file has been touched.
+            com.quantumcoinwallet.app.view.dialog.UnlockDialogs.applyMandatory(
+                    dialog, false);
+            unlockButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    final String password = passwordEditText.getText().toString();
+                    if (password == null || password.isEmpty()) {
+                        GlobalMethods.ShowErrorDialog(ctx,
+                                jsonViewModel.getErrorTitleByLangValues(),
+                                jsonViewModel.getEnterApasswordByLangValues());
+                        return;
+                    }
+                    unlockButton.setEnabled(false);
+                    closeButton.setEnabled(false);
+                    passwordEditText.setEnabled(false);
+                    runStrongboxRestoreUnlock(secureStorage, password, dialog,
+                            unlockButton, closeButton, passwordEditText, onReady, onCancel);
+                }
+            });
+            closeButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    try { dialog.dismiss(); } catch (Throwable ignore) { }
+                    onCancel.run();
+                }
+            });
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(ctx, TAG, e);
+            onCancel.run();
+        }
+    }
+
+    /** Background-thread strongbox unlock/create for the restore prompt.
+     *  Honors {@link com.quantumcoinwallet.app.security.UnlockAttemptLimiter}
+     *  brute-force gating so the restore path cannot be used to brute-force
+     *  the strongbox password without backoff. */
+    private void runStrongboxRestoreUnlock(
+            @NonNull final SecureStorage secureStorage,
+            @NonNull final String password,
+            @NonNull final androidx.appcompat.app.AlertDialog dialog,
+            @NonNull final Button unlockButton,
+            @NonNull final Button closeButton,
+            @NonNull final EditText passwordEditText,
+            @NonNull final Runnable onReady,
+            @NonNull final Runnable onCancel) {
+        final Context ctx = getContext();
+        if (ctx == null) {
+            onCancel.run();
+            return;
+        }
+        final com.quantumcoinwallet.app.view.dialog.WaitDialog.Handle waitHandle =
+                com.quantumcoinwallet.app.view.dialog.WaitDialog.showWithDetails(
+                        ctx, jsonViewModel.getWaitUnlockByLangValues());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                boolean success = false;
+                String lockoutMessage = null;
+                try {
+                    com.quantumcoinwallet.app.security.UnlockAttemptLimiter.Decision lim =
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .currentDecision(ctx);
+                    if (lim.kind == com.quantumcoinwallet.app.security
+                            .UnlockAttemptLimiter.DecisionKind.LOCKED) {
+                        lockoutMessage = com.quantumcoinwallet.app.security
+                                .UnlockAttemptLimiter.userFacingLockoutMessage(lim.remainingSeconds, jsonViewModel);
+                    } else if (!secureStorage.isInitialized(ctx)) {
+                        secureStorage.createMainKey(ctx, password);
+                        success = true;
+                        com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                .recordSuccess(ctx,
+                                        com.quantumcoinwallet.app.security
+                                                .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
+                    } else if (secureStorage.isUnlocked()) {
+                        // Strongbox already unlocked from an earlier
+                        // session activity (e.g. the user came in
+                        // from the wallets screen). Use the cheap
+                        // verify-only path so we don't churn live
+                        // unlock state, but still pay the scrypt cost
+                        // — this is a brute-force-sensitive surface.
+                        success = secureStorage.verifyPassword(ctx, password);
+                        if (success) {
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .recordSuccess(ctx,
+                                            com.quantumcoinwallet.app.security
+                                                    .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
+                        } else {
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .recordFailure(ctx,
+                                            com.quantumcoinwallet.app.security
+                                                    .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
+                        }
+                    } else {
+                        success = secureStorage.unlock(ctx, password);
+                        if (success) {
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .recordSuccess(ctx,
+                                            com.quantumcoinwallet.app.security
+                                                    .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
+                        } else {
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .recordFailure(ctx,
+                                            com.quantumcoinwallet.app.security
+                                                    .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
+                        }
+                    }
+                } catch (Exception e) {
+                    com.quantumcoinwallet.app.Logger.e(TAG, "restore strongbox unlock failed", e);
+                }
+                final boolean finalSuccess = success;
+                final String finalLockoutMessage = lockoutMessage;
+                if (getActivity() == null) return;
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try { waitHandle.dismiss(); } catch (Throwable ignore) { }
+                        if (finalSuccess) {
+                            pendingStrongboxPassword = password;
+                            try { dialog.dismiss(); } catch (Throwable ignore) { }
+                            onReady.run();
+                            return;
+                        }
+                        // Re-enable the dialog so the user can retry.
+                        // Preserve the typed password (do NOT clear) so
+                        // a one-character typo can be fixed without
+                        // retyping the whole string. Mirrors SendFragment.
+                        unlockButton.setEnabled(true);
+                        closeButton.setEnabled(true);
+                        passwordEditText.setEnabled(true);
+                        passwordEditText.requestFocus();
+                        String errorMessage = finalLockoutMessage != null
+                                ? finalLockoutMessage
+                                : jsonViewModel.getWalletPasswordMismatchByErrors();
+                        GlobalMethods.ShowErrorDialog(ctx,
+                                jsonViewModel.getErrorTitleByLangValues(),
+                                errorMessage);
+                    }
+                });
+            }
+        }).start();
     }
 
     private void attemptBatchDecrypt(
@@ -2025,53 +3123,67 @@ public class HomeWalletFragment extends Fragment {
         if (ctx == null) return;
         final int before = pending.size();
         final int restoredBefore = restored.size();
-        final String overlayTitle = jsonViewModel.getWaitWalletOpenByLangValues();
+        final String overlayTitle = jsonViewModel.getRestoreWalletsDecryptingByLangValues();
         final com.quantumcoinwallet.app.view.dialog.WaitDialog.Handle overlay =
                 com.quantumcoinwallet.app.view.dialog.WaitDialog.showWithDetails(
                         ctx, overlayTitle == null ? "" : overlayTitle);
         final String progressTemplate = jsonViewModel.getRestoreProgressOfByLangValues();
+        // Holder for a fatal restore error (e.g. strongbox-write rejected
+        // the cached strongbox password). Set inside the worker thread,
+        // read on the UI thread to decide whether to show the misleading
+        // "try a different password" prompt or the precise error dialog.
+        final String[] fatalRestoreErrorRef = new String[]{null};
         new Thread(new Runnable() {
             @Override
             public void run() {
+                String fatalRestoreError = null;
                 try {
                     SecureStorage secureStorage = KeyViewModel.getSecureStorage();
                     if (secureStorage == null) {
                         throw new IllegalStateException("SecureStorage unavailable");
                     }
-                    // Mirror the create-wallet flow (HomeWalletFragment L1097-1104): on a
-                    // fresh install the restore screen is the first touch of SecureStorage,
-                    // so the backup password also bootstraps the app's main key. If
-                    // SecureStorage is already initialized but locked (e.g. opened from
-                    // the "add wallet" path after an idle timeout) try to unlock with the
-                    // same password so the iteration below has a usable key.
-                    if (!secureStorage.isInitialized(getContext())) {
-                        secureStorage.createMainKey(getContext(), password);
+                    // Strongbox unlock/verify is handled BEFORE this method
+                    // runs, by ensureStrongboxReadyForRestore (called from
+                    // showRestoreCloudFilePicker). At this point the
+                    // strongbox is guaranteed to be unlocked AND
+                    // pendingStrongboxPassword is guaranteed to be non-null
+                    // (the user proved they know the device's strongbox
+                    // password). The {@code password} argument here is the
+                    // per-file BACKUP password and is used only for
+                    // {@code CloudBackupManager.decryptWallet}; never as a
+                    // strongbox-write password (the previous "fall back to
+                    // backup password when already unlocked" silently failed
+                    // every restore where the user had picked a backup
+                    // password different from their device password — see
+                    // BackupExecutor which lets these legitimately differ).
+                    if (pendingStrongboxPassword == null) {
+                        throw new IllegalStateException(
+                                "pendingStrongboxPassword missing — "
+                                        + "ensureStrongboxReadyForRestore was bypassed");
                     }
-                    if (!secureStorage.isUnlocked()) {
-                        secureStorage.unlock(getContext(), password);
-                    }
-                    if (!secureStorage.isUnlocked()) {
-                        // Wrong app-level password: keep every entry in pending, dismiss
-                        // the overlay, surface the "try a different password" error, and
-                        // then re-enable the password dialog for another attempt.
-                        if (getActivity() != null) {
-                            getActivity().runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    overlay.dismiss();
-                                    GlobalMethods.ShowMessageDialog(getContext(),
-                                            jsonViewModel.getErrorTitleByLangValues(),
-                                            jsonViewModel.getRestoreTryDifferentPasswordByLangValues(),
-                                            new Runnable() {
-                                                @Override
-                                                public void run() { control.reEnable(); }
-                                            });
-                                }
-                            });
-                        }
-                        return;
-                    }
+                    final String strongboxWritePassword = pendingStrongboxPassword;
                     int attemptIndex = 0;
+                    // Brute-force-limiter accounting:
+                    //
+                    // Per-pass policy (codified here so the
+                    // BackupPasswordDialog `currentDecision()` gate
+                    // is actually fed by both ends):
+                    //   * one submitted password counts as ONE
+                    //     limiter event regardless of how many
+                    //     candidates the loop iterates;
+                    //   * if the password decrypts >=1 candidate
+                    //     (including duplicates that get folded into
+                    //     `alreadyExists`) the password is
+                    //     CONFIRMED-CORRECT and we
+                    //     `recordSuccess(BACKUP_DECRYPT)` to clear
+                    //     the stair-step counter for the next
+                    //     legitimate user;
+                    //   * if it decrypts ZERO candidates we
+                    //     `recordFailure(BACKUP_DECRYPT)`.
+                    // Without these calls the documented
+                    // BACKUP_DECRYPT channel was never incremented,
+                    // defeating the limiter on the restore path.
+                    int successfulDecryptsThisPass = 0;
                     Iterator<com.quantumcoinwallet.app.backup.CloudBackupManager.BackupCandidate> it =
                             pending.iterator();
                     while (it.hasNext()) {
@@ -2095,14 +3207,42 @@ public class HomeWalletFragment extends Fragment {
                                 }
                             });
                         }
+                        // Lazy-load the ciphertext for THIS
+                        // candidate only. The scan does not cache
+                        // encryptedJson on every BackupCandidate, so
+                        // a folder with hundreds of backups never
+                        // has more than one ciphertext resident at a
+                        // time. The local `cipher` reference is
+                        // dropped at end-of-iteration so GC can
+                        // reclaim the bytes immediately.
+                        String cipher;
+                        try {
+                            cipher = com.quantumcoinwallet.app.backup.CloudBackupManager
+                                    .loadEncryptedJson(getContext(), c);
+                        } catch (Exception readErr) {
+                            timber.log.Timber.w(readErr,
+                                    "lazy load failed for %s", c.address);
+                            continue;
+                        }
                         com.quantumcoinwallet.app.backup.CloudBackupManager.DecryptedWallet dw;
                         try {
                             dw = com.quantumcoinwallet.app.backup.CloudBackupManager
-                                    .decryptWallet(c.encryptedJson, password);
+                                    .decryptWallet(cipher, password);
                         } catch (Exception decryptErr) {
                             continue;
+                        } finally {
+                            // Help GC reclaim ciphertext bytes ASAP so
+                            // they don't pile up across iterations even
+                            // if the runtime delays a collection.
+                            cipher = null;
                         }
                         if (dw == null || dw.address == null) continue;
+                        // Confirmed-correct password for this
+                        // candidate (decrypt + non-null address). Count
+                        // even the alreadyExists branch below — the
+                        // password did decrypt the file, the wallet
+                        // simply already lives in the index.
+                        successfulDecryptsThisPass++;
 
                         if (PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP != null
                                 && PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.containsKey(dw.address)) {
@@ -2126,8 +3266,35 @@ public class HomeWalletFragment extends Fragment {
                         }
                         walletJson.put("seed", seedJoined);
 
-                        secureStorage.saveWallet(getContext(), newIndex, walletJson.toString());
-                        secureStorage.setMaxWalletIndex(getContext(), newIndex);
+                        // Strongbox writes require the device's strongbox
+                        // password (NOT the per-file backup password).
+                        // ensureStrongboxReadyForRestore validated
+                        // strongboxWritePassword up-front via verifyPassword,
+                        // so a WrongPasswordException here is an invariant
+                        // violation — surface it loudly and abort the batch
+                        // instead of silently dropping the user into the
+                        // misleading "try a different backup password" prompt.
+                        try {
+                            secureStorage.saveWallet(getContext(), newIndex,
+                                    walletJson.toString(), strongboxWritePassword);
+                        } catch (com.quantumcoinwallet.app.keystorage.WrongPasswordException wpe) {
+                            timber.log.Timber.e(wpe,
+                                    "Restore strongbox-write rejected the cached "
+                                            + "strongbox password (invariant violation)");
+                            // Roll the per-pass counter back so we don't
+                            // falsely tell the limiter the batch made
+                            // progress.
+                            successfulDecryptsThisPass--;
+                            fatalRestoreError = jsonViewModel
+                                    .getRestoreStrongboxWriteFailedByLangValues();
+                            if (fatalRestoreError == null || fatalRestoreError.isEmpty()) {
+                                fatalRestoreError = "Restore failed: the wallet "
+                                        + "could not be saved to your device's wallet "
+                                        + "store. Please try again from the Wallets "
+                                        + "screen after unlocking.";
+                            }
+                            break;
+                        }
 
                         PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.put(dw.address, indexKey);
                         PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.put(indexKey, dw.address);
@@ -2140,15 +3307,74 @@ public class HomeWalletFragment extends Fragment {
                         restored.add(dw.address);
                         it.remove();
                     }
+                    // Feed the BackupPasswordDialog gate. The
+                    // `before > 0` guard guarantees we never count a
+                    // pass over an empty pending list against the user.
+                    if (before > 0) {
+                        if (successfulDecryptsThisPass > 0) {
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .recordSuccess(getContext(),
+                                            com.quantumcoinwallet.app.security
+                                                    .UnlockAttemptLimiter.Channel.BACKUP_DECRYPT);
+                        } else {
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .recordFailure(getContext(),
+                                            com.quantumcoinwallet.app.security
+                                                    .UnlockAttemptLimiter.Channel.BACKUP_DECRYPT);
+                        }
+                    }
                 } catch (Exception e) {
                     timber.log.Timber.e(e, "Batched restore failed");
+                    if (fatalRestoreError == null) {
+                        // Unexpected failure outside the per-wallet
+                        // try/catch (e.g. context loss, OOM). Surface
+                        // it explicitly so the user is not left with
+                        // the misleading "try a different password"
+                        // dialog.
+                        String tmpl = jsonViewModel.getBackupFailedByLangValues();
+                        fatalRestoreError = tmpl != null
+                                ? tmpl.replace("[ERROR]",
+                                        e.getMessage() == null ? "" : e.getMessage())
+                                : ("Restore failed: "
+                                        + (e.getMessage() == null ? "" : e.getMessage()));
+                    }
                 }
+                fatalRestoreErrorRef[0] = fatalRestoreError;
                 if (getActivity() == null) return;
                 getActivity().runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         overlay.dismiss();
                         markActivityUnlocked();
+                        // Fatal error path takes precedence over partial-progress
+                        // / no-progress UX so the user sees a precise diagnosis
+                        // instead of being asked to retype a password that's
+                        // already correct.
+                        if (fatalRestoreErrorRef[0] != null) {
+                            GlobalMethods.ShowMessageDialog(getContext(),
+                                    jsonViewModel.getErrorTitleByLangValues(),
+                                    fatalRestoreErrorRef[0],
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            // Move every still-pending candidate
+                                            // into skipped so the summary is
+                                            // accurate, then close the password
+                                            // dialog and show it.
+                                            for (com.quantumcoinwallet.app.backup
+                                                    .CloudBackupManager.BackupCandidate c2
+                                                    : pending) {
+                                                skipped.add(c2.address);
+                                            }
+                                            pending.clear();
+                                            control.dismiss();
+                                            clearPendingStrongboxPassword();
+                                            showRestoreSummaryDialog(restored,
+                                                    alreadyExists, skipped);
+                                        }
+                                    });
+                            return;
+                        }
                         if (pending.size() < before) {
                             // At least one wallet was moved out of pending this pass.
                             final int restoredDelta = restored.size() - restoredBefore;
@@ -2357,8 +3583,8 @@ public class HomeWalletFragment extends Fragment {
                     }
                     walletJson.put("seed", seedJoined);
 
-                    secureStorage.saveWallet(getContext(), newIndex, walletJson.toString());
-                    secureStorage.setMaxWalletIndex(getContext(), newIndex);
+                    secureStorage.saveWallet(getContext(), newIndex, walletJson.toString(),
+                            backupPassword);
 
                     PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP.put(dw.address, indexKey);
                     PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.put(indexKey, dw.address);
@@ -2366,6 +3592,15 @@ public class HomeWalletFragment extends Fragment {
                     PrefConnect.writeBoolean(getContext(),
                             PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, hasSeed);
                     PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
+
+                    // Confirmed-correct backup password — clear
+                    // any stair-step counter accumulated by prior wrong
+                    // guesses on either the BACKUP_DECRYPT or the
+                    // STRONGBOX_UNLOCK channel (they share state).
+                    com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                            .recordSuccess(getContext(),
+                                    com.quantumcoinwallet.app.security
+                                            .UnlockAttemptLimiter.Channel.BACKUP_DECRYPT);
 
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
@@ -2378,7 +3613,23 @@ public class HomeWalletFragment extends Fragment {
                         }
                     });
                 } catch (final Exception e) {
-                    android.util.Log.e(TAG, "Restore decrypt failed", e);
+                    com.quantumcoinwallet.app.Logger.e(TAG, "Restore decrypt failed", e);
+                    // Catch covers wrong-password (the dominant
+                    // failure mode here — the user-visible message
+                    // explicitly says "Enter a different password") as
+                    // well as decrypt-returned-empty and storage failures.
+                    // Recording on BACKUP_DECRYPT also covers the
+                    // bootstrap-unlock case in the try block above
+                    // (`secureStorage.unlock(... backupPassword)`) since
+                    // an unlock-failure would land here via the
+                    // "SecureStorage is locked" throw. Rare false
+                    // positives (e.g. disk-full storage failures) cost
+                    // the user one extra throttle increment, which the
+                    // limiter clears on the next successful unlock.
+                    com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                            .recordFailure(getContext(),
+                                    com.quantumcoinwallet.app.security
+                                            .UnlockAttemptLimiter.Channel.BACKUP_DECRYPT);
                     getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             if (waitDlg != null) try { waitDlg.dismiss(); } catch (Throwable ignore) { }

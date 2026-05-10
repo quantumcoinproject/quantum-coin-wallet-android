@@ -1,0 +1,12 @@
+{
+  "pageCount": 1,
+  "items": [
+    {
+      "contractAddress": "0xe8ea8beb86e714ef2bde0afac17d6e45d1c35e48f312d6dc12c4fdb90d9e8a3d",
+      "tokenBalance": "0x056bc75e2d63100000",
+      "name": "Heisen",
+      "symbol": "HEISEN",
+      "decimals": 18
+    }
+  ]
+}

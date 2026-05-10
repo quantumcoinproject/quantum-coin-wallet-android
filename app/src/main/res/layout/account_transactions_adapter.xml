@@ -69,7 +69,9 @@
             android:id="@+id/textView_account_transactions_adapter_date"
             android:layout_width="220dp"
             android:layout_height="match_parent"
-            android:gravity="center"
+            android:gravity="center_vertical|start"
+            android:paddingStart="8dp"
+            android:paddingEnd="4dp"
             android:textSize="11dp" />
 
         <View

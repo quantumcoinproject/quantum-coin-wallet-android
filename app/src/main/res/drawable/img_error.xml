@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Error variant for MessageInformationDialogFragment.error(...).
+
+    iOS surfaces error modals with an orange warning triangle so the
+    user can immediately distinguish recoverable info from a real
+    failure. We mirror that affordance here. The colour
+    @color/colorCommon8 is the shared "warning orange" already used
+    by the Android theme; re-using it keeps the two themes aligned
+    without introducing a new palette entry.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="50dp"
+    android:height="50dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#F2994A">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M1,21h22L12,2 1,21zM13,18h-2v-2h2v2zM13,14h-2v-4h2v4z" />
+</vector>

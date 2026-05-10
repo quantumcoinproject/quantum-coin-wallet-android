@@ -82,7 +82,8 @@ public class HomeActivity extends FragmentActivity implements
         SendFragment.OnSendCompleteListener, ReceiveFragment.OnReceiveCompleteListener,
         AccountTransactionsFragment.OnAccountTransactionsCompleteListener, WalletsFragment.OnWalletsCompleteListener,
         SettingsFragment.OnSettingsCompleteListener,
-        RevealWalletFragment.OnRevealWalletCompleteListener {
+        RevealWalletFragment.OnRevealWalletCompleteListener,
+        com.quantumcoinwallet.app.view.fragment.BackupOptionsFragment.OnBackupOptionsCompleteListener {
 
     private static final String TAG = "HomeActivity";
     private static final long UNLOCK_TIMEOUT_MS = 300_000;
@@ -92,7 +93,7 @@ public class HomeActivity extends FragmentActivity implements
     private boolean unlockDialogShowing = false;
     private boolean suppressNextResumeLock = false;
 
-    // L-09: in-foreground idle-lock. The onResume elapsed-time check is
+    // In-foreground idle-lock. The onResume elapsed-time check is
     // second line of defence; the timer runs continuously while the
     // Activity is resumed and fires lock + unlock prompt at UNLOCK_TIMEOUT_MS
     // of user-interaction inactivity.
@@ -143,6 +144,9 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // FLAG_SECURE blocks the framework's screenshot, screen
+        // recording, and recents-thumbnail capture for this Window.
+        // Mirrors the iOS UIScreen.captured guard.
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,
                 WindowManager.LayoutParams.FLAG_SECURE);
         try {
@@ -158,6 +162,26 @@ public class HomeActivity extends FragmentActivity implements
             jsonViewModel = new JsonViewModel(getApplicationContext(),languageKey);
 
             setContentView(R.layout.home_activity);
+
+            // Bootstrap the tamper gate BEFORE the JS bridge
+            // is initialized. This populates the probe cache and
+            // verifies the bundle hash; if the bundle is tampered the
+            // bridge initialization below will see the cached failure
+            // and refuse to start. The user-facing dialog (one-time
+            // consent / ignore-and-resume) is surfaced afterwards by
+            // TamperGatePolicy.apply(...) so the user sees an
+            // explicit warning rather than a silent refusal.
+            try {
+                com.quantumcoinwallet.app.security.TamperGate.bootstrap(
+                        getApplicationContext());
+                com.quantumcoinwallet.app.security.TamperGate.TamperReport report =
+                        com.quantumcoinwallet.app.security.TamperGate.currentReport();
+                com.quantumcoinwallet.app.security.TamperGatePolicy.apply(
+                        HomeActivity.this, report, jsonViewModel);
+            } catch (Throwable t) {
+                // Probes must never crash the app; a bug in the gate
+                // would otherwise lock every user out of their funds.
+            }
 
             KeyViewModel.initBridge(getApplicationContext());
 
@@ -225,25 +249,47 @@ public class HomeActivity extends FragmentActivity implements
                 createNotificationChannel();
             }
 
-            int storedNetworkIndex = PrefConnect.readInteger(getApplicationContext(),
-                    PrefConnect.BLOCKCHAIN_NETWORK_ID_INDEX_KEY, 0);
+            int storedNetworkIndex = com.quantumcoinwallet.app.utils.NetworkPersistence
+                    .readActiveIndex(getApplicationContext(),
+                            com.quantumcoinwallet.app.viewmodel.KeyViewModel
+                                    .getSecureStorage());
 
             List<BlockchainNetwork> blockchainNetworkList = GlobalMethods.BlockChainNetworkRead(getApplicationContext());
             int maxNetworkIdx = Math.max(0, blockchainNetworkList.size() - 1);
-            final int blockchainNetworkIdIndex = Math.max(0, Math.min(storedNetworkIndex, maxNetworkIdx));
-            if (blockchainNetworkIdIndex != storedNetworkIndex) {
-                android.util.Log.w(TAG, "Stored network index out of range; clamped to " + blockchainNetworkIdIndex);
+            int initialIdx = Math.max(0, Math.min(storedNetworkIndex, maxNetworkIdx));
+            if (initialIdx != storedNetworkIndex) {
+                com.quantumcoinwallet.app.Logger.w(TAG, "Stored network index out of range; clamped to " + initialIdx);
+                // Persist the clamped value to legacy prefs only.
+                // The strongbox path requires the user password to
+                // re-derive mainKey on persist; at cold start we
+                // do not have it and the strongbox is typically
+                // locked anyway. The next unlock-time migration
+                // (NetworkPersistence.migrateLegacyOnUnlockIfNeeded)
+                // moves this value into the strongbox.
                 PrefConnect.writeInteger(getApplicationContext(),
-                        PrefConnect.BLOCKCHAIN_NETWORK_ID_INDEX_KEY, blockchainNetworkIdIndex);
+                        PrefConnect.BLOCKCHAIN_NETWORK_ID_INDEX_KEY,
+                        initialIdx);
             }
-            BlockchainNetwork blockchainNetwork = blockchainNetworkList.get(blockchainNetworkIdIndex);
+            BlockchainNetwork blockchainNetwork = blockchainNetworkList.get(initialIdx);
             GlobalMethods.setActiveNetwork(blockchainNetwork);
 
             blockChainNetworkTextView.setText(GlobalMethods.BLOCKCHAIN_NAME);
 
             blockChainNetworkTextView.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    bundle.putString("blockchainNetworkIdIndex", String.valueOf(blockchainNetworkIdIndex));
+                    // Recompute the active index from authoritative
+                    // storage on EVERY open of the dialog so a
+                    // network switch reopened a moment later still
+                    // shows the correct radio as selected. Capturing
+                    // initialIdx in a final at activity-create time
+                    // (the prior behavior) meant the dialog kept
+                    // showing the cold-start network as active even
+                    // after a switch.
+                    int currentIdx = com.quantumcoinwallet.app.utils.NetworkPersistence
+                            .readActiveIndex(getApplicationContext(),
+                                    com.quantumcoinwallet.app.viewmodel.KeyViewModel
+                                            .getSecureStorage());
+                    bundle.putString("blockchainNetworkIdIndex", String.valueOf(currentIdx));
 
                     BlockchainNetworkDialogFragment blockChainDialogFragment = BlockchainNetworkDialogFragment.newInstance();
                     blockChainDialogFragment.setCancelable(false);
@@ -255,7 +301,7 @@ public class HomeActivity extends FragmentActivity implements
             //Center buttons setOnClickListener
             copyClipboardImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    // L-05: IS_SENSITIVE so Android 13+ clipboard previews
+                    // IS_SENSITIVE so Android 13+ clipboard previews
                     // do not render the full address.
                     com.quantumcoinwallet.app.utils.SecureClipboard.copyAddress(
                             HomeActivity.this, "currentAddress",
@@ -272,15 +318,21 @@ public class HomeActivity extends FragmentActivity implements
 
             blockExploreImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    startActivity(new Intent(Intent.ACTION_VIEW,
-                            Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", walletAddressTextView.getText())))
-                    );
+                    // Route through UrlBuilder so the address is
+                    // regex-validated and percent-encoded before
+                    // pivoting the user into the system browser.
+                    Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                            .blockExplorerAccountUrl(
+                                    walletAddressTextView.getText() == null ? null
+                                            : walletAddressTextView.getText().toString());
+                    if (u == null) return;
+                    startActivity(new Intent(Intent.ACTION_VIEW, u));
                 }
             });
 
             refreshImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
+                    performHomeRefresh();
                 }
             });
 
@@ -325,16 +377,6 @@ public class HomeActivity extends FragmentActivity implements
                             }
                         }
                         return true;
-                    } else if (id == R.id.nav_help) {
-                        startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(GlobalMethods.DP_DOCS_URL))
-                        );
-                        return true;
-                    } else if (id == R.id.nav_block_explorer) {
-                        startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL))
-                        );
-                        return true;
                     } else if (id == R.id.nav_settings) {
                         screenViewType(1);
                         beginTransactionNow(SettingsFragment.newInstance(), bundle);
@@ -374,19 +416,51 @@ public class HomeActivity extends FragmentActivity implements
         if (unlockDialogShowing) {
             return;
         }
+        // OS / hardware back must follow the SAME path as the in-app
+        // back-arrow ImageButton on each fragment. The previous
+        // implementation collapsed every secondary screen straight to
+        // HomeMainFragment, so e.g. Settings -> Networks -> OS-back
+        // would jump past Settings to Home, while the in-app arrow
+        // correctly went Networks -> Settings. Each branch below
+        // delegates to the very same listener callback the in-app
+        // arrow already calls (or, for the multi-step
+        // HomeWalletFragment wizard, to its public handleBackPressed
+        // helper) so the two paths cannot diverge again.
         Fragment current = getSupportFragmentManager().findFragmentById(R.id.frame_home_container_id);
-        if (current instanceof SettingsFragment
-                || current instanceof ReceiveFragment
-                || current instanceof SendFragment
-                || current instanceof AccountTransactionsFragment
-                || current instanceof RevealWalletFragment
-                || current instanceof BlockchainNetworkFragment
-                || current instanceof BlockchainNetworkAddFragment
-                || current instanceof WalletsFragment) {
-            screenViewType(0);
-            beginTransactionNow(HomeMainFragment.newInstance(), bundle);
+        if (current instanceof com.quantumcoinwallet.app.view.fragment.HomeWalletFragment) {
+            com.quantumcoinwallet.app.view.fragment.HomeWalletFragment hw =
+                    (com.quantumcoinwallet.app.view.fragment.HomeWalletFragment) current;
+            if (hw.handleBackPressed()) return;
+        } else if (current instanceof com.quantumcoinwallet.app.view.fragment.BackupOptionsFragment) {
+            onBackupOptionsBack();
+            return;
+        } else if (current instanceof BlockchainNetworkAddFragment) {
+            onBlockchainNetworkAddComplete();
+            return;
+        } else if (current instanceof BlockchainNetworkFragment) {
+            onBlockchainNetworkCompleteByBackArrow();
+            return;
+        } else if (current instanceof RevealWalletFragment) {
+            onRevealWalletComplete();
+            return;
+        } else if (current instanceof SettingsFragment) {
+            onSettingsCompleteCompleteByBackArrow();
+            return;
+        } else if (current instanceof WalletsFragment) {
+            onWalletsCompleteByBackArrow();
+            return;
+        } else if (current instanceof SendFragment) {
+            onSendComplete(null);
+            return;
+        } else if (current instanceof ReceiveFragment) {
+            onReceiveComplete();
+            return;
+        } else if (current instanceof AccountTransactionsFragment) {
+            onAccountTransactionsComplete();
             return;
         }
+        // Top-level (HomeMainFragment / HomeStartFragment) — let
+        // the platform default exit the activity.
         super.onBackPressed();
     }
 
@@ -397,6 +471,50 @@ public class HomeActivity extends FragmentActivity implements
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
+    }
+
+    /**
+     * Canonical "user requested a full home-screen refresh" entry point.
+     * <p>Invoked by both the top-right refresh ImageButton in the wallet
+     * header and the SwipeRefreshLayout pull-to-refresh gesture wrapping
+     * the {@code HomeMainFragment} body, so the two surfaces are
+     * guaranteed to do exactly the same thing.
+     * <p>The work is:
+     * <ol>
+     *   <li>Re-pull the native QC balance via {@code getBalanceByAccount}
+     *       so the on-screen balance number is current.</li>
+     *   <li>Drop the in-memory cached token listing so the next
+     *       {@code HomeMainFragment.refreshTokenList} call cannot serve
+     *       stale entries from {@code GlobalMethods.CURRENT_WALLET_TOKEN_LIST}.</li>
+     *   <li>Broadcast an active-network-changed event so every visible
+     *       Fragment that observes network state (notably HomeMainFragment)
+     *       re-fetches against the current network. This is the same
+     *       broadcast a real network switch raises, which means the
+     *       refresh path is exercised by exactly the wiring that the
+     *       network-switch path already uses.</li>
+     * </ol>
+     * Mirrors the iOS UIRefreshControl target action which also fans out
+     * balance + tokens through a single entry point.
+     */
+    public void performHomeRefresh() {
+        try {
+            // A balance refresh should also invalidate the cached token
+            // list so the user sees fresh balances and any newly arrived
+            // tokens. Mirrors iOS where the refresh action re-pulls coin
+            // balance + tokens together.
+            getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
+            com.quantumcoinwallet.app.events.NetworkChangeBroadcaster
+                    .broadcastActiveNetworkChanged(getApplicationContext());
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    @Override
+    public void onHomeMainRefreshRequested() {
+        performHomeRefresh();
     }
 
     @Override
@@ -441,17 +559,68 @@ public class HomeActivity extends FragmentActivity implements
         }
     }
 
-    @SuppressLint("UnsafeIntentLaunch")
     @Override
     public void onBlockchainNetworkDialogOk() {
         try{
-            // Network switch invalidates the scan-API token cache.
+            // Network switch no longer recreates the activity.
+            // BlockchainNetworkDialogFragment now broadcasts an
+            // ACTION_ACTIVE_NETWORK_CHANGED event via the in-process
+            // NetworkChangeBroadcaster, and live Fragments
+            // (HomeMainFragment, SendFragment, AccountTransactions...)
+            // refresh their balances/tokens in place. We still re-render
+            // any chrome on this activity that depends on the active
+            // network identity (e.g. the network name in the toolbar,
+            // the wallet's native-coin balance, and the token cache).
             GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
             GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
-            finish();
-            startActivity(getIntent());
+            refreshActiveNetworkChrome(/*reloadBalance=*/true);
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+     /**
+     * Re-read the active-network index from authoritative storage
+     * (strongbox first, prefs fallback) and re-render the toolbar
+     * label + global active-network state. Optionally re-fetches the
+     * native-coin balance for the current wallet so the home screen
+     * matches the freshly-selected network.
+     * <p>Two callers:
+     * <ul>
+     *   <li>{@link #onBlockchainNetworkDialogOk()} — after the user
+     *       picks a different network in the network dialog.</li>
+     *   <li>The cold-start unlock-success callback in
+     *       {@link #showUnlockDialog} — at cold start the strongbox
+     *       is locked so {@code readActiveIndex} returns the legacy
+     *       prefs value (which {@code writeActiveIndex} tombstones
+     *       to 0 after a switch). The toolbar would therefore show
+     *       network[0] until the next switch. Refreshing here, once
+     *       the strongbox is unlocked, restores the correct label.</li>
+     * </ul>
+     */
+    private void refreshActiveNetworkChrome(boolean reloadBalance) {
+        try {
+            int idx = com.quantumcoinwallet.app.utils.NetworkPersistence
+                    .readActiveIndex(getApplicationContext(),
+                            com.quantumcoinwallet.app.viewmodel.KeyViewModel
+                                    .getSecureStorage());
+            java.util.List<BlockchainNetwork> nets =
+                    GlobalMethods.BlockChainNetworkRead(getApplicationContext());
+            if (!nets.isEmpty()) {
+                int safe = Math.max(0, Math.min(idx, nets.size() - 1));
+                GlobalMethods.setActiveNetwork(nets.get(safe));
+                if (blockChainNetworkTextView != null) {
+                    blockChainNetworkTextView.setText(GlobalMethods.BLOCKCHAIN_NAME);
+                }
+            }
+            if (reloadBalance
+                    && walletAddress != null && !walletAddress.isEmpty()
+                    && balanceValueTextView != null) {
+                balanceValueTextView.setText("");
+                getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
+            }
+        } catch (Exception e) {
+            timber.log.Timber.w(e, "refresh active network chrome");
         }
     }
 
@@ -543,6 +712,48 @@ public class HomeActivity extends FragmentActivity implements
     }
 
     @Override
+    public void onWalletsCompleteByBackup(String walletAddress, String walletPassword) {
+        try {
+            screenViewType(1);
+            // beginTransactionNow overwrites the fragment's args
+            // with the bundle we pass, so we tunnel the wallet
+            // address and password through the shared activity
+            // bundle the way RevealWalletFragment does.
+            bundle.putString(
+                    com.quantumcoinwallet.app.view.fragment
+                            .BackupOptionsFragment.ARG_ADDRESS, walletAddress);
+            bundle.putString(
+                    com.quantumcoinwallet.app.view.fragment
+                            .BackupOptionsFragment.ARG_PASSWORD, walletPassword);
+            beginTransactionNow(
+                    com.quantumcoinwallet.app.view.fragment.BackupOptionsFragment
+                            .newInstance(),
+                    bundle);
+            // Wipe the password back out of the shared bundle so it
+            // doesn't leak into other fragments' arguments. The
+            // BackupOptionsFragment has already copied the value
+            // into its own field by this point because
+            // beginTransactionNow uses commitNow.
+            bundle.remove(com.quantumcoinwallet.app.view.fragment
+                    .BackupOptionsFragment.ARG_PASSWORD);
+            bundle.remove(com.quantumcoinwallet.app.view.fragment
+                    .BackupOptionsFragment.ARG_ADDRESS);
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    @Override
+    public void onBackupOptionsBack() {
+        try {
+            screenViewType(1);
+            beginTransactionNow(WalletsFragment.newInstance(), bundle);
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    @Override
     public void onSettingsCompleteCompleteByBackArrow() {
         try {
             screenViewType(0);
@@ -575,6 +786,8 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     protected void onResume() {
         super.onResume();
+        // Switch the balance poller to the foreground cadence.
+        balancePollIntervalMs = POLL_FG_MS;
         try {
             if (suppressNextResumeLock) {
                 suppressNextResumeLock = false;
@@ -591,10 +804,44 @@ public class HomeActivity extends FragmentActivity implements
                     && !unlockDialogShowing
                     && (nonMonotonic || elapsed > UNLOCK_TIMEOUT_MS)) {
                 secureStorage.lock();
-                showUnlockDialog(null);
+                // (Android, mirrors iOS deferred presentUnlockGate):
+                // post the show to the next runloop so it cannot
+                // race a concurrent dismiss in onResume's same tick.
+                final SecureStorage ss = secureStorage;
+                getWindow().getDecorView().post(new Runnable() {
+                    @Override public void run() {
+                        try {
+                            if (!unlockDialogShowing
+                                    && ss.isInitialized(getApplicationContext())
+                                    && !ss.isUnlocked()) {
+                                showUnlockDialog(null);
+                            }
+                        } catch (Throwable t) {
+                            // Wrap so it matches GlobalMethods.ExceptionError(Exception)
+                            GlobalMethods.ExceptionError(getApplicationContext(), TAG,
+                                    t instanceof Exception ? (Exception) t : new Exception(t));
+                        }
+                    }
+                });
             } else {
-                // L-09: (re)arm the in-foreground idle-lock timer on every resume.
+                // (Re)arm the in-foreground idle-lock timer on every resume.
                 resetIdleLockTimer();
+                // Safety net: if we are still locked but
+                // somehow have no unlock dialog presented (e.g. the
+                // user backgrounded mid-modal and a competing dismiss
+                // landed), present one now.
+                if (secureStorage != null
+                        && secureStorage.isInitialized(getApplicationContext())
+                        && !secureStorage.isUnlocked()
+                        && !unlockDialogShowing) {
+                    getWindow().getDecorView().post(new Runnable() {
+                        @Override public void run() {
+                            try {
+                                if (!unlockDialogShowing) showUnlockDialog(null);
+                            } catch (Throwable ignore) { }
+                        }
+                    });
+                }
             }
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
@@ -603,9 +850,14 @@ public class HomeActivity extends FragmentActivity implements
 
     @Override
     protected void onPause() {
-        // L-09: stop the timer while we are not foregrounded; onResume will
+        // Stop the timer while we are not foregrounded; onResume will
         // re-evaluate staleness via the elapsed-time check.
         idleLockHandler.removeCallbacks(idleLockRunnable);
+        // Drop balance poll to background cadence so a
+        // backgrounded but not-yet-suspended app stops hammering the
+        // RPC every 10s. Doze + App Standby will eventually freeze
+        // the thread anyway, but this covers the gap before then.
+        balancePollIntervalMs = POLL_BG_MS;
         super.onPause();
     }
 
@@ -618,7 +870,7 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void onUserInteraction() {
         super.onUserInteraction();
-        // L-09: any tap/swipe/key press resets the idle-lock countdown.
+        // Any tap/swipe/key press resets the idle-lock countdown.
         resetIdleLockTimer();
     }
 
@@ -674,6 +926,31 @@ public class HomeActivity extends FragmentActivity implements
             android.widget.EditText passwordEditText = (android.widget.EditText) dialog.findViewById(
                     R.id.editText_unlock_langValues_enter_a_password);
             passwordEditText.setHint(jsonViewModel.getEnterApasswordByLangValues());
+            // Per-context autofill identity for the strongbox unlock
+            // password (no per-wallet discriminator).
+            com.quantumcoinwallet.app.security.CredentialIdentifier.apply(
+                    passwordEditText,
+                    com.quantumcoinwallet.app.security.CredentialIdentifier.Context.STRONGBOX_UNLOCK,
+                    null);
+            // Inject an invisible username field carrying the
+            // strongbox-scoped username so Google Password Manager /
+            // Samsung Pass scopes the autofilled credential to the
+            // correct slot. iOS counterpart is
+            // `UsernameField.make(CredentialIdentifier.strongboxUsername)`.
+            // Look the container up by its stable ID rather than
+            // walking the view tree from the EditText: the EditText is
+            // wrapped by TextInputLayout's internal inputFrame, and
+            // adding an EditText child to a TextInputLayout reroutes
+            // through TextInputLayout.addView(EditText) which clobbers
+            // the inputFrame's LayoutParams and crashes on next measure.
+            android.view.ViewGroup unlockRoot = (android.view.ViewGroup)
+                    dialog.findViewById(R.id.linear_layout_unlock_content);
+            if (unlockRoot != null) {
+                com.quantumcoinwallet.app.security.CredentialIdentifier.attachUsernameField(
+                        unlockRoot,
+                        com.quantumcoinwallet.app.security.CredentialIdentifier
+                                .strongboxUsername(this));
+            }
             GlobalMethods.focusAndShowKeyboard(passwordEditText, dialog);
 
             Button unlockButton = (Button) dialog.findViewById(
@@ -683,7 +960,12 @@ public class HomeActivity extends FragmentActivity implements
             Button closeButton = (Button) dialog.findViewById(
                     R.id.button_unlock_langValues_close);
             closeButton.setText(jsonViewModel.getCloseByLangValues());
-            closeButton.setVisibility(View.GONE);
+            // The home-activity unlock is mandatory —
+            // the user has explicitly tapped a privileged action and
+            // must complete the unlock to proceed. The wrapper hides
+            // the close button and swallows the back key so the
+            // semantics live in exactly one place.
+            com.quantumcoinwallet.app.view.dialog.UnlockDialogs.applyMandatory(dialog, true);
 
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
@@ -704,10 +986,42 @@ public class HomeActivity extends FragmentActivity implements
                     new Thread(new Runnable() {
                         public void run() {
                             try {
+                                // Brute-force gate: refuse to even pay
+                                // scrypt cost when the limiter has us
+                                // locked out. The decision is computed
+                                // on the elapsed-real-time monotonic
+                                // clock so a wall-clock change cannot
+                                // bypass the gate. Mirrors iOS unlock
+                                // path which calls
+                                // UnlockAttemptLimiter.currentDecision()
+                                // before scrypt.
+                                com.quantumcoinwallet.app.security.UnlockAttemptLimiter.Decision lim =
+                                        com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                                .currentDecision(getApplicationContext());
+                                if (lim.kind == com.quantumcoinwallet.app.security.UnlockAttemptLimiter.DecisionKind.LOCKED) {
+                                    final String message = com.quantumcoinwallet.app.security
+                                            .UnlockAttemptLimiter.userFacingLockoutMessage(lim.remainingSeconds, jsonViewModel);
+                                    runOnUiThread(new Runnable() {
+                                        public void run() {
+                                            try { waitDlg.dismiss(); } catch (Throwable ignore) { }
+                                            unlockButton.setEnabled(true);
+                                            passwordEditText.setEnabled(true);
+                                            unlockButton.setText(jsonViewModel.getUnlockByLangValues());
+                                            GlobalMethods.ShowErrorDialog(HomeActivity.this,
+                                                    jsonViewModel.getErrorTitleByLangValues(),
+                                                    message);
+                                        }
+                                    });
+                                    return;
+                                }
                                 SecureStorage secureStorage = KeyViewModel.getSecureStorage();
                                 boolean unlocked = secureStorage.unlock(
                                         getApplicationContext(), trimmedPassword);
                                 if (!unlocked) {
+                                    com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                            .recordFailure(getApplicationContext(),
+                                                    com.quantumcoinwallet.app.security
+                                                            .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
                                     runOnUiThread(new Runnable() {
                                         public void run() {
                                             try { waitDlg.dismiss(); } catch (Throwable ignore) { }
@@ -721,6 +1035,10 @@ public class HomeActivity extends FragmentActivity implements
                                     });
                                     return;
                                 }
+                                com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                        .recordSuccess(getApplicationContext(),
+                                                com.quantumcoinwallet.app.security
+                                                        .UnlockAttemptLimiter.Channel.STRONGBOX_UNLOCK);
                                 Map<String, String>[] maps = secureStorage.buildWalletMaps(
                                         getApplicationContext());
                                 PrefConnect.WALLET_ADDRESS_TO_INDEX_MAP = maps[0];
@@ -734,6 +1052,17 @@ public class HomeActivity extends FragmentActivity implements
                                     public void run() {
                                         try { waitDlg.dismiss(); } catch (Throwable ignore) { }
                                         getCurrentWallet(PrefConnect.WALLET_CURRENT_ADDRESS_INDEX_VALUE);
+                                        // (Android, cold-start active-network refresh):
+                                        // until this point the strongbox was locked, so
+                                        // the top-right network label was rendered from
+                                        // the legacy prefs index — which writeActiveIndex
+                                        // tombstones to 0 after a switch, so restarting
+                                        // the app with a non-bundled active network used
+                                        // to show network[0] in the toolbar even though
+                                        // the dialog (which reads the now-unlocked
+                                        // strongbox) showed the correct radio. Refresh
+                                        // the chrome from authoritative storage here.
+                                        refreshActiveNetworkChrome(/*reloadBalance=*/false);
                                         lastUnlockTimestamp = android.os.SystemClock.elapsedRealtime();
                                         unlockDialogShowing = false;
                                         dialog.dismiss();
@@ -784,8 +1113,13 @@ public class HomeActivity extends FragmentActivity implements
     private void loadWalletHasSeedMap() {
         PrefConnect.WALLET_INDEX_HAS_SEED_MAP.clear();
         for (String indexKey : PrefConnect.WALLET_INDEX_TO_ADDRESS_MAP.keySet()) {
+            // Default to false: the create/restore paths
+            // explicitly write the per-wallet hasSeed flag
+            // when a seed is present, so a missing pref means
+            // "no seed" (key-only import). See WalletAdapter
+            // for the matching consumer-side default.
             boolean hasSeed = PrefConnect.readBoolean(getApplicationContext(),
-                    PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, true);
+                    PrefConnect.WALLET_HAS_SEED_KEY_PREFIX + indexKey, false);
             PrefConnect.WALLET_INDEX_HAS_SEED_MAP.put(indexKey, hasSeed);
         }
     }
@@ -816,19 +1150,83 @@ public class HomeActivity extends FragmentActivity implements
         }
     }
 
-    /**
+     /**
      * Public helper for fragments to forcibly lock SecureStorage and re-show the global
      * unlock dialog. Used when a wallet-password re-prompt (reveal / backup / send) fails;
      * callers rely on this to hand control back to the canonical unlock flow.
+     * <p>Delegates to {@link #relockAndPresentUnlock()} so all relock paths share the
+     * same dismiss-chain + address-strip-blank discipline. Kept under the
+     * {@code forceUnlockPrompt} name for backwards compatibility with existing fragment
+     * call sites.
      */
     public void forceUnlockPrompt() {
+        relockAndPresentUnlock();
+    }
+
+     /**
+     * (Android, mirrors iOS {@code HomeViewController.relockAndPresentUnlock}).
+     * <p>iOS rationale: if a fragment-presented dialog (e.g. a
+     * Reveal-Seed password prompt or a Send-unlock dialog) is on screen when a relock
+     * decision is made, presenting the global Unlock dialog directly on top of it
+     * stacks two AlertDialogs and leaves the user in a state where dismissing the top
+     * one reveals the (now stale) inner dialog -- which holds a captured password
+     * EditText that should no longer be reachable post-relock. iOS solves this by
+     * (1) dismissing the entire presented VC chain first, (2) blanking the home
+     * address strip so the multitasking snapshot does not capture a public address
+     * juxtaposed with the unlock prompt, then (3) presenting the unlock dialog on a
+     * deferred runloop tick to avoid racing the just-fired dismiss.
+     * <p>(android-ios parity): we mirror the same three-step ordering.
+     * <ol>
+     *   <li>Lock {@link SecureStorage} so any in-flight reauth path observing
+     *       {@code isUnlocked()} short-circuits.</li>
+     *   <li>Dismiss any AppCompat / DialogFragment chain by walking the
+     *       {@link androidx.fragment.app.FragmentManager}'s fragments and calling
+     *       {@code dismissAllowingStateLoss()} on each {@link DialogFragment}. Also
+     *       cancels any plain {@link AlertDialog} cached on the activity (e.g. an
+     *       in-flight unlock dialog that needs to be re-shown fresh).</li>
+     *   <li>Clear the home address strip TextView so the recents thumbnail and any
+     *       briefly-visible frame between dismiss and present do not show the wallet
+     *       address. This is paranoia-grade: FLAG_SECURE already blocks the
+     *       thumbnail, but a screen recording session can still pick up a frame.</li>
+     *   <li>Defer {@link #showUnlockDialog(Runnable)} via {@code view.post(...)} so it
+     *       lands on the next main-thread runloop tick, after the dismiss has
+     *       completed.</li>
+     * </ol>
+     */
+    public void relockAndPresentUnlock() {
         try {
             SecureStorage secureStorage = KeyViewModel.getSecureStorage();
             if (secureStorage != null) {
                 try { secureStorage.lock(); } catch (Exception ignore) { }
             }
         } catch (Exception ignore) { }
-        showUnlockDialog(null);
+
+        try {
+            androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
+            for (androidx.fragment.app.Fragment f : fm.getFragments()) {
+                if (f instanceof androidx.fragment.app.DialogFragment) {
+                    try { ((androidx.fragment.app.DialogFragment) f).dismissAllowingStateLoss(); }
+                    catch (Throwable ignore) { }
+                }
+            }
+        } catch (Throwable ignore) { }
+
+        unlockDialogShowing = false;
+
+        try {
+            if (walletAddressTextView != null) walletAddressTextView.setText("");
+        } catch (Throwable ignore) { }
+
+        final android.view.View root = walletAddressTextView != null
+                ? walletAddressTextView.getRootView() : null;
+        Runnable presentTask = new Runnable() {
+            @Override public void run() { showUnlockDialog(null); }
+        };
+        if (root != null) {
+            root.post(presentTask);
+        } else {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(presentTask);
+        }
     }
 
     private void screenViewType(int status) {
@@ -895,7 +1293,7 @@ public class HomeActivity extends FragmentActivity implements
         walletAddressTextView.setText(walletAddress);
     }
 
-    /**
+     /**
      * The offline/retry strip ({@code linerLayout_home_offline}) is a sibling of
      * {@code frame_home_container_id} and lives outside the fragment container, so
      * an in-flight balance refresh can surface it even when the user is on a
@@ -972,13 +1370,27 @@ public class HomeActivity extends FragmentActivity implements
     }
 
     //Notification
+     /**
+     * (Android, mirrors iOS HomeViewController poll cadence):
+     * <p>iOS uses {@code foregroundInterval = 10s} and
+     * {@code backgroundInterval = 300s} for the balance poll. On
+     * Android the foreground/background distinction is much stronger
+     * (Doze + App Standby), so a 5s poll while backgrounded would
+     * burn battery and trip data-saver heuristics for no UX gain.
+     * <p>The thread now reads {@link #balancePollIntervalMs} on every
+     * iteration; the lifecycle observer flips the value between
+     * {@code 10_000} (foreground/STARTED+) and {@code 300_000}
+     * (backgrounded/STOPPED) on activity transitions. We keep a
+     * plain {@code Thread} rather than {@code WorkManager} /
+     * {@code JobScheduler} because the modern minimum interval for
+     * those APIs is 15 minutes -- way too slow for a wallet's
+     * primary balance display.
+     */
     private void notificationThread(int accountStatus) {
         try {
             Thread thread = new Thread() {
                 @Override
                 public void run() {
-                    //boolean threadStop = false;
-                    final int TIME_SLEEP = 5000;
                     final String[] previewsQuantity = new String[1];
                     String[] currentQuantity = new String[1];
 
@@ -1021,7 +1433,11 @@ public class HomeActivity extends FragmentActivity implements
 
                             task.execute(taskParams);
 
-                            Thread.sleep(TIME_SLEEP);
+                            // Read the live interval on each
+                            // tick so a foreground -> background
+                            // transition takes effect on the next pass
+                            // without restarting the thread.
+                            Thread.sleep(balancePollIntervalMs);
                         }
                     } catch (Exception e) {
                         GlobalMethods.ExceptionError(getBaseContext(), TAG, e);
@@ -1033,6 +1449,12 @@ public class HomeActivity extends FragmentActivity implements
             GlobalMethods.ExceptionError(getBaseContext(), TAG, e);
         }
     }
+
+    /** (Android): live balance-poll interval in ms. */
+    @SuppressWarnings("FieldCanBeLocal")
+    private volatile long balancePollIntervalMs = 10_000L;
+    private static final long POLL_FG_MS = 10_000L;
+    private static final long POLL_BG_MS = 300_000L;
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1114,7 +1536,7 @@ public class HomeActivity extends FragmentActivity implements
                             GlobalMethods.seedLoaded = true;
                             return;
                         } catch (Exception e) {
-                            android.util.Log.e(TAG, "loadSeedsThread failed, retrying in 1s", e);
+                            com.quantumcoinwallet.app.Logger.e(TAG, "loadSeedsThread failed, retrying in 1s", e);
                             try {
                                 Thread.sleep(1000);
                             } catch (InterruptedException ie) {

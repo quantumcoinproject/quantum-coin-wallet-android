@@ -20,10 +20,13 @@ import com.quantumcoinwallet.app.utils.CoinUtils;
 import com.quantumcoinwallet.app.utils.GlobalMethods;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Locale;
 
 public class AccountTransactionAdapter extends
         Adapter<AccountTransactionAdapter.DataObjectHolder> {
@@ -111,11 +114,25 @@ public class AccountTransactionAdapter extends
                 holder.viewDateSeparator.setVisibility(View.VISIBLE);
             }
 
+            // The scan API returns createdAt as an ISO-8601 offset
+            // datetime (typically "...Z" / UTC). Users expect to see
+            // their own wall clock, not the server's, so we convert
+            // the parsed instant to the device's default zone via
+            // atZoneSameInstant(...) and let the formatter render a
+            // localized short zone abbreviation via the "z" token
+            // (e.g. "PST", "IST"). The previous version printed the
+            // server's offset fields with a hardcoded " GMT" suffix,
+            // which was misleading whenever the server offset wasn't
+            // actually UTC. Locale.getDefault() makes the day-of-week
+            // and month abbreviations follow the device language.
             try {
                 if (rawDate != null && rawDate.length() > 0) {
-                    String formattedDateString = OffsetDateTime.parse(rawDate)
-                            .format(DateTimeFormatter.ofPattern("E, dd MMM yyyy HH:mm:ss"));
-                    holder.textViewDate.setText(formattedDateString + " GMT");
+                    ZonedDateTime localDateTime = OffsetDateTime.parse(rawDate)
+                            .atZoneSameInstant(ZoneId.systemDefault());
+                    String formattedDateString = localDateTime.format(
+                            DateTimeFormatter.ofPattern(
+                                    "E, dd MMM yyyy HH:mm:ss z", Locale.getDefault()));
+                    holder.textViewDate.setText(formattedDateString);
                 } else {
                     holder.textViewDate.setText("");
                 }
@@ -143,8 +160,13 @@ public class AccountTransactionAdapter extends
                 holder.textViewTransHash.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        context.startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_TX_HASH_URL.replace("{txhash}", hash))));
+                        // Hash comes from scan-API JSON; gate
+                        // through UrlBuilder so a malformed value is
+                        // a no-op rather than an injection vector.
+                        Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                                .blockExplorerTxUrl(hash);
+                        if (u == null) return;
+                        context.startActivity(new Intent(Intent.ACTION_VIEW, u));
                     }
                 });
             }
@@ -153,8 +175,10 @@ public class AccountTransactionAdapter extends
                 holder.textViewFrom.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        context.startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", from))));
+                        Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                                .blockExplorerAccountUrl(from);
+                        if (u == null) return;
+                        context.startActivity(new Intent(Intent.ACTION_VIEW, u));
                     }
                 });
             }
@@ -163,8 +187,10 @@ public class AccountTransactionAdapter extends
                 holder.textViewTo.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        context.startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", to))));
+                        Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                                .blockExplorerAccountUrl(to);
+                        if (u == null) return;
+                        context.startActivity(new Intent(Intent.ACTION_VIEW, u));
                     }
                 });
             }

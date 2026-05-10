@@ -11,21 +11,6 @@
         app:showAsAction="ifRoom"/>
 
     <item
-        android:icon="@drawable/m_help"
-        android:id="@+id/nav_help"
-        android:title="@string/nav_help_title"
-        android:enabled="true"
-        app:showAsAction="ifRoom"/>
-
-
-    <item
-        android:icon="@drawable/m_block_explorer"
-        android:id="@+id/nav_block_explorer"
-        android:title="@string/nav_block_explorer_title"
-        android:enabled="true"
-        app:showAsAction="ifRoom"/>
-
-    <item
         android:icon="@drawable/m_settings"
         android:id="@+id/nav_settings"
         android:title="@string/nav_settings_title"

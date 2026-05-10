@@ -50,10 +50,19 @@
                         android:src="@drawable/arrow_back_circle_outline"
                         app:tint="@color/colorCommon6"/>
 
+                    <!--
+                        Refresh icon. Sized 40dp to match the home toolbar
+                        refresh (imageButton_home_refresh in
+                        home_activity.xml); the previous 50dp made the
+                        glyph render visibly larger / "brighter" than its
+                        home-screen sibling even though both buttons share
+                        the same drawable, tint, and background.
+                    -->
                     <ImageButton
                         android:id="@+id/imageButton_account_transactions_refresh"
-                        android:layout_width="55dp"
-                        android:layout_height="55dp"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="center_vertical"
                         android:padding="5dp"
                         android:scaleType="fitCenter"
                         android:background="@drawable/image_selector"

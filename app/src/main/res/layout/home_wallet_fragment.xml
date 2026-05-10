@@ -103,11 +103,12 @@
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toStartOf="parent"
                             app:hintAnimationEnabled="true"
-                            app:passwordToggleEnabled="true"
-                            app:passwordToggleTint="@color/colorEye"
-                            app:passwordToggleDrawable="@drawable/show_password_selector">
+                            app:endIconMode="password_toggle"
+                            app:endIconTint="@color/colorEye"
+                            app:endIconDrawable="@drawable/show_password_selector"
+                            app:endIconContentDescription="@string/password_toggle_content_description">
 
-                            <EditText
+                            <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editText_home_set_wallet_password"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -116,6 +117,8 @@
                                 android:inputType="textPassword"
                                 android:maxLines="1"
                                 android:maxLength="100"
+                                android:autofillHints="newPassword"
+                                android:importantForAutofill="yes"
                                 android:background="@drawable/text_input_selector"  />
 
                         </com.google.android.material.textfield.TextInputLayout>
@@ -136,11 +139,12 @@
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toStartOf="parent"
                             app:hintAnimationEnabled="true"
-                            app:passwordToggleEnabled="true"
-                            app:passwordToggleTint="@color/colorEye"
-                            app:passwordToggleDrawable="@drawable/show_password_selector">
+                            app:endIconMode="password_toggle"
+                            app:endIconTint="@color/colorEye"
+                            app:endIconDrawable="@drawable/show_password_selector"
+                            app:endIconContentDescription="@string/password_toggle_content_description">
 
-                            <EditText
+                            <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editText_home_set_wallet_retype_password"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -149,6 +153,8 @@
                                 android:inputType="textPassword"
                                 android:maxLines="1"
                                 android:maxLength="100"
+                                android:autofillHints="newPassword"
+                                android:importantForAutofill="yes"
                                 android:background="@drawable/text_input_selector"  />
 
                         </com.google.android.material.textfield.TextInputLayout>
@@ -668,7 +674,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_a_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -682,7 +688,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_a_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -696,7 +702,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_a_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -710,7 +716,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_a_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -782,7 +788,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_b_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -796,7 +802,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_b_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -810,7 +816,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_b_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -824,7 +830,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_b_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -896,7 +902,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_c_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -910,7 +916,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_c_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -924,7 +930,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_c_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -938,7 +944,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_c_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1010,7 +1016,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_d_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1024,7 +1030,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_d_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1038,7 +1044,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_d_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1052,7 +1058,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_d_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1124,7 +1130,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_e_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1138,7 +1144,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_e_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1152,7 +1158,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_e_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1166,7 +1172,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_e_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1238,7 +1244,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_f_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1252,7 +1258,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_f_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1266,7 +1272,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_f_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1280,7 +1286,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_f_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1352,7 +1358,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_g_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1366,7 +1372,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_g_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1380,7 +1386,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_g_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1394,7 +1400,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_g_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1413,7 +1419,7 @@
                                     android:layout_weight="1"
                                     android:layout_marginBottom="5dp"
                                     android:textAlignment="center"
-                                    android:textColor="@color/colorCommonSeedH"
+                                    android:textColor="@color/colorCommonSeedHLabel"
                                     android:textSize="14dp"
                                     android:text="H1" />
 
@@ -1424,7 +1430,7 @@
                                     android:layout_marginBottom="5dp"
                                     android:layout_weight="1"
                                     android:textAlignment="center"
-                                    android:textColor="@color/colorCommonSeedH"
+                                    android:textColor="@color/colorCommonSeedHLabel"
                                     android:textSize="14dp"
                                     android:text="H2" />
 
@@ -1435,7 +1441,7 @@
                                     android:layout_marginBottom="5dp"
                                     android:layout_weight="1"
                                     android:textAlignment="center"
-                                    android:textColor="@color/colorCommonSeedH"
+                                    android:textColor="@color/colorCommonSeedHLabel"
                                     android:textSize="14dp"
                                     android:text="H3" />
 
@@ -1446,7 +1452,7 @@
                                     android:layout_marginBottom="5dp"
                                     android:layout_weight="1"
                                     android:textAlignment="center"
-                                    android:textColor="@color/colorCommonSeedH"
+                                    android:textColor="@color/colorCommonSeedHLabel"
                                     android:textSize="14dp"
                                     android:text="H4" />
 
@@ -1467,7 +1473,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_h_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1481,7 +1487,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_h_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1495,7 +1501,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_h_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1509,7 +1515,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_h_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1581,7 +1587,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_i_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1595,7 +1601,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_i_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1609,7 +1615,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_i_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1623,7 +1629,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_i_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1695,7 +1701,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_j_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1709,7 +1715,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_j_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1723,7 +1729,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_j_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1737,7 +1743,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_j_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1809,7 +1815,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_k_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1823,7 +1829,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_k_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1837,7 +1843,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_k_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1851,7 +1857,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_k_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1923,7 +1929,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_l_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1937,7 +1943,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_l_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1951,7 +1957,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_l_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -1965,7 +1971,7 @@
                                     android:paddingTop="5dp"
                                     android:paddingBottom="5dp"
                                     android:background="@drawable/bg_seed_view_l_curve"
-                                    android:textColor="@color/colorCommon7"
+                                    android:textColor="@color/colorSeedViewWord"
                                     android:textAlignment="center"
                                     android:textSize="14dp" />
 
@@ -2167,7 +2173,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_a_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2184,7 +2192,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_a_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2201,7 +2211,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_a_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2218,7 +2230,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_a_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2293,7 +2307,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_b_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2310,7 +2326,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_b_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2327,7 +2345,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_b_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2344,7 +2364,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_b_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2419,7 +2441,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_c_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2436,7 +2460,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_c_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2453,7 +2479,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_c_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2470,7 +2498,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_c_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2545,7 +2575,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_d_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2562,7 +2594,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_d_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2579,7 +2613,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_d_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2596,7 +2632,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_d_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2671,7 +2709,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_e_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2688,7 +2728,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_e_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2705,7 +2747,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_e_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2722,7 +2766,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_e_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2797,7 +2843,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_f_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2814,7 +2862,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_f_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2831,7 +2881,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_f_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2848,7 +2900,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_f_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2923,7 +2977,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_g_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2940,7 +2996,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_g_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2957,7 +3015,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_g_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2974,7 +3034,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_g_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -2995,7 +3057,7 @@
                                             android:layout_weight="1"
                                             android:layout_marginBottom="5dp"
                                             android:textAlignment="center"
-                                            android:textColor="@color/colorCommonSeedH"
+                                            android:textColor="@color/colorCommonSeedHLabel"
                                             android:textSize="14dp"
                                             android:text="H1" />
 
@@ -3006,7 +3068,7 @@
                                             android:layout_marginBottom="5dp"
                                             android:layout_weight="1"
                                             android:textAlignment="center"
-                                            android:textColor="@color/colorCommonSeedH"
+                                            android:textColor="@color/colorCommonSeedHLabel"
                                             android:textSize="14dp"
                                             android:text="H2" />
 
@@ -3017,7 +3079,7 @@
                                             android:layout_marginBottom="5dp"
                                             android:layout_weight="1"
                                             android:textAlignment="center"
-                                            android:textColor="@color/colorCommonSeedH"
+                                            android:textColor="@color/colorCommonSeedHLabel"
                                             android:textSize="14dp"
                                             android:text="H3" />
 
@@ -3028,7 +3090,7 @@
                                             android:layout_marginBottom="5dp"
                                             android:layout_weight="1"
                                             android:textAlignment="center"
-                                            android:textColor="@color/colorCommonSeedH"
+                                            android:textColor="@color/colorCommonSeedHLabel"
                                             android:textSize="14dp"
                                             android:text="H4" />
 
@@ -3049,7 +3111,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_h_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3066,7 +3130,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_h_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3083,7 +3149,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_h_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3100,7 +3168,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_h_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3176,7 +3246,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_i_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3193,7 +3265,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_i_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3210,7 +3284,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_i_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3227,7 +3303,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_i_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3303,7 +3381,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_j_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3320,7 +3400,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_j_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3337,7 +3419,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_j_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3354,7 +3438,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_j_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3430,7 +3516,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_k_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3447,7 +3535,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_k_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3464,7 +3554,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_k_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3481,7 +3573,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_k_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3557,7 +3651,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_l_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3574,7 +3670,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_l_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3591,7 +3689,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_l_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3608,7 +3708,9 @@
                                             android:paddingTop="5dp"
                                             android:paddingBottom="5dp"
                                             android:background="@drawable/bg_seed_edit_l_curve"
-                                            android:inputType="textCapCharacters"
+                                            android:inputType="textVisiblePassword|textCapCharacters"
+                                            android:imeOptions="flagNoPersonalizedLearning"
+                                            android:importantForAutofill="no"
                                             android:textColor="@color/colorCommon6"
                                             android:textAlignment="center"
                                             android:textSize="14dp"
@@ -3704,6 +3806,8 @@
                             android:textSize="13dp"
                             android:textIsSelectable="true"
                             android:fontFamily="monospace"
+                            android:focusable="true"
+                            android:focusableInTouchMode="true"
                             android:textColor="@color/colorCommon6" />
 
                         <LinearLayout
@@ -3768,6 +3872,8 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:textSize="14dp"
+                                android:focusable="true"
+                                android:accessibilityLiveRegion="polite"
                                 android:textColor="@color/colorCommon6" />
 
                             <ProgressBar
@@ -3904,9 +4010,15 @@
                         <Button
                             android:id="@+id/button_home_backup_done"
                             android:background="@drawable/button_green_selector"
-                            android:layout_width="match_parent"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:padding="10dp"
+                            android:layout_gravity="end"
+                            android:minWidth="96dp"
+                            android:minHeight="43dp"
+                            android:paddingLeft="20dp"
+                            android:paddingRight="20dp"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp"
                             android:textAllCaps="false"
                             android:textColor="@color/colorCommon7" />
 

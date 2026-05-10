@@ -23,7 +23,11 @@ public class KeyViewModel extends ViewModel {
     public static void initBridge(Context context) {
         WebViewManager webViewManager = WebViewManager.getInstance(context);
         bridgeInstance = new QuantumCoinJSBridge(webViewManager);
-        secureStorageInstance = new SecureStorage(bridgeInstance);
+        // SecureStorage now delegates to UnlockCoordinator (the
+        // layered v2 strongbox stack) which needs a Context for
+        // its slot files and AndroidKeystore-bound generation
+        // counter; so we pass the application context here.
+        secureStorageInstance = new SecureStorage(context.getApplicationContext(), bridgeInstance);
     }
 
     public static QuantumCoinJSBridge getBridge() { return bridgeInstance; }

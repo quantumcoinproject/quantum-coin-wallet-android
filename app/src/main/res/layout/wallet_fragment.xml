@@ -90,26 +90,56 @@
                             android:alpha="0.2"
                             android:background="@drawable/line_2_shape" />
 
-                        <LinearLayout
+                        <!--
+                            Wallets table is wrapped in a
+                            MaterialCardView with a 16dp corner radius
+                            to mirror the iOS wallets list which renders
+                            inside a rounded card. cardElevation=0 so we
+                            keep the flat aesthetic of the rest of the
+                            screen; the rounded outline is the visual
+                            signal that "this is a contained list" and
+                            not edge-to-edge.
+                            <p>Why MaterialCardView (not the AndroidX
+                            CardView): MaterialCardView clips its
+                            children to the rounded outline, so the
+                            wallet_header rule lines and recycler row
+                            content land BEHIND the rounded edge instead
+                            of overflowing past it. A 1dp stroke in
+                            colorCommon3 (gray in light, white in dark)
+                            makes the rounded shape visible against the
+                            outer center_container fill in both themes
+                            without needing a contrasting background
+                            color that would clash with one mode or the
+                            other.
+                        -->
+                        <com.google.android.material.card.MaterialCardView
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical">
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
+                            android:layout_marginTop="6dp"
+                            android:layout_marginBottom="6dp"
+                            app:cardCornerRadius="16dp"
+                            app:cardElevation="0dp"
+                            app:cardBackgroundColor="@android:color/transparent"
+                            app:strokeColor="@color/colorCommon3"
+                            app:strokeWidth="1dp">
 
-                            <include layout="@layout/wallet_header"/>
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:orientation="vertical">
 
-                        </LinearLayout>
+                                <include layout="@layout/wallet_header"/>
 
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/recycler_wallets"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:clipToPadding="false"/>
+                                <androidx.recyclerview.widget.RecyclerView
+                                    android:id="@+id/recycler_wallets"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="0dp"
+                                    android:layout_weight="1"
+                                    android:clipToPadding="false"/>
+                            </LinearLayout>
 
-                        <View
-                            android:layout_width="wrap_content"
-                            android:layout_height="1dp"
-                            android:alpha="0.2"
-                            android:background="@drawable/line_2_shape" />
+                        </com.google.android.material.card.MaterialCardView>
 
                         <TextView
                             android:id="@+id/textview_wallet_langValues_create_or_restore"

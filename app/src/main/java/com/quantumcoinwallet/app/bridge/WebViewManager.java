@@ -39,27 +39,27 @@ public class WebViewManager
     private static volatile WebViewManager instance;
 
     /**
-     * L-02: hard cap on the number of staged payloads. Under normal
+     * Hard cap on the number of staged payloads. Under normal
      * operation the bridge round-trip is sub-second so this should hold
      * at most a handful of entries; a full map indicates either a stuck
      * WebView or an unbounded producer and must not be allowed to grow.
      */
     private static final int MAX_PENDING_PAYLOADS = 64;
-    /** L-02: staged payload TTL. */
+    /** Staged payload TTL. */
     private static final long PENDING_PAYLOAD_TTL_MS = 60_000L;
-    /** L-02: sweeper cadence while any payload is live. */
+    /** Sweeper cadence while any payload is live. */
     private static final long PENDING_SWEEP_INTERVAL_MS = 30_000L;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ConcurrentHashMap<String, BridgeCallback> pendingCallbacks = new ConcurrentHashMap<>();
     /**
-     * MF-02 pull-model payload storage. Sensitive bridge arguments
+     * Pull-model payload storage. Sensitive bridge arguments
      * (passwords, private keys, seed phrases) are staged here keyed by
      * requestId and pulled from the WebView via
      * {@link #getPendingPayload(String)}. This keeps them out of the
      * {@code evaluateJavascript} script strings entirely.
      *
-     * <p>L-02: each entry carries an enqueue timestamp so expired entries
+     * <p>Each entry carries an enqueue timestamp so expired entries
      * can be swept. {@link #storePendingPayload} enforces a hard size
      * cap so a malfunctioning WebView cannot hold sensitive strings
      * in memory indefinitely.</p>
@@ -114,13 +114,13 @@ public class WebViewManager
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
-        // L-04: the bridge bundle and bridge.html do not use localStorage,
+        // The bridge bundle and bridge.html do not use localStorage,
         // sessionStorage, or IndexedDB (verified with a repo-wide grep).
         // Disabling DOM storage removes an unnecessary persistence surface
         // and prevents any future dependency from quietly writing sensitive
         // strings into /data/data/.../app_webview storage.
         settings.setDomStorageEnabled(false);
-        // MF-06: lock this WebView to https://appassets.androidplatform.net
+        // Lock this WebView to https://appassets.androidplatform.net
         // and deny every other loader path. The bridge HTML/JS is served
         // via WebViewAssetLoader; there is no need to read from file://,
         // content://, or let JavaScript escape the origin sandbox.
@@ -152,8 +152,67 @@ public class WebViewManager
                 {
                     ready.set(true);
                     readyLatch.countDown();
-                    Timber.tag(TAG).d("Bridge WebView ready");
+                    com.quantumcoinwallet.app.Logger.d(TAG, "Bridge WebView ready");
                 }
+            }
+
+            // (Android, mirrors iOS JsEngine.recordLoadFailure):
+            // capture WebView load failures into a process-visible
+            // string so callers blocked on isReady()/waitUntilReady
+            // can surface the ACTUAL underlying cause to the user
+            // ("WebView net::ERR_NAME_NOT_RESOLVED ...") instead of
+            // a generic "bridge not ready" timeout that masks every
+            // possible failure mode.
+            //
+            // Sub-resource fetches (favicons, downstream relay calls
+            // from the JS bundle, etc.) are NOT bridge-load failures
+            // and must not pollute lastLoadFailureDescription -- a
+            // transient DNS hiccup on a relay would otherwise mask
+            // a later real bridge failure for any caller reading
+            // getLastLoadFailureDescription(). In debug builds we
+            // still surface them via Logger.d so developers can see
+            // what the WebView is actually reaching for.
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request,
+                                         android.webkit.WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                String url = (request != null && request.getUrl() != null)
+                        ? request.getUrl().toString() : "(unknown)";
+                String msg = (error != null ? "code=" + error.getErrorCode()
+                        + " desc=" + error.getDescription() : "unknown");
+                if (BRIDGE_URL.equals(url)) {
+                    recordLoadFailure("onReceivedError(url=" + url + " " + msg + ")");
+                } else if (BuildConfig.DEBUG) {
+                    com.quantumcoinwallet.app.Logger.d(TAG,
+                            "WebView sub-resource failure: onReceivedError(url="
+                                    + url + " " + msg + ")");
+                }
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request,
+                                             android.webkit.WebResourceResponse errorResponse) {
+                super.onReceivedHttpError(view, request, errorResponse);
+                String url = (request != null && request.getUrl() != null)
+                        ? request.getUrl().toString() : "(unknown)";
+                String msg = errorResponse == null ? "null"
+                        : ("status=" + errorResponse.getStatusCode()
+                            + " reason=" + errorResponse.getReasonPhrase());
+                if (BRIDGE_URL.equals(url)) {
+                    recordLoadFailure("onReceivedHttpError(url=" + url + " " + msg + ")");
+                } else if (BuildConfig.DEBUG) {
+                    com.quantumcoinwallet.app.Logger.d(TAG,
+                            "WebView sub-resource failure: onReceivedHttpError(url="
+                                    + url + " " + msg + ")");
+                }
+            }
+
+            @Override
+            public void onReceivedSslError(WebView view, android.webkit.SslErrorHandler handler,
+                                            android.net.http.SslError error) {
+                // Refuse the request and record. Do NOT proceed.
+                if (handler != null) handler.cancel();
+                recordLoadFailure("onReceivedSslError(" + (error != null ? error.toString() : "null") + ")");
             }
         });
 
@@ -162,7 +221,7 @@ public class WebViewManager
             @Override
             public boolean onConsoleMessage(ConsoleMessage cm)
             {
-                // M-02: in release builds, swallow JS console output so
+                // In release builds, swallow JS console output so
                 // sensitive strings inside uncaught JS errors can never
                 // leak to logcat. In debug, route through Timber so
                 // ReleaseTree cannot intercept anything by accident.
@@ -171,16 +230,19 @@ public class WebViewManager
                     switch (cm.messageLevel())
                     {
                         case ERROR:
-                            Timber.tag(TAG).e("JS ERROR: %s [%s:%d]",
-                                    cm.message(), cm.sourceId(), cm.lineNumber());
+                            com.quantumcoinwallet.app.Logger.e(TAG,
+                                    "JS ERROR: " + cm.message()
+                                            + " [" + cm.sourceId() + ":" + cm.lineNumber() + "]");
                             break;
                         case WARNING:
-                            Timber.tag(TAG).w("JS WARN: %s [%s:%d]",
-                                    cm.message(), cm.sourceId(), cm.lineNumber());
+                            com.quantumcoinwallet.app.Logger.w(TAG,
+                                    "JS WARN: " + cm.message()
+                                            + " [" + cm.sourceId() + ":" + cm.lineNumber() + "]");
                             break;
                         default:
-                            Timber.tag(TAG).d("JS LOG: %s [%s:%d]",
-                                    cm.message(), cm.sourceId(), cm.lineNumber());
+                            com.quantumcoinwallet.app.Logger.d(TAG,
+                                    "JS LOG: " + cm.message()
+                                            + " [" + cm.sourceId() + ":" + cm.lineNumber() + "]");
                             break;
                     }
                 }
@@ -189,6 +251,23 @@ public class WebViewManager
         });
 
         webView.addJavascriptInterface(this, JS_INTERFACE_NAME);
+        // Refuse to even load the bridge if the on-disk
+        // bundle bytes do not match the build-time pinned digest.
+        // The bridge.html file references quantumcoin-bundle.js by
+        // relative URL, so the WebView's asset loader will read the
+        // exact same bytes BundleIntegrity just hashed; verifying
+        // here closes the "swap the asset, re-sign" attack class
+        // before the JS context ever sees the tampered bytes.
+        try {
+            com.quantumcoinwallet.app.security.BundleIntegrity.verifyOrFail(appContext);
+        } catch (com.quantumcoinwallet.app.security.BundleIntegrity.BundleIntegrityException e) {
+            com.quantumcoinwallet.app.Logger.e(TAG, "Refusing to load JS bridge: " + e.getMessage());
+            // Do not call loadUrl(); leave the bridge in the
+            // not-ready state. Callers see isReady()==false and
+            // surface the per-call error path. The TamperGate
+            // bootstrap surfaced the user-facing dialog already.
+            return;
+        }
         webView.loadUrl(BRIDGE_URL);
     }
 
@@ -209,6 +288,25 @@ public class WebViewManager
             Thread.currentThread().interrupt();
             return false;
         }
+    }
+
+    /**
+     * Process-visible last load failure description. Set by
+     * the WebViewClient {@code onReceived*} callbacks; consumed by
+     * the "bridge not ready" timeout error path so the user sees the
+     * real cause (DNS failure, SSL pin mismatch, asset 404, ...)
+     * instead of a generic timeout.
+     */
+    private static volatile String lastLoadFailureDescription;
+
+    private void recordLoadFailure(String description) {
+        com.quantumcoinwallet.app.Logger.e(TAG, "WebView load failure: " + description);
+        lastLoadFailureDescription = description;
+    }
+
+    /** Last WebView load failure, or {@code null} if none observed. */
+    public static String getLastLoadFailureDescription() {
+        return lastLoadFailureDescription;
     }
 
     public void evaluateJavascript(@NonNull String script, @Nullable ValueCallback<String> callback)
@@ -240,10 +338,10 @@ public class WebViewManager
     /**
      * Stage a JSON payload that the WebView can later retrieve via
      * {@link #getPendingPayload(String)}. Used to avoid inlining
-     * sensitive arguments (MF-02) into {@code evaluateJavascript}
+     * sensitive arguments into {@code evaluateJavascript}
      * script strings.
      *
-     * <p>L-02: enforces a hard size cap and sweeps expired entries so
+     * <p>Enforces a hard size cap and sweeps expired entries so
      * that sensitive strings cannot accumulate in memory indefinitely
      * if the WebView side never consumes them.</p>
      */
@@ -264,7 +362,7 @@ public class WebViewManager
     }
 
     /**
-     * L-02: called by {@code QuantumCoinJSBridge.blockingCall} on the
+     * Called by {@code QuantumCoinJSBridge.blockingCall} on the
      * timeout / error path so sensitive staged payloads that the
      * JavaScript side never pulled do not linger in the map.
      */
@@ -274,7 +372,7 @@ public class WebViewManager
     }
 
     /**
-     * M-02: exposes the build-type to the JS bridge so diagnostic
+     * Exposes the build-type to the JS bridge so diagnostic
      * {@code console.*} output can be gated off in release.
      */
     @JavascriptInterface
@@ -349,7 +447,7 @@ public class WebViewManager
     @JavascriptInterface
     public void onResult(String requestId, String jsonResult)
     {
-        Timber.tag(TAG).d("onResult requestId=%s", requestId);
+        com.quantumcoinwallet.app.Logger.d(TAG, "onResult requestId=" + requestId);
         BridgeCallback callback = pendingCallbacks.remove(requestId);
         if (callback != null)
         {
@@ -376,7 +474,7 @@ public class WebViewManager
     @JavascriptInterface
     public void onError(String requestId, String error)
     {
-        Timber.tag(TAG).e("onError requestId=%s error=%s", requestId, error);
+        com.quantumcoinwallet.app.Logger.e(TAG, "onError requestId=" + requestId + " error=" + error);
         BridgeCallback callback = pendingCallbacks.remove(requestId);
         if (callback != null)
         {

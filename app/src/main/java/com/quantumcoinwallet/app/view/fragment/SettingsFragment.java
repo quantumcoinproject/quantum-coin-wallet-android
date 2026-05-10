@@ -206,7 +206,27 @@ public class SettingsFragment extends Fragment  {
         builder.setTitle(jsonViewModel.getBackupByLangValues());
         builder.setView(scroll.view);
         builder.setPositiveButton(jsonViewModel.getOkByLangValues(), (dialog, which) -> {
+            // (Android, mirrors iOS BackupExclusion.applyToStrongboxFiles):
+            // (a) write the new pref value synchronously so the
+            //     WalletBackupAgent's gate sees the updated state on
+            //     the very next backup attempt;
+            // (b) tell Android the app's backup data has changed so
+            //     it re-evaluates the gate immediately rather than
+            //     waiting for the system's lazy schedule.
+            // The actual file-level exclusion is wired through
+            // data_extraction_rules.xml + the agent gate; the user-
+            // facing promise is "immediate" because the next backup
+            // attempt (system-scheduled or manual) consults the gate.
             PrefConnect.writeBoolean(getContext(), PrefConnect.BACKUP_ENABLED_KEY, phoneEnabled.isChecked());
+            try {
+                new android.app.backup.BackupManager(getContext().getApplicationContext()).dataChanged();
+                com.quantumcoinwallet.app.Logger.i("SettingsFragment",
+                        "BACKUP_ENABLED toggled -> " + phoneEnabled.isChecked()
+                                + "; BackupManager.dataChanged() called");
+            } catch (Throwable t) {
+                com.quantumcoinwallet.app.Logger.w("SettingsFragment",
+                        "BackupManager.dataChanged() failed (toggle still recorded)", t);
+            }
             dialog.dismiss();
         });
         builder.setNegativeButton(jsonViewModel.getCancelByLangValues(), (dialog, which) -> dialog.dismiss());

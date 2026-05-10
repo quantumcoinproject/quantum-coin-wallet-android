@@ -9,6 +9,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.annotation.Nullable;
+
 import java.util.List;
 
 import com.google.android.material.textfield.TextInputEditText;
@@ -19,7 +21,6 @@ import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
 
 /**
  * Reusable dialog asking the user for a backup password.
- *
  * Two modes:
  *  - Create/backup mode (default): prompts the user for a new backup password with
  *    confirm + length/trim validation. The user is always asked afresh; no password
@@ -29,12 +30,36 @@ import com.quantumcoinwallet.app.viewmodel.JsonViewModel;
  */
 public class BackupPasswordDialog {
 
+     /**
+     * TalkBack/Switch-Access label for the eye toggle on
+     * every TextInputLayout password field this dialog constructs at
+     * runtime. Mirrors iOS UIAccessibility convention.
+     * TextInputLayout's
+     * setEndIconContentDescription accepts the literal string and
+     * the Material widget toggles the announcement automatically
+     * between visible / hidden states; we intentionally pass a
+     * single combined label rather than a state-aware pair to avoid
+     * desynchronization with the underlying password-toggle drawable
+     * state. See plan §AE.3.
+     */
+    private static final String EYE_TOGGLE_A11Y = "Show or hide password";
+
+    private static void wirePasswordToggleA11y(TextInputLayout layout) {
+        try {
+            layout.setEndIconContentDescription(EYE_TOGGLE_A11Y);
+        } catch (Throwable ignore) {
+            // Older TextInputLayout versions throw on the setter; the
+            // missing label degrades gracefully (TalkBack falls back
+            // to the Material default "Show password").
+        }
+    }
+
     public interface OnBackupPasswordListener {
         void onPasswordSelected(String password);
         void onCanceled();
     }
 
-    /**
+     /**
      * Controls given to the caller of {@link #showRestore}, so the caller can keep the
      * dialog open on failure (wrong backup password) and only close it when decryption
      * succeeds. The dialog retains the typed password and stays on screen for retry.
@@ -49,7 +74,7 @@ public class BackupPasswordDialog {
         void onCanceled();
     }
 
-    /**
+     /**
      * Controls given to the caller of {@link #showRestoreBatch}. The dialog stays on
      * screen when OK is pressed; the driver performs the decrypt pass and then either
      * dismisses the dialog (if any wallet was removed from the pending list) or calls
@@ -62,7 +87,7 @@ public class BackupPasswordDialog {
         void reEnable();
     }
 
-    /**
+     /**
      * Listener for the batched restore dialog. Unlike the old contract, the dialog does
      * NOT dismiss itself on OK; the driver owns dismissal via {@link BatchDialogControl}.
      */
@@ -73,7 +98,19 @@ public class BackupPasswordDialog {
 
     public static void show(final Context ctx, final JsonViewModel vm,
                             final OnBackupPasswordListener listener) {
-        showCreateMode(ctx, vm, listener);
+        showCreateMode(ctx, vm, /*address=*/null, listener);
+    }
+
+     /**
+     * Per-wallet create-mode entry point. The {@code address} is
+     * woven into the autofill username so a password manager scopes
+     * the saved backup credential to this specific wallet — mirrors
+     * iOS {@code BackupPasswordDialog.create(address:)}.
+     */
+    public static void show(final Context ctx, final JsonViewModel vm,
+                            @Nullable final String address,
+                            final OnBackupPasswordListener listener) {
+        showCreateMode(ctx, vm, address, listener);
     }
 
     public static void show(final Context ctx, final JsonViewModel vm,
@@ -92,11 +129,12 @@ public class BackupPasswordDialog {
                 }
             });
         } else {
-            showCreateMode(ctx, vm, listener);
+            showCreateMode(ctx, vm, /*address=*/null, listener);
         }
     }
 
     private static void showCreateMode(final Context ctx, final JsonViewModel vm,
+                                       @Nullable final String address,
                                        final OnBackupPasswordListener listener) {
         final int pad = dp(ctx, 16);
 
@@ -116,12 +154,23 @@ public class BackupPasswordDialog {
         try {
             pwdLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
+        wirePasswordToggleA11y(pwdLayout);
         final TextInputEditText pwd = new TextInputEditText(ctx);
         pwd.setHint(safe(vm.getPasswordByLangValues(), "Password"));
         pwd.setSingleLine(true);
         pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         pwd.setTransformationMethod(PasswordTransformationMethod.getInstance());
         pwd.setBackground(null);
+        // Per-context autofill: the create-backup-password dialog is
+        // an ENCRYPT context (the user is choosing a brand-new
+        // password). forCreation=true triggers the system "Save
+        // Password?" sheet to be offered to Google Password Manager
+        // / Samsung Pass / 1Password on submit. Mirrors iOS
+        // BackupPasswordDialog.create(address) which uses
+        // .newPassword.
+        com.quantumcoinwallet.app.security.CredentialIdentifier.apply(pwd,
+                com.quantumcoinwallet.app.security.CredentialIdentifier.Context.BACKUP_ENCRYPT,
+                address, /*forCreation=*/true);
         pwdLayout.addView(pwd);
         root.addView(pwdLayout);
 
@@ -131,14 +180,36 @@ public class BackupPasswordDialog {
         try {
             confirmLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
+        wirePasswordToggleA11y(confirmLayout);
         final TextInputEditText confirm = new TextInputEditText(ctx);
         confirm.setHint(safe(vm.getConfirmBackupPasswordByLangValues(), "Confirm password"));
         confirm.setSingleLine(true);
         confirm.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         confirm.setTransformationMethod(PasswordTransformationMethod.getInstance());
         confirm.setBackground(null);
+        // Same per-context identity as `pwd` so the manager fills BOTH
+        // fields with the same generated password.
+        com.quantumcoinwallet.app.security.CredentialIdentifier.apply(confirm,
+                com.quantumcoinwallet.app.security.CredentialIdentifier.Context.BACKUP_ENCRYPT,
+                address, /*forCreation=*/true);
         confirmLayout.addView(confirm);
         root.addView(confirmLayout);
+
+        // Inject an invisible username EditText so Android Autofill
+        // / Google Password Manager scopes the saved credential to a
+        // per-wallet slot (when address is known) or to a batch slot
+        // (when this is the post-create flow that doesn't yet know
+        // the address). iOS counterpart attaches
+        // `UsernameField.make(CredentialIdentifier.backupUsername(address:))`
+        // or `UsernameField.make(CredentialIdentifier.backupBatchUsername)`
+        // depending on the call site.
+        String createUsername = address == null
+                ? com.quantumcoinwallet.app.security.CredentialIdentifier
+                        .backupBatchUsername(ctx)
+                : com.quantumcoinwallet.app.security.CredentialIdentifier
+                        .backupUsername(ctx, address);
+        com.quantumcoinwallet.app.security.CredentialIdentifier
+                .attachUsernameField(root, createUsername);
 
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(safe(vm.getBackupPasswordByLangValues(), "Backup password"))
@@ -184,7 +255,7 @@ public class BackupPasswordDialog {
         GlobalMethods.focusAndShowKeyboard(pwd, dialog);
     }
 
-    /**
+     /**
      * Restore-mode dialog with a retry-capable contract. The caller runs the (potentially
      * failing) decrypt attempt in its own thread and then calls either
      * {@link PasswordDialogControl#dismiss()} on success, or
@@ -192,6 +263,19 @@ public class BackupPasswordDialog {
      * to re-enable the OK/Cancel buttons so the user can retry without re-typing.
      */
     public static void showRestore(final Context ctx, final JsonViewModel vm,
+                                   final OnPasswordAttemptListener listener) {
+        showRestore(ctx, vm, /*address=*/null, listener);
+    }
+
+     /**
+     * Per-wallet restore-mode entry point. Mirrors iOS
+     * {@code BackupPasswordDialog.restoreSingle(address:)}: when the
+     * caller knows which wallet's backup file is being decrypted
+     * (e.g. the filename embeds the address) the autofill provider
+     * is scoped to that wallet's saved password slot.
+     */
+    public static void showRestore(final Context ctx, final JsonViewModel vm,
+                                   @Nullable final String address,
                                    final OnPasswordAttemptListener listener) {
         final int pad = dp(ctx, 16);
         final String title = safe(vm.getEnterBackupPasswordTitleByLangValues(),
@@ -207,6 +291,7 @@ public class BackupPasswordDialog {
         try {
             pwdLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
+        wirePasswordToggleA11y(pwdLayout);
 
         final TextInputEditText pwd = new TextInputEditText(ctx);
         pwd.setHint(safe(vm.getPasswordByLangValues(), "Password"));
@@ -214,8 +299,24 @@ public class BackupPasswordDialog {
         pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         pwd.setTransformationMethod(PasswordTransformationMethod.getInstance());
         pwd.setBackground(null);
+        // DECRYPT context: a password manager should suggest the
+        // user's existing backup password rather than offering to
+        // generate a fresh one.
+        com.quantumcoinwallet.app.security.CredentialIdentifier.apply(pwd,
+                com.quantumcoinwallet.app.security.CredentialIdentifier.Context.BACKUP_DECRYPT,
+                address, /*forCreation=*/false);
         pwdLayout.addView(pwd);
         root.addView(pwdLayout);
+
+        // Per-wallet (or batch when address unknown) username so the
+        // autofill provider scopes its suggestion to the right slot.
+        String restoreUsername = address == null
+                ? com.quantumcoinwallet.app.security.CredentialIdentifier
+                        .backupBatchUsername(ctx)
+                : com.quantumcoinwallet.app.security.CredentialIdentifier
+                        .backupUsername(ctx, address);
+        com.quantumcoinwallet.app.security.CredentialIdentifier
+                .attachUsernameField(root, restoreUsername);
 
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(title)
@@ -255,6 +356,24 @@ public class BackupPasswordDialog {
                             safe(vm.getEnterApasswordByLangValues(), "Enter a password"));
                     return;
                 }
+                // Brute-force gate before paying scrypt cost on
+                // the backup decrypt path. Channel is BACKUP_DECRYPT
+                // but shares the counter with strongbox-unlock so
+                // an attacker with both the device and a backup file
+                // does not get N extra attempts by alternating
+                // channels. Mirrors iOS UnlockAttemptLimiter usage
+                // in the backup-restore flow.
+                com.quantumcoinwallet.app.security.UnlockAttemptLimiter.Decision lim =
+                        com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                .currentDecision(ctx);
+                if (lim.kind == com.quantumcoinwallet.app.security
+                        .UnlockAttemptLimiter.DecisionKind.LOCKED) {
+                    GlobalMethods.ShowErrorDialog(ctx,
+                            safe(vm.getErrorTitleByLangValues(), "Error"),
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .userFacingLockoutMessage(lim.remainingSeconds, vm));
+                    return;
+                }
                 okButton.setEnabled(false);
                 cancelButton.setEnabled(false);
                 pwd.setEnabled(false);
@@ -271,7 +390,7 @@ public class BackupPasswordDialog {
         GlobalMethods.focusAndShowKeyboard(pwd, dialog);
     }
 
-    /**
+     /**
      * Restore-mode prompt for the batched restore flow. Shows the list of addresses still
      * pending decryption above a single password field. The dialog stays on screen after
      * OK is pressed (the buttons disable while the decrypt pass runs); the caller then
@@ -328,6 +447,7 @@ public class BackupPasswordDialog {
         try {
             pwdLayout.setEndIconDrawable(R.drawable.show_password_selector);
         } catch (Throwable ignore) { }
+        wirePasswordToggleA11y(pwdLayout);
 
         final TextInputEditText pwd = new TextInputEditText(ctx);
         pwd.setHint(safe(vm.getPasswordByLangValues(), "Password"));
@@ -335,8 +455,25 @@ public class BackupPasswordDialog {
         pwd.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         pwd.setTransformationMethod(PasswordTransformationMethod.getInstance());
         pwd.setBackground(null);
+        // DECRYPT context: a password manager should suggest the
+        // user's existing backup password rather than offering to
+        // generate a fresh one. Batch mode has no per-wallet
+        // discriminator (one typed password may decrypt one of many
+        // wallets) so the username falls back to the batch slot.
+        com.quantumcoinwallet.app.security.CredentialIdentifier.apply(pwd,
+                com.quantumcoinwallet.app.security.CredentialIdentifier.Context.BACKUP_DECRYPT,
+                null, /*forCreation=*/false);
         pwdLayout.addView(pwd);
         root.addView(pwdLayout);
+
+        // Batch-mode username: distinct prefix from the per-wallet
+        // backupUsername so a batch-mode autofill query never
+        // collides with a per-wallet slot. iOS counterpart is
+        // `UsernameField.make(CredentialIdentifier.backupBatchUsername)`.
+        com.quantumcoinwallet.app.security.CredentialIdentifier
+                .attachUsernameField(root,
+                        com.quantumcoinwallet.app.security.CredentialIdentifier
+                                .backupBatchUsername(ctx));
 
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(title)
@@ -363,7 +500,11 @@ public class BackupPasswordDialog {
                         cancelButton.setEnabled(true);
                         okButton.setText(okLabel);
                         pwd.setEnabled(true);
-                        pwd.setText("");
+                        // Preserve typed password on failure so a
+                        // one-character typo is easy to fix without
+                        // retyping the whole string. Mirrors
+                        // SendFragment / WalletsFragment / unlock
+                        // dialogs across the app.
                         pwd.requestFocus();
                     } catch (Throwable ignore) { }
                 }
@@ -375,6 +516,18 @@ public class BackupPasswordDialog {
                     GlobalMethods.ShowErrorDialog(ctx,
                             safe(vm.getErrorTitleByLangValues(), "Error"),
                             safe(vm.getEnterApasswordByLangValues(), "Enter a password"));
+                    return;
+                }
+                // Brute-force gate (see showRestore for rationale).
+                com.quantumcoinwallet.app.security.UnlockAttemptLimiter.Decision lim =
+                        com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                .currentDecision(ctx);
+                if (lim.kind == com.quantumcoinwallet.app.security
+                        .UnlockAttemptLimiter.DecisionKind.LOCKED) {
+                    GlobalMethods.ShowErrorDialog(ctx,
+                            safe(vm.getErrorTitleByLangValues(), "Error"),
+                            com.quantumcoinwallet.app.security.UnlockAttemptLimiter
+                                    .userFacingLockoutMessage(lim.remainingSeconds, vm));
                     return;
                 }
                 okButton.setEnabled(false);

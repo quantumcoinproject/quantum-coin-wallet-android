@@ -180,12 +180,13 @@
                         android:layout_width="wrap_content"
                         android:layout_height="1dp"
                         android:layout_marginTop="10dp"
-                        android:layout_marginBottom="10dp"
+                        android:layout_marginBottom="12dp"
                         android:alpha="0.2"
                         android:background="@drawable/line_2_shape" />
 
                     <Button
                         android:id="@+id/button_home_start_safety_quiz_langValues_next"
+                        android:layout_marginTop="6dp"
                         android:background="@drawable/button_green_selector"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"

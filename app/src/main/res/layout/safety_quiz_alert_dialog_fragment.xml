@@ -15,24 +15,43 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_horizontal|center_vertical"
             android:background="@drawable/message_container"
             android:orientation="vertical">
 
-            <ImageView
-                android:layout_margin="10dp"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:background="@drawable/img_right" />
-
-            <TextView
-                android:id="@+id/textView_safety_quiz_alert_dialog_message"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:textAlignment="center"
-                android:textColor="@color/colorCommon7"
-                android:background="@color/colorCommon6" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_margin="10dp"
+                    android:layout_marginEnd="12dp"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:background="@drawable/img_right" />
+
+                <!--
+                    Message text. textColor is colorCommon6 (primary
+                    text on the colorCommon7 message_container card)
+                    and the background is transparent so the card
+                    surface shows through; see
+                    drawable/message_container.xml for the dialog-card
+                    theming rationale.
+                -->
+                <TextView
+                    android:id="@+id/textView_safety_quiz_alert_dialog_message"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="10dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:gravity="start|center_vertical"
+                    android:textColor="@color/colorCommon6"
+                    android:background="@android:color/transparent" />
+
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/textView_safety_quiz_alert_dialog_ok"
@@ -40,7 +59,7 @@
                 android:layout_height="wrap_content"
                 android:padding="20dp"
                 android:text="@string/testnet_coins_dialog_ok"
-                android:textColor="@color/colorCommon7"
+                android:textColor="@color/colorCommon6"
                 android:textAlignment="center"
                 android:background="@drawable/image_selector" />
 

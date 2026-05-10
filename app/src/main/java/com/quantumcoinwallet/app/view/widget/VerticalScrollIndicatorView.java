@@ -107,10 +107,17 @@ public class VerticalScrollIndicatorView extends View {
         if (w <= 0 || h <= 0) {
             return;
         }
-        canvas.drawRect(0f, 0f, w, h, trackPaint);
+        // Skip drawing entirely when the content fits in the viewport,
+        // so the indicator quietly disappears as the Javadoc promises.
+        // Previously the track was drawn before this early-return,
+        // leaving a thin always-visible stripe on either side of a
+        // short table (e.g. the tokens table on accounts with only a
+        // handful of tokens) which the user reads as a "scrollbar
+        // that isn't doing anything".
         if (range <= 0 || extent <= 0 || range <= extent) {
             return;
         }
+        canvas.drawRect(0f, 0f, w, h, trackPaint);
         float density = getResources().getDisplayMetrics().density;
         float minThumb = MIN_THUMB_DP * density;
         float thumbHeight = Math.max(h * (float) extent / (float) range, minThumb);

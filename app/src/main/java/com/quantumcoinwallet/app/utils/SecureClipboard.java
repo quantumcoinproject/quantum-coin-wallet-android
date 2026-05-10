@@ -15,12 +15,25 @@ import timber.log.Timber;
 /**
  * Clipboard helper for sensitive values (seed phrases, private keys).
  *
- * MF-07:
- *   - Marks the ClipData as sensitive on API 33+ so the clipboard preview
- *     does not leak the value to anyone glancing at the screen.
- *   - Schedules an auto-clear of the clipboard after {@link #AUTO_CLEAR_MS}.
- *     If the user has copied something else in the meantime we leave that
- *     newer value alone, so we never clobber unrelated data.
+ * <ul>
+ *   <li>Marks the ClipData as sensitive on API 33+ so the clipboard preview
+ *       does not leak the value to anyone glancing at the screen.</li>
+ *   <li>Schedules an auto-clear of the clipboard after {@link #AUTO_CLEAR_MS}.
+ *       If the user has copied something else in the meantime we leave that
+ *       newer value alone, so we never clobber unrelated data.</li>
+ * </ul>
+ *
+ * <p><b>Seed clipboard copy is OS-hardened only on API 33+.</b>
+ * On API 29-32 (Android 10-12) the {@code IS_SENSITIVE} ClipDescription
+ * extra does not exist, so a copied seed phrase is visible to vendor
+ * clipboard managers, accessibility services, and clipboard-history
+ * dumps for the entire 30-second auto-clear window. Callers that copy
+ * a seed phrase or other long-term-secret material MUST gate the UI
+ * affordance on {@link #isSeedClipboardCopyHardened()} and hide the
+ * affordance on older OS versions; on those devices the user must
+ * write the seed down by hand. Public information like wallet
+ * addresses and transaction hashes is fine to copy on every API
+ * level.</p>
  */
 public final class SecureClipboard {
 
@@ -28,6 +41,17 @@ public final class SecureClipboard {
     private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     private SecureClipboard() { }
+
+    /**
+     * True when the running Android version supports the
+     * {@code android.content.extra.IS_SENSITIVE} ClipDescription extra
+     * (Android 13 / API 33 and newer). When this returns {@code false}
+     * the platform cannot mark a seed copy as private and seed-copy
+     * UI affordances MUST be hidden.
+     */
+    public static boolean isSeedClipboardCopyHardened() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU;
+    }
 
     /**
      * Copy a sensitive value to the clipboard with the "sensitive" flag set
@@ -38,7 +62,7 @@ public final class SecureClipboard {
     }
 
     /**
-     * L-05: copy a wallet address with the "sensitive" flag set (API 33+)
+     * Copy a wallet address with the "sensitive" flag set (API 33+)
      * so it does not show up in Android 13+ clipboard previews, but
      * <b>without</b> the auto-clear - addresses are public information
      * and clobbering them after 30s would hurt usability (users often
@@ -89,10 +113,10 @@ public final class SecureClipboard {
                         } else {
                             m.setPrimaryClip(ClipData.newPlainText("", ""));
                         }
-                        Timber.tag("SecureClipboard").d("auto-cleared");
+                        com.quantumcoinwallet.app.Logger.d("SecureClipboard", "auto-cleared");
                     }
                 } catch (Throwable t) {
-                    Timber.tag("SecureClipboard").w(t, "auto-clear");
+                    com.quantumcoinwallet.app.Logger.w("SecureClipboard", "auto-clear", t);
                 }
             }
         }, AUTO_CLEAR_MS);

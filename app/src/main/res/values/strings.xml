@@ -8,6 +8,20 @@
     <string name="authentication_error">Authentication to unlock key not provided or timed out. Please try again.</string>
     <string name="device_security_changed">Since this key was created the mobile device security has changed and the OS has invalidated the key. Please re-import your key.</string>
 
+    <!--
+        TalkBack labels for the eye-toggle on every
+        TextInputLayout password field. TextInputLayout's
+        passwordToggleContentDescription XML attribute is static (not
+        runtime-settable), so we ship a single string here and rely
+        on the dynamic JsonViewModel.getShowPasswordByLangValues() /
+        getHidePasswordByLangValues() accessors for any runtime
+        relabeling. Keeping the static string in English-only is
+        acceptable for an a11y label per Android's TalkBack best
+        practices and matches the iOS UIAccessibility convention.
+        Mirrors plan §AE.3.
+    -->
+    <string name="password_toggle_content_description">Show or hide password</string>
+
     <!-- Home -->
     <string name="home_title">QUANTUM COIN WALLET</string>
     <string name="home_total_balance_title">Total Balance</string>
@@ -141,8 +155,6 @@
 
     <!--- Menu -->
     <string name="nav_wallets_title">Wallets</string>
-    <string name="nav_help_title">Help</string>
-    <string name="nav_block_explorer_title">Block Explorer</string>
     <string name="nav_settings_title">Settings</string>
 
     <string name="nav_send_title">Send</string>

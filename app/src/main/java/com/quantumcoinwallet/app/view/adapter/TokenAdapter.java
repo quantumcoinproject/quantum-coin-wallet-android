@@ -79,10 +79,15 @@ public class TokenAdapter extends RecyclerView.Adapter<TokenAdapter.TokenHolder>
                 @Override
                 public void onClick(View v) {
                     try {
-                        String explorerUrl = GlobalMethods.BLOCK_EXPLORER_URL
-                                + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL
-                                        .replace("{address}", contract);
-                        context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl)));
+                        // Contract address comes from the
+                        // scan-API JSON which a hostile RPC operator
+                        // controls. UrlBuilder rejects anything not
+                        // matching ^0x[0-9a-fA-F]{64}$ rather than
+                        // pivoting Chrome to an attacker URL.
+                        Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                                .blockExplorerAccountUrl(contract);
+                        if (u == null) return;
+                        context.startActivity(new Intent(Intent.ACTION_VIEW, u));
                     } catch (Exception ex) {
                         GlobalMethods.ExceptionError(context, TAG, ex);
                     }
