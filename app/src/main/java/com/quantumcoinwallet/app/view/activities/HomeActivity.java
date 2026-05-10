@@ -332,16 +332,7 @@ public class HomeActivity extends FragmentActivity implements
 
             refreshImageButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    // A balance refresh should also invalidate the
-                    // cached token list so the user
-                    // sees fresh balances and any newly arrived
-                    // tokens. Mirrors iOS where the refresh button
-                    // re-pulls coin balance + tokens together.
-                    getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
-                    GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
-                    GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
-                    com.quantumcoinwallet.app.events.NetworkChangeBroadcaster
-                            .broadcastActiveNetworkChanged(getApplicationContext());
+                    performHomeRefresh();
                 }
             });
 
@@ -480,6 +471,50 @@ public class HomeActivity extends FragmentActivity implements
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
+    }
+
+    /**
+     * Canonical "user requested a full home-screen refresh" entry point.
+     * <p>Invoked by both the top-right refresh ImageButton in the wallet
+     * header and the SwipeRefreshLayout pull-to-refresh gesture wrapping
+     * the {@code HomeMainFragment} body, so the two surfaces are
+     * guaranteed to do exactly the same thing.
+     * <p>The work is:
+     * <ol>
+     *   <li>Re-pull the native QC balance via {@code getBalanceByAccount}
+     *       so the on-screen balance number is current.</li>
+     *   <li>Drop the in-memory cached token listing so the next
+     *       {@code HomeMainFragment.refreshTokenList} call cannot serve
+     *       stale entries from {@code GlobalMethods.CURRENT_WALLET_TOKEN_LIST}.</li>
+     *   <li>Broadcast an active-network-changed event so every visible
+     *       Fragment that observes network state (notably HomeMainFragment)
+     *       re-fetches against the current network. This is the same
+     *       broadcast a real network switch raises, which means the
+     *       refresh path is exercised by exactly the wiring that the
+     *       network-switch path already uses.</li>
+     * </ol>
+     * Mirrors the iOS UIRefreshControl target action which also fans out
+     * balance + tokens through a single entry point.
+     */
+    public void performHomeRefresh() {
+        try {
+            // A balance refresh should also invalidate the cached token
+            // list so the user sees fresh balances and any newly arrived
+            // tokens. Mirrors iOS where the refresh action re-pulls coin
+            // balance + tokens together.
+            getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
+            GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
+            com.quantumcoinwallet.app.events.NetworkChangeBroadcaster
+                    .broadcastActiveNetworkChanged(getApplicationContext());
+        } catch (Exception e) {
+            GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
+        }
+    }
+
+    @Override
+    public void onHomeMainRefreshRequested() {
+        performHomeRefresh();
     }
 
     @Override

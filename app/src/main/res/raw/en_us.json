@@ -3,7 +3,7 @@
     "info": [
       {
         "title": "Important, Please Read!",
-        "desc": "You are about to create a quantum resistant wallet. Do not send Ethereum or other coins or tokens to this wallet address!"
+        "desc": "You are about to create a Quantum Coin wallet. Do not send Ethereum or other coins or tokens to this wallet address!"
       },
       {
         "title": "Passwords",
@@ -23,11 +23,7 @@
       },
       {
         "title": "Social Media and Messaging Apps Safety",
-        "desc": "Do not respond to social media and messaging app direct-messages from community members or anyone in general talking about Quantum Coin. They are most likely scammers who can trick you and steal your coins or tokens!"
-      },
-      {
-        "title": "Wallet Location",
-        "desc": "Your wallets will be encrypted and saved in the following path in your computer. Running cleaning software can delete the wallets. You should ensure that this path is excluded from cleanup. [STORAGE_PATH]"
+        "desc": "Do not respond to social media and messaging app direct-messages from anyone in general talking about Quantum Coin. They are most likely scammers who can trick you and steal your coins or tokens!"
       }
     ],
   "quizStep": "Safety Quiz [STEP] OF [TOTAL_STEPS]",
@@ -57,22 +53,10 @@
       ],
       "correctChoice": 4,
       "afterQuizInfo": "This is correct. No one can help you recover your wallet or password."
-    },
-    {
-      "title": "Wallet Location",
-      "question": "In which path will your wallets be saved in your computer?",
-      "choices": [
-        "c:\\wallet",
-        "[STORAGE_PATH]",
-        "Documents",
-        "Applications"
-      ],
-      "correctChoice": 2,
-      "afterQuizInfo": "This is correct. Your wallets will be encrypted and saved in [STORAGE_PATH]. Running cleaning software can delete the wallets. You should ensure that this path is excluded from cleanup."
     }
   ],
     "langValues": {
-      "title": "Quantum Coin (Q)",
+      "title": "Quantum Coin",
       "next": "Next",
       "ok": "Ok",
       "cancel": "Cancel",

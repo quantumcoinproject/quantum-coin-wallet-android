@@ -1,8 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    Pull-to-refresh container. The SwipeRefreshLayout wraps the
+    existing token-list RelativeLayout so a downward swipe anywhere
+    inside the wallet main screen runs the same balance-and-tokens
+    reload the top-right refresh ImageButton triggers (see
+    HomeActivity.performHomeRefresh). HomeMainFragment also calls
+    setOnChildScrollUpCallback so that when the token RecyclerView
+    has been scrolled (long token list), an upward fling within the
+    list scrolls the list instead of being intercepted as a refresh
+    gesture. Mirrors the iOS UIRefreshControl attached to the same
+    main-screen scroll surface.
+-->
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/swipeRefresh_home_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+<RelativeLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_gravity="center_horizontal|center_vertical"
@@ -383,3 +401,5 @@
     </LinearLayout>
 
 </RelativeLayout>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

@@ -257,6 +257,14 @@ dependencies {
     // Local-only by design so other apps cannot observe or forge
     // network-state events.
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+
+    // SwipeRefreshLayout: hosts the pull-to-refresh gesture on the
+    // wallet main screen. The gesture is routed to HomeActivity's
+    // performHomeRefresh(), the same code path the top-right refresh
+    // button triggers, so the swipe and the button button stay
+    // behaviourally identical. Mirrors the iOS UIRefreshControl
+    // wired into the same balance-and-tokens reload.
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
 }
 
 // =================================================================

@@ -14,6 +14,7 @@ import android.widget.TextView;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.quantumcoinwallet.app.R;
 import com.quantumcoinwallet.app.api.read.ApiException;
@@ -35,6 +36,7 @@ public class HomeMainFragment extends Fragment  {
 
     private HomeMainFragment.OnHomeMainCompleteListener mHomeMainListener;
 
+    private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView tokenRecyclerView;
     private HorizontalScrollView tokenScrollContainer;
     private LinearLayout tokenScrollRow;
@@ -105,6 +107,7 @@ public class HomeMainFragment extends Fragment  {
                 walletAddress = getArguments().getString("walletAddress");
             }
 
+            swipeRefreshLayout = view.findViewById(R.id.swipeRefresh_home_main);
             tokenRecyclerView = view.findViewById(R.id.recyclerView_tokenList);
             tokenScrollContainer = view.findViewById(R.id.horizontalScroll_tokenList);
             tokenScrollRow = view.findViewById(R.id.tokenList_scrollRow);
@@ -170,6 +173,8 @@ public class HomeMainFragment extends Fragment  {
             });
 
             renderEmptyState(tokenAdapter.getItemCount() == 0);
+
+            wirePullToRefresh();
 
             refreshTokenList(walletAddress);
         } catch (Exception ex) {
@@ -314,9 +319,11 @@ public class HomeMainFragment extends Fragment  {
      */
     public void refreshTokenList(final String address) {
         if (address == null || address.isEmpty()) {
+            dismissSwipeSpinner();
             return;
         }
         if (!GlobalMethods.IsNetworkAvailable(getContext())) {
+            dismissSwipeSpinner();
             return;
         }
         try {
@@ -336,6 +343,7 @@ public class HomeMainFragment extends Fragment  {
                     if (tokenAdapter != null) {
                         applyFilteredItems(items);
                     }
+                    dismissSwipeSpinner();
                 }
 
                 @Override
@@ -346,11 +354,75 @@ public class HomeMainFragment extends Fragment  {
                                 && unrecognizedTokens.isEmpty();
                         renderEmptyState(overallEmpty);
                     }
+                    dismissSwipeSpinner();
                 }
             });
             task.execute(taskParams);
         } catch (Exception ex) {
             GlobalMethods.ExceptionError(getContext(), TAG, ex);
+            dismissSwipeSpinner();
+        }
+    }
+
+    /**
+     * Wires the pull-to-refresh container so a downward swipe runs the same
+     * code path as the top-right refresh ImageButton in the wallet header.
+     * The actual reload (balance + tokens) is owned by the host activity so
+     * that both surfaces share one entry point: HomeActivity exposes
+     * {@code performHomeRefresh()} and implements the listener method below
+     * by forwarding to it. The host's reload broadcasts a network-changed
+     * event which makes this fragment re-fetch the token list; when that
+     * fetch's REST task callback fires, {@link #dismissSwipeSpinner} hides
+     * the spinning indicator so the user gets a clean "done" signal.
+     * <p>{@code setOnChildScrollUpCallback}: SwipeRefreshLayout's default
+     * canChildScrollUp() check delegates to the immediate child via
+     * View.canScrollVertically(-1). Our immediate child is a non-scrollable
+     * RelativeLayout that contains a scrollable RecyclerView further down,
+     * so without the override every downward swipe inside a scrolled token
+     * list would be hijacked as a refresh gesture instead of scrolling the
+     * list back to the top. Delegating to the RecyclerView keeps the
+     * gesture intuitive: pull-to-refresh fires only when the list is
+     * already at the top.
+     */
+    private void wirePullToRefresh() {
+        if (swipeRefreshLayout == null) {
+            return;
+        }
+        Context ctx = getContext();
+        if (ctx != null) {
+            // Match the wallet header's accent so the spinner reads as
+            // part of the app's palette rather than the platform default
+            // teal. colorCommon2 is the same purple used by the selected
+            // segmented-control underline and the primary action buttons.
+            swipeRefreshLayout.setColorSchemeColors(
+                    androidx.core.content.ContextCompat.getColor(ctx, R.color.colorCommon2));
+        }
+        swipeRefreshLayout.setOnChildScrollUpCallback(new SwipeRefreshLayout.OnChildScrollUpCallback() {
+            @Override
+            public boolean canChildScrollUp(SwipeRefreshLayout parent, View child) {
+                return tokenRecyclerView != null && tokenRecyclerView.canScrollVertically(-1);
+            }
+        });
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                if (mHomeMainListener != null) {
+                    mHomeMainListener.onHomeMainRefreshRequested();
+                }
+            }
+        });
+    }
+
+    /**
+     * Idempotent helper: clears the pull-to-refresh spinner if one is
+     * showing. Called from every terminal branch of the token re-fetch
+     * (success, API failure, exception, and the early-return guards in
+     * {@link #refreshTokenList}) so the spinner cannot get stuck on after
+     * a swipe.
+     */
+    private void dismissSwipeSpinner() {
+        if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+            swipeRefreshLayout.setRefreshing(false);
         }
     }
 
@@ -396,6 +468,15 @@ public class HomeMainFragment extends Fragment  {
 
     public static interface OnHomeMainCompleteListener {
         public abstract void onHomeMainComplete();
+
+        /**
+         * Invoked when the user triggers the pull-to-refresh gesture on the
+         * main screen. Host activities should run the same balance-and-tokens
+         * reload as the top-right refresh ImageButton so the two surfaces stay
+         * behaviourally identical (HomeActivity routes this through its
+         * {@code performHomeRefresh()} method).
+         */
+        public abstract void onHomeMainRefreshRequested();
     }
 
     public void onAttach(Context context) {
