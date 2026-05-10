@@ -47,17 +47,61 @@
 
     <color name="colorSeedA">#000000</color>
 
-    <color name="colorCommonSeedA">#ABC6D3</color>
-    <color name="colorCommonSeedB">#D1D3B7</color>
-    <color name="colorCommonSeedC">#D8C9AE</color>
-    <color name="colorCommonSeedD">#D1B4B9</color>
-    <color name="colorCommonSeedE">#D8B3B9</color>
-    <color name="colorCommonSeedF">#C5ADCA</color>
-    <color name="colorCommonSeedG">#A0B5BD</color>
-    <color name="colorCommonSeedH">#C5B7B7</color>
-    <color name="colorCommonSeedI">#BCB6D8</color>
-    <color name="colorCommonSeedJ">#B6C69D</color>
-    <color name="colorCommonSeedK">#D5B3B3</color>
-    <color name="colorCommonSeedL">#B1D1D8</color>
+    <!--
+        Seed-tile background colors deliberately mirror the
+        light-mode values across A-G and I-L so the seed UI looks
+        the same in light and dark mode (matching iOS, where the
+        seed surfaces are excluded from dark-mode adaptation).
+        Reasoning: seed entry/verification is a high-stakes,
+        time-pressured task; flipping the per-tile color palette in
+        dark mode meant users who learned the colors in one mode
+        misread them in the other. Tile H is special-cased below.
+    -->
+    <color name="colorCommonSeedA">#0000FF</color>
+    <color name="colorCommonSeedB">#008000</color>
+    <color name="colorCommonSeedC">#AA6F00</color>
+    <color name="colorCommonSeedD">#EB2B4D</color>
+    <color name="colorCommonSeedE">#5E0D1B</color>
+    <color name="colorCommonSeedF">#9B0BB8</color>
+    <color name="colorCommonSeedG">#046D94</color>
+    <!--
+        Tile H is BLACK in light mode, which is invisible against the
+        dark-mode app background. We keep H black here for color
+        identity, but bg_seed_view_h_curve.xml (and edit variant) get
+        a white border + the seed label above renders white via
+        colorCommonSeedHLabel below. This preserves the "H is
+        distinctly black" mental model while making the tile visible
+        in dark mode.
+    -->
+    <color name="colorCommonSeedH">#000000</color>
+    <color name="colorCommonSeedI">#3519C5</color>
+    <color name="colorCommonSeedJ">#648D24</color>
+    <color name="colorCommonSeedK">#DF1313</color>
+    <color name="colorCommonSeedL">#003F4D</color>
+
+    <!--
+        White label color for the H seed tile in dark mode only. Light
+        mode uses the colorCommonSeedH (black) value for both the tile
+        background and the label. See values/colors.xml for the light
+        version.
+    -->
+    <color name="colorCommonSeedHLabel">#FFFFFFFF</color>
+    <!-- White border for the H tile in dark mode. -->
+    <color name="colorCommonSeedHBorder">#FFFFFFFF</color>
+
+    <!--
+        Dark-mode override for the muted secondary text color. See
+        values/colors.xml for the full rationale: this resource exists
+        because colorCommon10 is also consumed as a dialog background
+        in dark mode (#000000), so any text view that wanted a quieter
+        secondary tone ended up rendering black-on-black on dark
+        themes. #B0B0B0 is dim enough to preserve a clear "secondary"
+        hierarchy beneath colorCommon6 (#FFFFFFFF) primary text but
+        still passes a comfortable contrast ratio against the dark
+        background, fixing the contract-address line on the Send
+        screen and the empty-state caption on the token list.
+    -->
+    <color name="colorMutedSecondaryText">#B0B0B0</color>
+
 
 </resources>

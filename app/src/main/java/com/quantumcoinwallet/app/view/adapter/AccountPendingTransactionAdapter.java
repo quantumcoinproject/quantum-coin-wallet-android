@@ -123,8 +123,13 @@ public class AccountPendingTransactionAdapter extends
                 holder.textViewTransHash.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        context.startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_TX_HASH_URL.replace("{txhash}", hash))));
+                        // Hash flows from a pending-tx scan API
+                        // response; UrlBuilder regex-validates before
+                        // any browser handoff.
+                        Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                                .blockExplorerTxUrl(hash);
+                        if (u == null) return;
+                        context.startActivity(new Intent(Intent.ACTION_VIEW, u));
                     }
                 });
             }
@@ -133,8 +138,10 @@ public class AccountPendingTransactionAdapter extends
                 holder.textViewFrom.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        context.startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", from))));
+                        Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                                .blockExplorerAccountUrl(from);
+                        if (u == null) return;
+                        context.startActivity(new Intent(Intent.ACTION_VIEW, u));
                     }
                 });
             }
@@ -143,8 +150,10 @@ public class AccountPendingTransactionAdapter extends
                 holder.textViewTo.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        context.startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(GlobalMethods.BLOCK_EXPLORER_URL + GlobalMethods.BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL.replace("{address}", to))));
+                        Uri u = com.quantumcoinwallet.app.networking.UrlBuilder
+                                .blockExplorerAccountUrl(to);
+                        if (u == null) return;
+                        context.startActivity(new Intent(Intent.ACTION_VIEW, u));
                     }
                 });
             }

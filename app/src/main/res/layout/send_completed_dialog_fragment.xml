@@ -19,20 +19,122 @@
             android:background="@drawable/message_container"
             android:orientation="vertical">
 
-            <ImageView
-                android:layout_margin="10dp"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:background="@drawable/img_right" />
-
-            <TextView
+            <!--
+                Horizontal row pairing the success / check glyph with
+                the message text so the icon renders to the LEFT of the
+                message (icon-on-left convention shared with
+                safety_quiz_alert_dialog_fragment and
+                message_information_dialog_fragment).
+            -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:textAlignment="center"
-                android:textColor="@color/colorCommon7"
-                android:background="@color/colorCommon6"
-                android:text="@string/send_transaction_send_message_description"/>
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_margin="10dp"
+                    android:layout_marginEnd="12dp"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:background="@drawable/img_right" />
+
+                <!--
+                    Message text on top of the message_container surface.
+                    textColor is colorCommon6 (primary text) and the
+                    background is intentionally transparent so the card
+                    surface shows through; the previous version painted
+                    a colorCommon6 background box over a colorCommon6
+                    card, which would have rendered text-against-text
+                    contrast had the card not also been the inverted
+                    color. See drawable/message_container.xml for the
+                    full theme rationale.
+                -->
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="10dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:gravity="start|center_vertical"
+                    android:textColor="@color/colorCommon6"
+                    android:background="@android:color/transparent"
+                    android:text="@string/send_transaction_send_message_description"/>
+
+            </LinearLayout>
+
+            <!-- (Android, mirrors iOS TransactionSentDialogViewController):
+                 surface the locally-derived tx hash with a copy
+                 button and a "view on explorer" affordance so the
+                 user can immediately follow the transaction without
+                 having to dig through the transactions list.
+                 textColor is colorCommon6 (primary text on the
+                 colorCommon7 card surface). -->
+            <TextView
+                android:id="@+id/textView_send_completed_tx_hash_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="6dp"
+                android:textColor="@color/colorCommon6"
+                android:textSize="11dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/textView_send_completed_tx_hash_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/colorCommon6"
+                android:textSize="12dp"
+                android:fontFamily="monospace"
+                android:textIsSelectable="true"
+                android:visibility="gone" />
+
+            <!--
+                Copy and View-on-explorer affordances rendered as
+                ImageButtons (not text Buttons) so they match the
+                home toolbar's clipboard + block-explorer icons in
+                home_activity.xml exactly. Text labels live in
+                contentDescription so screen readers still announce
+                them; SendFragment.sendCompletedDialogFragment binds
+                contentDescription from
+                jsonViewModel.getCopyByLangValues() and
+                jsonViewModel.getDpscanByLangValues() respectively.
+            -->
+            <LinearLayout
+                android:id="@+id/linear_layout_send_completed_actions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp"
+                android:visibility="gone">
+                <ImageButton
+                    android:id="@+id/button_send_completed_copy_hash"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="16dp"
+                    android:padding="5dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/image_selector"
+                    android:src="@drawable/copy_outline"
+                    app:tint="@color/colorCommon6" />
+                <ImageButton
+                    android:id="@+id/button_send_completed_view_explorer"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="5dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/image_selector"
+                    android:src="@drawable/address_explore"
+                    app:tint="@color/colorCommon6" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/textView_send_completed_alert_dialog_ok"
@@ -40,7 +142,7 @@
                 android:layout_height="wrap_content"
                 android:padding="20dp"
                 android:text="@string/testnet_coins_dialog_ok"
-                android:textColor="@color/colorCommon7"
+                android:textColor="@color/colorCommon6"
                 android:textAlignment="center"
                 android:background="@drawable/image_selector" />
 

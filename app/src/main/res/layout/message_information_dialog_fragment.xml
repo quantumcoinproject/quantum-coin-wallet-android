@@ -18,20 +18,55 @@
             android:background="@drawable/message_container"
             android:orientation="vertical">
 
-            <ImageView
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_margin="10dp"
-                android:background="@drawable/img_information" />
-
-            <TextView
-                android:id="@+id/textView_message_information_dialog_description"
+            <!--
+                Horizontal row pairing the info / error glyph with the
+                message text so the icon renders to the LEFT of the
+                message (matches the safety-quiz "correct" dialog layout
+                and the iOS UIAlertController layout).
+            -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_margin="10dp"
-                android:textAlignment="center"
-                android:textColor="@color/colorCommon7"
-                android:background="@color/colorCommon6" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!--
+                    Id added so the fragment can swap
+                    between the default information glyph and the orange
+                    error glyph when MessageInformationDialogFragment.error
+                    is invoked, matching the iOS info-vs-error visual gate.
+                    Using android:src (not android:background) so vector
+                    tints render correctly across all API levels.
+                -->
+                <ImageView
+                    android:id="@+id/imageView_message_information_dialog_icon"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="10dp"
+                    android:layout_marginEnd="12dp"
+                    android:src="@drawable/img_information" />
+
+                <!--
+                    Description text. textColor is colorCommon6
+                    (primary text on the colorCommon7 message_container
+                    card) and the background is transparent so the card
+                    surface shows through; see
+                    drawable/message_container.xml for the dialog-card
+                    theming rationale.
+                -->
+                <TextView
+                    android:id="@+id/textView_message_information_dialog_description"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="10dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:gravity="start|center_vertical"
+                    android:textColor="@color/colorCommon6"
+                    android:background="@android:color/transparent" />
+
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/textView_message_information_dialog_close"
@@ -39,7 +74,7 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
                 android:padding="10dp"
-                android:textColor="@color/colorCommon7"
+                android:textColor="@color/colorCommon6"
                 android:textAlignment="center"
                 android:background="@drawable/image_selector" />
 

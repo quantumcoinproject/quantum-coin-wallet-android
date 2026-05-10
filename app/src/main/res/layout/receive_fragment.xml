@@ -95,10 +95,13 @@
                             android:gravity="center"
                             android:textColor="@color/colorCommon3" />
 
-                        <LinearLayout
+                        <!-- Copy icon pinned to row centerX (matches
+                             iOS ReceiveViewController.copyRow), with the
+                             "Copied" label living to the right of the icon
+                             so it never shifts the icon off the midline. -->
+                        <RelativeLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:gravity="center_horizontal|center_vertical"
                             android:layout_marginBottom="5dp">
 
                             <ImageButton
@@ -110,7 +113,7 @@
                                 android:paddingLeft="5dp"
                                 android:paddingRight="5dp"
                                 android:scaleType="fitCenter"
-                                android:layout_gravity="center_vertical|left"
+                                android:layout_centerInParent="true"
                                 android:background="@drawable/image_selector"
                                 android:src="@drawable/copy_outline"
                                 app:tint="@color/colorCommon6" />
@@ -119,13 +122,14 @@
                                 android:id="@+id/textView_receive_copied"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical"
+                                android:layout_toEndOf="@id/imageButton_receive_copy_clipboard"
+                                android:layout_centerVertical="true"
                                 android:textColor="#000000"
                                 android:textSize="14dp"
                                 android:visibility="gone"
                                 android:layout_marginStart="4dp" />
 
-                        </LinearLayout>
+                        </RelativeLayout>
 
                         <LinearLayout
                             android:layout_width="match_parent"

@@ -1,44 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Auto-Backup rules (MF-09).
+  Auto-Backup rules (v=3 unified-schema).
 
   What is being backed up:
-    DP_QUANTUM_COIN_WALLET_APP_PREF.xml is the SharedPreferences file that
-    holds:
-      * The scrypt salt (SECURE_DERIVED_KEY_SALT)
-      * The scrypt+AES encrypted main key (SECURE_ENCRYPTED_MAIN_KEY)
-      * Per-wallet encrypted blobs (SECURE_WALLET_*) that contain the
-        address, public/private key and seed phrase encrypted with the
-        main key
-      * Non-sensitive app state (current wallet index, network list, etc.)
-      * The BACKUP_ENABLED flag itself
+    1. The strongbox v=3 slot files at
+       files/strongbox/DP_QUANTUM_COIN_WALLET_APP_PREF.A.json /.B.json.
+       These hold:
+         * The scrypt salt (32 bytes; v=3 bumped from 16 on iOS so
+           both platforms agree)
+         * The scrypt+AES password-wrap of the random 32-byte
+           mainKey (scrypt N=262144, r=8, p=1, 32-byte output)
+         * The AES-256-GCM-sealed StrongboxPayload (wallets,
+           customNetworks, secureItems, activeNetworkIndex,
+           cloudBackupFolderUri, advancedSigning,
+           cameraPermissionAskedOnce, currentWalletIndex), padded
+           to a fixed 4 MiB bucket via ISO/IEC 7816-4 padding so
+           wallet count cannot be inferred from on-disk file
+           length. backupEnabled is intentionally NOT part of the
+           encrypted payload — it lives in the SharedPreferences
+           pref below as the canonical source of truth so the OS
+           backup agent can read it pre-unlock.
+         * An inner keyed checksum: HMAC-SHA-256 over the canonical
+           sortedKeys JSON of the payload (sans the checksum
+           field), keyed by HKDF-SHA-256(mainKey, salt=null,
+           info="strongbox-payload-checksum-v3", L=32). The keyed
+           checksum is byte-identical between iOS and Android for
+           the same mainKey + payload.
+         * The HMAC-SHA-256 file-level MAC keyed by HKDF(mainKey,
+           salt, "integrity-v2")
+    2. DP_QUANTUM_COIN_WALLET_APP_PREF.xml (SharedPreferences) for
+       non-secret app state. The BACKUP_ENABLED pref is the
+       CANONICAL store of the backup-enabled toggle (NOT a
+       write-through mirror of a payload field). The Settings UI
+       and onboarding write it directly; the strongbox payload
+       does not carry a `backupEnabled` field at all, so there is
+       no encrypted state to disagree with this pref.
+
+  Cross-platform portability (notes for reviewers):
+    The on-disk slot file is byte-for-byte identical to the iOS
+    counterpart under the same inputs (password, salt, mainKey,
+    AEAD nonces, wallet contents). A shared deterministic test-
+    vector suite under tests/fixtures/strongbox-v3-vectors/ pins
+    the format and is consumed by both platforms — see
+    StrongboxPortabilityVectorTest. Bundled mainnet/testnet
+    entries are NEVER written into the payload; they are
+    re-prepended at runtime from R.raw.blockchain_networks so
+    a future bundled-list update reaches every install without
+    a migration.
 
   Why this is safe to back up:
-    Every sensitive value is encrypted with an AES key that is itself
-    encrypted with a scrypt-derived key (N=262144, r=8, p=1, keyLen=32).
-    Without the user's wallet password the backup is useless to an
-    attacker (including Google's backup storage, device images, or the
-    receiving device during restore). The password is never stored on
-    disk in a recoverable form.
+    Every sensitive value in the strongbox file is sealed with
+    AES-256-GCM under a 32-byte mainKey that is itself sealed
+    with a scrypt-derived key (N=262144, r=8, p=1, 32-byte
+    output). Without the user's wallet password the backup is
+    useless to an attacker (including Google's backup storage,
+    device images, or the receiving device during restore). The
+    password is never stored on disk in a recoverable form.
 
   Runtime gate:
-    WalletBackupAgent.onFullBackup() inspects BACKUP_ENABLED_KEY before
-    calling super.onFullBackup(). If the user has not explicitly opted
-    in from the app Settings UI, the agent returns without emitting
-    any data, so even with android:allowBackup="true" in the manifest
-    nothing leaves the device.
+    WalletBackupAgent.onFullBackup() inspects BACKUP_ENABLED_KEY
+    before calling super.onFullBackup(). The pref is the canonical
+    setting, not a mirror of a payload field. The Settings UI and
+    onboarding write it directly. The backup agent runs BEFORE
+    unlock, so storing the toggle in a pre-unlock-readable surface
+    (SharedPreferences) is required for the gate to work; the
+    encrypted payload could never be consulted at this point. If
+    the user has not explicitly opted in from the app Settings UI,
+    the agent returns without emitting any data, so even with
+    android:allowBackup="true" in the manifest nothing leaves the
+    device.
 
   Restore behavior:
-    On a new install on a new device, Android replays the backup into
-    the same SharedPreferences file. Because the encrypted main key and
-    all per-wallet blobs travel together, the user only needs their
-    original wallet password to unlock on the new device; no seed
-    re-import is required.
+    On a new install on a new device, Android replays the backup
+    into the same on-disk paths. Because the strongbox slot
+    files travel together, the user only needs their original
+    wallet password to unlock on the new device; no seed
+    re-import is required. Cross-platform restore (Android slot
+    file -> iOS, or vice versa) requires manually moving the
+    slot file into the equivalent on-disk path; the v=3 portable
+    schema guarantees that the foreign-platform reader can
+    decrypt and validate it byte-for-byte (the test-vector suite
+    enforces this).
 
   Exclusions:
-    Everything else (caches, files/*, external storage, etc.) is
-    excluded by omitting it from the <include> whitelist below.
+    The AndroidKeystore-bound generation-counter pref file
+    (qc_strongbox_counter_v1.xml) is explicitly excluded — its
+    HMAC tag is signed by a non-extractable device-bound key
+    that does not survive a device migration, so backing it up
+    would mean the new device's keystore tag check rejects the
+    counter on every unlock. The counter is re-initialised from
+    the slot file's generation field on the new device.
 -->
 <full-backup-content>
+    <include domain="file" path="strongbox/" />
     <include domain="sharedpref" path="DP_QUANTUM_COIN_WALLET_APP_PREF.xml" />
+    <exclude domain="sharedpref" path="qc_strongbox_counter_v1.xml" />
 </full-backup-content>

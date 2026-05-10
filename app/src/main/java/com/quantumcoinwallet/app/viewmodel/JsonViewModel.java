@@ -91,6 +91,14 @@ public class JsonViewModel extends ViewModel{
     public String getCopyByLangValues() {
         try { return _jsonInteract.getCopyByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
+    /**
+     * "transaction-id" key. Used by the post-send
+     * dialog (SendFragment.sendCompletedDialogFragment) and by the
+     * Transactions list header.
+     */
+    public String getTransactionIdByLangValues() {
+        try { return _jsonInteract.getTransactionIdByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return "Transaction id";
+    }
     public String getBalanceByLangValues() {
         try { return _jsonInteract.getBalanceByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
@@ -325,6 +333,19 @@ public class JsonViewModel extends ViewModel{
     public String getBackupFailedByLangValues() {
         try { return _jsonInteract.getBackupFailedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
+    /**
+     * Cloud-vs-local export messaging mirror of iOS. Used by
+     * {@code BackupExecutor.writeExportToUri} when the SAF
+     * authority resolves to a known cloud DocumentsProvider so
+     * the user sees a modal warning that the upload is still in
+     * progress, not a "saved" toast.
+     */
+    public String getBackupSubmittedCloudTitleByLangValues() {
+        try { return _jsonInteract.getBackupSubmittedTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getBackupSubmittedCloudMessageByLangValues() {
+        try { return _jsonInteract.getBackupSubmittedBodyByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
     public String getBackupPasswordByLangValues() {
         try { return _jsonInteract.getBackupPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
@@ -397,11 +418,17 @@ public class JsonViewModel extends ViewModel{
     public String getRestoreTryDifferentPasswordByLangValues() {
         try { return _jsonInteract.getRestoreTryDifferentPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
+    public String getRestoreStrongboxWriteFailedByLangValues() {
+        try { return _jsonInteract.getRestoreStrongboxWriteFailedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
     public String getRestoreProgressOfByLangValues() {
         try { return _jsonInteract.getRestoreProgressOfByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestorePartialProgressByLangValues() {
         try { return _jsonInteract.getRestorePartialProgressByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getRestoreWalletsDecryptingByLangValues() {
+        try { return _jsonInteract.getRestoreWalletsDecryptingByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getCameraPermissionDeniedByLangValues() {
         try { return _jsonInteract.getCameraPermissionDeniedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
@@ -409,6 +436,54 @@ public class JsonViewModel extends ViewModel{
 
     public String getTokensByLangValues() {
         try { return _jsonInteract.getTokensByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getTokensTabByLangValues() {
+        try { return _jsonInteract.getTokensTabByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getUnrecognizedTokensByLangValues() {
+        try { return _jsonInteract.getUnrecognizedTokensByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getShowUnrecognizedTokensByLangValues() {
+        try { return _jsonInteract.getShowUnrecognizedTokensByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getContractAddressByLangValues() {
+        try { return _jsonInteract.getContractAddressByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getWhatIsBeingSentByLangValues() {
+        try { return _jsonInteract.getWhatIsBeingSentByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getFromAddressByLangValues() {
+        try { return _jsonInteract.getFromAddressByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getToAddressByLangValues() {
+        try { return _jsonInteract.getToAddressByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getSendQuantityByLangValues() {
+        try { return _jsonInteract.getSendQuantityByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getChainIdSuffixByLangValues() {
+        try { return _jsonInteract.getChainIdSuffixByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getReviewTransactionPromptByLangValues() {
+        try { return _jsonInteract.getReviewTransactionPromptByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getTypeIAgreeToConfirmPrefixByLangValues() {
+        try { return _jsonInteract.getTypeIAgreeToConfirmPrefixByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getTypeIAgreeToConfirmSuffixByLangValues() {
+        try { return _jsonInteract.getTypeIAgreeToConfirmSuffixByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getIAgreeLiteralByLangValues() {
+        try { return _jsonInteract.getIAgreeLiteralByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getTypeIAgreeWarningByLangValues() {
+        try { return _jsonInteract.getTypeIAgreeWarningByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getBackupSubmittedTitleByLangValues() {
+        try { return _jsonInteract.getBackupSubmittedTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getBackupSubmittedBodyByLangValues() {
+        try { return _jsonInteract.getBackupSubmittedBodyByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getNoTokensByLangValues() {
         try { return _jsonInteract.getNoTokensByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
@@ -430,6 +505,128 @@ public class JsonViewModel extends ViewModel{
     }
     public String getConfirmWalletDescriptionByLangValues() {
         try { return _jsonInteract.getConfirmWalletDescriptionByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+
+    // Stage 2 ViewModel accessors. English fall-throughs match
+    // the en_us.json values byte-for-byte so a missing-locale config
+    // (e.g. partial JSON corruption) still renders intelligible UI.
+    // The tamper-jailbreak / tamper-runtime fall-throughs use Android
+    // wording (root, Play Store).
+    public String getAddressChecksumWarningByLangValues() {
+        try { return _jsonInteract.getAddressChecksumWarningByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "This address does not match its expected checksum form. Double-check that the address is correct before sending.";
+    }
+    public String getBackupEncryptedWarningByLangValues() {
+        try { return _jsonInteract.getBackupEncryptedWarningByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Important: choosing \"No\" excludes the wallet file from Android Auto Backup, but full device backups may still include all app data. The wallet file remains encrypted with your password regardless of this setting.";
+    }
+    public String getBlockExplorerTitleByLangValues() {
+        try { return _jsonInteract.getBlockExplorerTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Block Explorer";
+    }
+    public String getDecimalsByLangValues() {
+        try { return _jsonInteract.getDecimalsByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Decimals";
+    }
+    public String getDecryptingWalletByLangValues() {
+        try { return _jsonInteract.getDecryptingWalletByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Please wait while decrypting wallet...";
+    }
+    public String getHelpByLangValues() {
+        try { return _jsonInteract.getHelpByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Help";
+    }
+    public String getNoActiveNetworkByLangValues() {
+        try { return _jsonInteract.getNoActiveNetworkByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "There is no active network. Add and select a network from Settings.";
+    }
+    public String getSeedAccessibilitySummaryByLangValues() {
+        try { return _jsonInteract.getSeedAccessibilitySummaryByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Seed phrase is displayed on screen. Use the Copy button to copy it.";
+    }
+    public String getSeedHiddenForCaptureByLangValues() {
+        try { return _jsonInteract.getSeedHiddenForCaptureByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Seed phrase hidden because the screen is being recorded or mirrored. Stop screen recording or mirroring to view the seed.";
+    }
+    public String getStatusVerifyingByLangValues() {
+        try { return _jsonInteract.getStatusVerifyingByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Verifying...";
+    }
+    public String getStrongboxDegradedBannerByLangValues() {
+        try { return _jsonInteract.getStrongboxDegradedBannerByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Wallet integrity check recovered from a backup slot. Please create a fresh backup soon.";
+    }
+    public String getSubmittingTransactionByLangValues() {
+        try { return _jsonInteract.getSubmittingTransactionByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Please wait while your transaction is being submitted.";
+    }
+    public String getTamperContinueAtRiskByLangValues() {
+        try { return _jsonInteract.getTamperContinueAtRiskByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Continue at my own risk";
+    }
+    public String getTamperDebuggerBannerByLangValues() {
+        try { return _jsonInteract.getTamperDebuggerBannerByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Debugger detected - reduced protection";
+    }
+    public String getTamperDebuggerMessageByLangValues() {
+        try { return _jsonInteract.getTamperDebuggerMessageByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "A debugger is attached to this app. We strongly recommend you exit. If you understand the risk, you can ignore this warning and continue.";
+    }
+    public String getTamperDebuggerTitleByLangValues() {
+        try { return _jsonInteract.getTamperDebuggerTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Debugger detected";
+    }
+    public String getTamperIgnoreAndResumeByLangValues() {
+        try { return _jsonInteract.getTamperIgnoreAndResumeByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Ignore and resume";
+    }
+    public String getTamperJailbreakBannerByLangValues() {
+        try { return _jsonInteract.getTamperJailbreakBannerByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Rooted device - reduced protection";
+    }
+    public String getTamperJailbreakMessageByLangValues() {
+        try { return _jsonInteract.getTamperJailbreakMessageByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "This device shows signs of being rooted. The OS-level isolation that protects your wallet is bypassed - apps you trust can be modified by other apps you have installed. Continue at your own risk, or quit?";
+    }
+    public String getTamperJailbreakTitleByLangValues() {
+        try { return _jsonInteract.getTamperJailbreakTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Reduced device protection";
+    }
+    public String getTamperQuitByLangValues() {
+        try { return _jsonInteract.getTamperQuitByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Quit";
+    }
+    public String getTamperRuntimeBannerByLangValues() {
+        try { return _jsonInteract.getTamperRuntimeBannerByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Tampering detected - reduced protection";
+    }
+    public String getTamperRuntimeMessageByLangValues() {
+        try { return _jsonInteract.getTamperRuntimeMessageByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "This wallet's signing module has been modified. We strongly recommend you exit and reinstall from the Play Store. If you understand the risk, you can ignore this warning and continue.";
+    }
+    public String getTamperRuntimeTitleByLangValues() {
+        try { return _jsonInteract.getTamperRuntimeTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Tampering detected";
+    }
+    public String getTransactionMessageExitsByLangValues() {
+        try { return _jsonInteract.getTransactionMessageExitsByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "A transaction request is already in progress.";
+    }
+    public String getTransactionSentByLangValues() {
+        try { return _jsonInteract.getTransactionSentByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Your transaction request has been sent.";
+    }
+    public String getWaitOpeningPickerByLangValues() {
+        try { return _jsonInteract.getWaitOpeningPickerByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Please wait, opening picker...";
+    }
+    public String getShowPasswordByLangValues() {
+        try { return _jsonInteract.getShowPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Show password";
+    }
+    public String getHidePasswordByLangValues() {
+        try { return _jsonInteract.getHidePasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); }
+        return "Hide password";
     }
 
     public String getSelectOptionByErrors() {
@@ -458,6 +655,54 @@ public class JsonViewModel extends ViewModel{
     }
     public String getWalletPasswordNotSetByErrors() {
         try { return _jsonInteract.getWalletPasswordNotSetByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getSeedWordEmptyByErrors() {
+        try { return _jsonInteract.getSeedWordEmptyByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getSeedWordInvalidByErrors() {
+        try { return _jsonInteract.getSeedWordInvalidByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getSeedWordMismatchByErrors() {
+        try { return _jsonInteract.getSeedWordMismatchByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getUnlockTooManyAttemptsSecondsByErrors() {
+        try { return _jsonInteract.getUnlockTooManyAttemptsSecondsByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getUnlockTooManyAttemptsOneMinuteByErrors() {
+        try { return _jsonInteract.getUnlockTooManyAttemptsOneMinuteByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getUnlockTooManyAttemptsMinutesByErrors() {
+        try { return _jsonInteract.getUnlockTooManyAttemptsMinutesByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkRpcMustBeHttpsByErrors() {
+        try { return _jsonInteract.getNetworkRpcMustBeHttpsByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkRpcInvalidHostByErrors() {
+        try { return _jsonInteract.getNetworkRpcInvalidHostByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkScanInvalidHostByErrors() {
+        try { return _jsonInteract.getNetworkScanInvalidHostByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkExplorerInvalidHostByErrors() {
+        try { return _jsonInteract.getNetworkExplorerInvalidHostByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkNameFormatByErrors() {
+        try { return _jsonInteract.getNetworkNameFormatByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkIdPositiveIntegerByErrors() {
+        try { return _jsonInteract.getNetworkIdPositiveIntegerByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkDuplicateNameByErrors() {
+        try { return _jsonInteract.getNetworkDuplicateNameByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkSecureStorageUnavailableByErrors() {
+        try { return _jsonInteract.getNetworkSecureStorageUnavailableByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getNetworkAddSuccessByErrors() {
+        try { return _jsonInteract.getNetworkAddSuccessByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    }
+    public String getRevealWalletErrorGenericByErrors() {
+        try { return _jsonInteract.getRevealWalletErrorGenericByErrors(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
 
 }

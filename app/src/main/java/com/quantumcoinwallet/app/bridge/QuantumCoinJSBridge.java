@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *         directly into the {@code evaluateJavascript} script string
  *         after being escaped with {@link #escapeForJs(String)}. Used
  *         for addresses, chain ids, RPC endpoints, etc.</li>
- *     <li><b>Pull (MF-02)</b> - sensitive arguments (passwords,
+ *     <li><b>Pull</b> - sensitive arguments (passwords,
  *         private keys, seed phrases) are never written into the
  *         script string. They are staged as a JSON payload in
  *         {@link WebViewManager#storePendingPayload(String, String)}
@@ -103,7 +103,7 @@ public class QuantumCoinJSBridge {
     public String walletFromSeedAsync(int[] seedArray, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        // MF-02: seed bytes are staged; JS pulls them.
+        // Seed bytes are staged; JS pulls them.
         JSONObject payload = new JSONObject();
         try {
             payload.put("seedArray", intArrayToJsonArray(seedArray));
@@ -118,7 +118,7 @@ public class QuantumCoinJSBridge {
     public String walletFromPhraseAsync(String[] words, BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        // MF-02: seed phrase never enters the script string.
+        // Seed phrase never enters the script string.
         JSONObject payload = new JSONObject();
         try {
             payload.put("words", stringArrayToJsonArray(words));
@@ -134,7 +134,7 @@ public class QuantumCoinJSBridge {
                                       BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        // MF-02: private key never enters the script string.
+        // Private key never enters the script string.
         JSONObject payload = new JSONObject();
         try {
             payload.put("privKey", privKeyBase64 == null ? "" : privKeyBase64);
@@ -154,7 +154,7 @@ public class QuantumCoinJSBridge {
                                        BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        // MF-02: all sensitive fields are pulled, not pushed.
+        // All sensitive fields are pulled, not pushed.
         JSONObject payload = new JSONObject();
         try {
             payload.put("privKey", privKeyBase64 == null ? "" : privKeyBase64);
@@ -204,6 +204,22 @@ public class QuantumCoinJSBridge {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
         String jsCall = "bridge.isValidAddress('" + requestId + "', '"
+                + escapeForJs(address) + "')";
+        evaluateOnMainThread(jsCall);
+        return requestId;
+    }
+
+    /**
+     * SDK-canonical (EIP-55-style) form of {@code address}.
+     * Async envelope shape: {@code {success: true, data: {address: "<canonical>"}}}
+     * on success, or {@code {success: false, error: "SDK_GETADDRESS_UNAVAILABLE"}}
+     * if the bundled SDK build does not export {@code getAddress}.
+     * Mirrors iOS {@code JsBridge.shared.getChecksumAddressAsync}.
+     */
+    public String getChecksumAddressAsync(String address, BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        String jsCall = "bridge.getChecksumAddress('" + requestId + "', '"
                 + escapeForJs(address) + "')";
         evaluateOnMainThread(jsCall);
         return requestId;
@@ -272,7 +288,7 @@ public class QuantumCoinJSBridge {
                                     BridgeCallback callback) {
         String requestId = UUID.randomUUID().toString();
         webViewManager.registerCallback(requestId, callback);
-        // MF-02: password is staged out-of-band.
+        // Password is staged out-of-band.
         JSONObject payload = new JSONObject();
         try {
             payload.put("password", password == null ? "" : password);
@@ -413,7 +429,7 @@ public class QuantumCoinJSBridge {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Bridge call interrupted", e);
         } finally {
-            // L-02: if JavaScript never consumed the staged payload,
+            // If JavaScript never consumed the staged payload,
             // drop it now rather than waiting for the TTL sweep.
             if (timedOut && requestId != null) {
                 webViewManager.removePendingPayload(requestId);
@@ -421,7 +437,7 @@ public class QuantumCoinJSBridge {
         }
 
         if (errorRef.get() != null) {
-            // L-02: errors also leave nothing staged - getPendingPayload
+            // Errors also leave nothing staged - getPendingPayload
             // removes on access, but JS may have failed before pulling.
             if (requestId != null) {
                 webViewManager.removePendingPayload(requestId);
@@ -486,7 +502,7 @@ public class QuantumCoinJSBridge {
     @FunctionalInterface
     private interface AsyncInvoker {
         /**
-         * L-02: returns the generated {@code requestId} so
+         * Returns the generated {@code requestId} so
          * {@link #blockingCall(AsyncInvoker)} can clear any staged
          * payload on the timeout path and not leak sensitive data
          * into the map until TTL expiry.

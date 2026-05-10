@@ -102,7 +102,7 @@ public class JSON {
     }
 
     /**
-     * MF-20: lenient JSON parsing is forbidden in this client. The setter
+     * Lenient JSON parsing is forbidden in this client. The setter
      * is retained for source-level compatibility with legacy call sites
      * but is a no-op; the field stays at the strict default (false).
      */
@@ -130,11 +130,11 @@ public class JSON {
      */
     @SuppressWarnings("unchecked")
     public <T> T deserialize(String body, Type returnType) {
-        // L-11: strict deserialization only. Removed the former
+        // Strict deserialization only. Removed the former
         // {@code String.class} raw-body fallback so an unparseable
         // response can never be mistaken for a valid payload. Any
         // {@link JsonParseException} propagates to the caller.
-        // MF-20: strict parsing only. No JsonReader with lenient=true.
+        // No JsonReader with lenient=true.
         return gson.fromJson(body, returnType);
     }
 

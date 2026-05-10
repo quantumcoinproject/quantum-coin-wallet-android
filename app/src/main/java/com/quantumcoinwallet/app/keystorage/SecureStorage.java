@@ -1,198 +1,193 @@
 package com.quantumcoinwallet.app.keystorage;
 
 import android.content.Context;
-import android.util.Base64;
 
 import com.quantumcoinwallet.app.bridge.QuantumCoinJSBridge;
-import com.quantumcoinwallet.app.utils.PrefConnect;
+import com.quantumcoinwallet.app.strongbox.StrongboxPayload;
 
-import org.json.JSONObject;
-
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.crypto.AEADBadTagException;
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
+import timber.log.Timber;
 
 /**
- * Password-encrypted wallet storage.
- *
- * <p>Cryptographic design (MF-04, MF-14):</p>
+ * Password-encrypted wallet storage facade. Today this class is a
+ * thin compatibility wrapper over {@link UnlockCoordinator} and the
+ * v2 layered strongbox stack ({@link com.quantumcoinwallet.app.strongbox.StrongboxFileCodec},
+ * {@link com.quantumcoinwallet.app.storage.AtomicSlotWriter},
+ * {@link com.quantumcoinwallet.app.strongbox.StrongboxPadding},
+ * {@link Aead}, {@link MacUtil}).
+ * <p>the legacy per-wallet
+ * SharedPreferences-key model has been replaced by a single
+ * AEAD-sealed strongbox file rotated across two slots with
+ * F_FULLFSYNC + read-back-and-byte-compare deep verify. The
+ * legacy {@code saveWallet}/{@code loadWallet}/{@code setSecureItem}
+ * API is preserved here so existing call sites (HomeActivity,
+ * HomeWalletFragment, SendFragment, RevealWalletFragment,
+ * WalletsFragment) continue to compile; internally each call now
+ * mutates the in-memory payload and re-persists the entire
+ * strongbox via {@link UnlockCoordinator#persist}. The slot file
+ * size is fixed at 32 KiB so wallet count cannot be inferred
+ * from on-disk file length (closes the size-leak threat).</p>
+ * Cryptographic design (matches iOS):
  * <ul>
- *     <li>Password is stretched with Scrypt (N=2^18, r=8, p=1, 32-byte
- *         output). The derived key only ever encrypts the random 32-byte
- *         {@code mainKey}.</li>
- *     <li>{@code mainKey} encrypts every per-wallet blob stored under
- *         {@code SECURE_WALLET_*}.</li>
- *     <li>All AES operations are AES-256-GCM with a fresh random 12-byte
- *         IV per encryption and a 128-bit auth tag. Ciphertexts are
- *         tagged with {@code "v":2}. Wrong password / tampered blob
- *         surfaces as a uniform {@link AEADBadTagException} from the
- *         decrypt side so callers cannot padding-oracle the store.</li>
- *     <li>The scrypt-derived key and decoded {@code mainKey} copies are
- *         zeroized as soon as they have been consumed; {@link #lock()}
- *         wipes the in-memory {@code mainKey}.</li>
+ *   <li>Password is stretched with Scrypt (N=2^18, r=8, p=1,
+ *       32-byte output). The derived key only ever encrypts the
+ *       random 32-byte {@code mainKey} (passwordWrap envelope).</li>
+ *   <li>{@code mainKey} encrypts the entire strongbox payload
+ *       with AES-256-GCM, fresh 12-byte IV, 128-bit tag.</li>
+ *   <li>The strongbox is wrapped in a slot-file JSON that
+ *       carries an HMAC-SHA-256 file-level MAC keyed by
+ *       HKDF-SHA-256(mainKey, salt, "integrity-v2"). The MAC
+ *       binds the v, generation, kdf, wrap, strongbox, and
+ *       uiBlockHash fields together so a tampered slot is
+ *       rejected.</li>
+ *   <li>An anti-rollback counter signed by an
+ *       AndroidKeyStore-bound HMAC key (StrongBox-backed when
+ *       available, TEE-backed otherwise) prevents an attacker
+ *       from replacing the live slot with an older legitimate
+ *       slot.</li>
  * </ul>
- *
- * <p><b>Why the master key is NOT wrapped by AndroidKeyStore (H-01,
- * architectural decision):</b></p>
- * <p>The encrypted {@code mainKey} and all per-wallet blobs must remain
- * <i>portable across devices</i> so users can recover their wallets when
- * they migrate to a new phone or restore from a cloud/device backup.
- * AndroidKeyStore-wrapped material is bound to the originating device's
- * TEE/StrongBox and cannot be moved off-device, which would break the
- * product's phone-migration and opt-in cloud-backup story.</p>
- *
- * <p>Users opt into having this data leave the device through explicit UI:</p>
- * <ul>
- *     <li>The backup-password prompt in
- *         {@code com.quantumcoinwallet.app.view.dialog.BackupPasswordDialog}.</li>
- *     <li>The backup toggle in
- *         {@code com.quantumcoinwallet.app.view.fragment.BackupSettingsFragment}.</li>
- *     <li>The system backup agent at
- *         {@code com.quantumcoinwallet.app.backup.QuantumCoinBackupAgent} plus
- *         the {@code allowBackup} / {@code android:fullBackupContent}
- *         configuration in {@code AndroidManifest.xml} and
- *         {@code res/xml/backup_rules.xml} / {@code data_extraction_rules.xml}.</li>
- * </ul>
- *
- * <p>The trade-off (an offline scrypt attack is possible if a rooted attacker
- * exfiltrates the encrypted blob) is accepted because key portability is a
- * product requirement. Scrypt parameters (N=2^18, r=8, p=1) are tuned to
- * make that offline attack expensive against anything but a trivial password.</p>
+ * Wrong password / tampered blob surfaces as {@code unlock(...)
+ * == false} so callers cannot padding-oracle the store.</p>
+ * <p><b>Why the master key is NOT wrapped by AndroidKeyStore
+ * (architectural decision, preserved from the legacy design):</b>
+ * The encrypted {@code mainKey} and all per-wallet blobs must
+ * remain <i>portable across devices</i> so users can recover
+ * their wallets when they migrate to a new phone or restore
+ * from a cloud / device backup. AndroidKeyStore-wrapped
+ * material is bound to the originating device's TEE / StrongBox
+ * and cannot be moved off-device, which would break the
+ * product's phone-migration and opt-in cloud-backup story. The
+ * trade-off (an offline scrypt attack is possible if a rooted
+ * attacker exfiltrates the encrypted blob) is accepted because
+ * key portability is a product requirement; scrypt parameters
+ * (N=2^18, r=8, p=1) are tuned to make that offline attack
+ * expensive against anything but a trivial password.</p>
  */
 public class SecureStorage {
 
-    private static final int SCRYPT_N = 262144;
-    private static final int SCRYPT_R = 8;
-    private static final int SCRYPT_P = 1;
-    private static final int SCRYPT_KEY_LEN = 32;
-    private static final int SALT_SIZE = 32;
-    private static final int GCM_IV_SIZE = 12;
-    private static final int GCM_TAG_BITS = 128;
+    private final UnlockCoordinator coordinator;
 
-    private static final String KEY_SALT = "SECURE_DERIVED_KEY_SALT";
-    private static final String KEY_ENCRYPTED_MAIN_KEY = "SECURE_ENCRYPTED_MAIN_KEY";
-    private static final String KEY_MAX_WALLET_INDEX = "SECURE_MAX_WALLET_INDEX";
-    private static final String WALLET_PREFIX = "SECURE_WALLET_";
+    public SecureStorage(Context appCtx, QuantumCoinJSBridge bridge) {
+        this.coordinator = new UnlockCoordinator(appCtx, bridge);
+    }
 
-    private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
-    private static final String KEY_ALGORITHM = "AES";
-
-    private byte[] mainKey;
-    private final QuantumCoinJSBridge bridge;
-
-    public SecureStorage(QuantumCoinJSBridge bridge) {
-        this.bridge = bridge;
+    /** Exposed for callers (e.g. backup restore) that need the
+     *  richer outcome enum. */
+    public UnlockCoordinator getCoordinator() {
+        return coordinator;
     }
 
     public boolean isInitialized(Context ctx) {
-        String salt = PrefConnect.readString(ctx, KEY_SALT, "");
-        String encMainKey = PrefConnect.readString(ctx, KEY_ENCRYPTED_MAIN_KEY, "");
-        return !salt.isEmpty() && !encMainKey.isEmpty();
+        return coordinator.isInitialized(ctx);
     }
 
     public boolean isUnlocked() {
-        return mainKey != null;
+        return coordinator.isUnlocked();
     }
 
-    /**
-     * First-time setup: generate random salt and mainKey, derive encryption key via Scrypt,
-     * encrypt the mainKey, and store both salt and encrypted mainKey in SharedPreferences.
-     * Must be called from a background thread.
+     /**
+     * Verify-only check of {@code password} against the strongbox
+     * wrap envelope. Does NOT change live unlock state. Cost is a
+     * single scrypt + AEAD-open of the wrap envelope; the derived
+     * mainKey is zeroized in a {@code finally} block inside
+     * {@link UnlockCoordinator#verifyPassword}.
+     * <p>Used by the cloud-restore prompt when the strongbox is
+     * already unlocked, to capture the strongbox-write password
+     * (which can legitimately differ from the per-file backup
+     * password) without a heavyweight re-unlock.</p>
+     * <p>Callers MUST run this on a background thread (~1-3s on
+     * mid-range hardware) and MUST consult
+     * {@link com.quantumcoinwallet.app.security.UnlockAttemptLimiter}
+     * before calling: this method itself does NOT record limiter
+     * events so the calling site can pick the appropriate
+     * channel.</p>
+     */
+    public boolean verifyPassword(Context ctx, String password) {
+        return coordinator.verifyPassword(ctx, password);
+    }
+
+     /**
+     * First-time setup: bootstrap a fresh strongbox under the
+     * supplied password. Must be called from a background
+     * thread (scrypt takes ~1-3 s).
      */
     public void createMainKey(Context ctx, String password) throws Exception {
-        byte[] salt = new byte[SALT_SIZE];
-        new SecureRandom().nextBytes(salt);
-        String saltBase64 = Base64.encodeToString(salt, Base64.NO_WRAP);
-
-        byte[] newMainKey = new byte[SCRYPT_KEY_LEN];
-        new SecureRandom().nextBytes(newMainKey);
-
-        byte[] derivedKey = scryptDerive(password, saltBase64);
-        try {
-            EncryptedPayload encrypted = encrypt(derivedKey, newMainKey);
-
-            JSONObject encJson = new JSONObject();
-            encJson.put("v", 2);
-            encJson.put("cipherText", encrypted.cipherTextBase64);
-            encJson.put("iv", encrypted.ivBase64);
-
-            PrefConnect.writeString(ctx, KEY_SALT, saltBase64);
-            PrefConnect.writeString(ctx, KEY_ENCRYPTED_MAIN_KEY, encJson.toString());
-
-            this.mainKey = newMainKey;
-        } finally {
-            Arrays.fill(derivedKey, (byte) 0);
-        }
+        coordinator.createNewStrongbox(ctx, password);
     }
 
-    /**
-     * Unlock: derive key from password + stored salt via Scrypt, decrypt the mainKey.
-     * Must be called from a background thread.
-     * @return true on success, false on wrong password
+     /**
+     * Unlock with {@code password}. Returns {@code true} on
+     * success, {@code false} on wrong password / tamper /
+     * rollback. Must be called from a background thread.
+     * <p>the four failure modes
+     * (wrong password, tamper, rollback, storage unavailable)
+     * are uniformly mapped to {@code false} for legacy callers
+     * that just want a boolean. New callers should use
+     * {@link UnlockCoordinator#unlock} directly to get the
+     * structured outcome and present a precise error to the
+     * user (e.g. "device tampered with — restore from backup").</p>
      */
     public boolean unlock(Context ctx, String password) {
-        byte[] derivedKey = null;
-        try {
-            String saltBase64 = PrefConnect.readString(ctx, KEY_SALT, "");
-            String encMainKeyJson = PrefConnect.readString(ctx, KEY_ENCRYPTED_MAIN_KEY, "");
-            if (saltBase64.isEmpty() || encMainKeyJson.isEmpty()) return false;
-
-            derivedKey = scryptDerive(password, saltBase64);
-
-            JSONObject encJson = new JSONObject(encMainKeyJson);
-            EncryptedPayload payload = new EncryptedPayload(
-                    encJson.getString("cipherText"),
-                    encJson.getString("iv"));
-
-            byte[] mainKeyBytes;
-            try {
-                mainKeyBytes = decryptBytes(derivedKey, payload);
-            } catch (AEADBadTagException bad) {
-                return false;
-            }
-            this.mainKey = mainKeyBytes;
-            return true;
-        } catch (Exception e) {
-            this.mainKey = null;
+        UnlockCoordinator.UnlockResult result = coordinator.unlock(ctx, password);
+        if (result.outcome != UnlockCoordinator.UnlockOutcome.SUCCESS) {
+            Timber.w("SecureStorage.unlock failed: %s (%s)",
+                    result.outcome, result.diagnostic);
             return false;
-        } finally {
-            if (derivedKey != null) Arrays.fill(derivedKey, (byte) 0);
         }
+        // Run one-shot post-unlock migrations. Currently this
+        // moves user-added blockchain networks and the
+        // active-network index from the legacy plaintext
+        // SharedPreferences keys into StrongboxPayload.networks /
+        // currentNetworkId (mirrors iOS's behavior of keeping
+        // user-added networks inside the encrypted strongbox).
+        // Idempotent — subsequent calls are no-ops once the
+        // legacy keys are cleared. The password is threaded through
+        // because the migration may need to persist (which now
+        // requires the user password to re-derive mainKey).
+        try {
+            com.quantumcoinwallet.app.utils.NetworkPersistence
+                    .migrateLegacyOnUnlockIfNeeded(ctx, this, password);
+        } catch (Throwable t) {
+            Timber.w(t, "SecureStorage.unlock: post-unlock migration failed");
+        }
+        return true;
     }
 
     public void lock() {
-        if (mainKey != null) {
-            Arrays.fill(mainKey, (byte) 0);
-            mainKey = null;
-        }
+        coordinator.lock();
     }
 
-    /**
-     * Build in-memory address maps by decrypting all wallets.
-     * Returns {addressToIndex, indexToAddress} pair.
-     * Must be called when unlocked and from a background thread if wallets are large.
+     /**
+     * Build in-memory address maps from the live strongbox
+     * payload. Returns {addressToIndex, indexToAddress} pair.
+     * Must be called when unlocked.
      */
     public Map<String, String>[] buildWalletMaps(Context ctx) throws Exception {
         requireUnlocked();
+        StrongboxPayload payload = coordinator.getLivePayload();
         Map<String, String> addressToIndex = new HashMap<>();
         Map<String, String> indexToAddress = new HashMap<>();
-        int maxIndex = getMaxWalletIndex(ctx);
-        for (int i = 0; i <= maxIndex; i++) {
-            String walletJson = loadWallet(ctx, i);
-            if (walletJson != null) {
-                JSONObject wallet = new JSONObject(walletJson);
-                String address = wallet.getString("address");
-                String indexStr = String.valueOf(i);
-                addressToIndex.put(address, indexStr);
-                indexToAddress.put(indexStr, address);
+        if (payload != null && payload.wallets != null) {
+            for (Map.Entry<String, String> e : payload.wallets.entrySet()) {
+                String idxStr = e.getKey();
+                String encoded = e.getValue();
+                if (encoded == null) continue;
+                try {
+                    com.quantumcoinwallet.app.strongbox.WalletEntryCodec.WalletEntry entry =
+                            com.quantumcoinwallet.app.strongbox.WalletEntryCodec
+                                    .decodeEntry(encoded);
+                    String address = entry.address;
+                    if (address == null || address.isEmpty()) {
+                        Timber.w("buildWalletMaps: empty address at index %s", idxStr);
+                        continue;
+                    }
+                    addressToIndex.put(address, idxStr);
+                    indexToAddress.put(idxStr, address);
+                } catch (Exception ex) {
+                    Timber.w(ex, "buildWalletMaps: malformed wallet at index %s", idxStr);
+                }
             }
         }
         @SuppressWarnings("unchecked")
@@ -200,130 +195,77 @@ public class SecureStorage {
         return result;
     }
 
-    public void setSecureItem(Context ctx, String key, String value) throws Exception {
+    public void setSecureItem(Context ctx, String key, String value, String password)
+            throws Exception {
         requireUnlocked();
-        byte[] plain = value.getBytes(StandardCharsets.UTF_8);
-        try {
-            EncryptedPayload encrypted = encrypt(mainKey, plain);
-            JSONObject encJson = new JSONObject();
-            encJson.put("v", 2);
-            encJson.put("cipherText", encrypted.cipherTextBase64);
-            encJson.put("iv", encrypted.ivBase64);
-            PrefConnect.writeString(ctx, key, encJson.toString());
-        } finally {
-            Arrays.fill(plain, (byte) 0);
-        }
+        StrongboxPayload payload = coordinator.getLivePayload();
+        payload.secureItems.put(key, value);
+        coordinator.persist(ctx, payload, password, null);
     }
 
     public String getSecureItem(Context ctx, String key) throws Exception {
         requireUnlocked();
-        String stored = PrefConnect.readString(ctx, key, "");
-        if (stored.isEmpty()) return null;
-        JSONObject encJson = new JSONObject(stored);
-        EncryptedPayload payload = new EncryptedPayload(
-                encJson.getString("cipherText"),
-                encJson.getString("iv"));
-        byte[] plain = decryptBytes(mainKey, payload);
+        StrongboxPayload payload = coordinator.getLivePayload();
+        if (payload == null || payload.secureItems == null) return null;
+        return payload.secureItems.get(key);
+    }
+
+    public void removeSecureItem(Context ctx, String key, String password) {
         try {
-            return new String(plain, StandardCharsets.UTF_8);
-        } finally {
-            Arrays.fill(plain, (byte) 0);
+            requireUnlocked();
+            StrongboxPayload payload = coordinator.getLivePayload();
+            if (payload == null || payload.secureItems == null) return;
+            if (payload.secureItems.remove(key) != null) {
+                coordinator.persist(ctx, payload, password, null);
+            }
+        } catch (Exception e) {
+            Timber.w(e, "removeSecureItem(%s) failed", key);
         }
     }
 
-    public void removeSecureItem(Context ctx, String key) {
-        PrefConnect.getEditor(ctx).remove(key).commit();
-    }
-
-    public void saveWallet(Context ctx, int index, String walletJson) throws Exception {
-        setSecureItem(ctx, WALLET_PREFIX + index, walletJson);
+    public void saveWallet(Context ctx, int index, String walletJson, String password)
+            throws Exception {
+        requireUnlocked();
+        // Encode at the storage boundary into the compact
+        // binary wire form (length-prefixed raw bytes for the
+        // post-quantum keys, base64-wrapped only because the
+        // outer JSON payload demands a string value). Read
+        // sites still see the legacy JSON shape via loadWallet.
+        // Background: see WalletEntryCodec class header.
+        String encoded = com.quantumcoinwallet.app.strongbox.WalletEntryCodec.encode(walletJson);
+        StrongboxPayload payload = coordinator.getLivePayload();
+        payload.wallets.put(String.valueOf(index), encoded);
+        // v=3: maxWalletIndex is derived on demand from the
+        // wallets map keys (see StrongboxPayload.maxWalletIndex())
+        // so there is no longer a redundant scalar to update.
+        coordinator.persist(ctx, payload, password, null);
     }
 
     public String loadWallet(Context ctx, int index) throws Exception {
-        return getSecureItem(ctx, WALLET_PREFIX + index);
+        requireUnlocked();
+        StrongboxPayload payload = coordinator.getLivePayload();
+        if (payload == null || payload.wallets == null) return null;
+        String encoded = payload.wallets.get(String.valueOf(index));
+        if (encoded == null) return null;
+        return com.quantumcoinwallet.app.strongbox.WalletEntryCodec.decode(encoded);
     }
 
     public int getMaxWalletIndex(Context ctx) {
-        return PrefConnect.readInteger(ctx, KEY_MAX_WALLET_INDEX, -1);
-    }
-
-    public void setMaxWalletIndex(Context ctx, int index) {
-        PrefConnect.writeInteger(ctx, KEY_MAX_WALLET_INDEX, index);
+        if (!coordinator.isUnlocked()) {
+            // Pre-unlock callers may still ask for the max index
+            // (e.g. to gate "do we have any wallets" UI). Without
+            // a decrypted snapshot we cannot read the strongbox,
+            // so report -1 (no wallets visible). Once unlocked the
+            // live value is returned.
+            return -1;
+        }
+        StrongboxPayload payload = coordinator.getLivePayload();
+        return payload == null ? -1 : payload.maxWalletIndex();
     }
 
     private void requireUnlocked() {
-        if (mainKey == null) {
+        if (!coordinator.isUnlocked()) {
             throw new IllegalStateException("SecureStorage is locked");
-        }
-    }
-
-    /**
-     * L-01: wraps the WebView-hosted scrypt call and converts the result
-     * straight into a {@code byte[]} key. The intermediate JSON String
-     * and base64 String cannot be zeroized (Java String immutability),
-     * so we hold no extra references beyond the minimum required and
-     * null them out before returning so GC can reclaim them promptly.
-     */
-    private byte[] scryptDerive(String password, String saltBase64) throws Exception {
-        String resultJson = null;
-        String keyBase64 = null;
-        byte[] derived = null;
-        try {
-            resultJson = bridge.scryptDerive(password, saltBase64,
-                    SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LEN);
-            JSONObject json = new JSONObject(resultJson);
-            JSONObject data = json.getJSONObject("data");
-            keyBase64 = data.getString("key");
-            derived = Base64.decode(keyBase64, Base64.NO_WRAP);
-            return derived;
-        } catch (Exception e) {
-            if (derived != null) Arrays.fill(derived, (byte) 0);
-            throw e;
-        } finally {
-            resultJson = null;
-            keyBase64 = null;
-        }
-    }
-
-    private EncryptedPayload encrypt(byte[] key, byte[] plaintext) throws GeneralSecurityException {
-        byte[] iv = new byte[GCM_IV_SIZE];
-        new SecureRandom().nextBytes(iv);
-
-        SecretKeySpec keySpec = new SecretKeySpec(key, KEY_ALGORITHM);
-        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_BITS, iv);
-
-        Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-        cipher.init(Cipher.ENCRYPT_MODE, keySpec, spec);
-        byte[] cipherBytes = cipher.doFinal(plaintext);
-
-        return new EncryptedPayload(
-                Base64.encodeToString(cipherBytes, Base64.NO_WRAP),
-                Base64.encodeToString(iv, Base64.NO_WRAP));
-    }
-
-    private byte[] decryptBytes(byte[] key, EncryptedPayload payload) throws GeneralSecurityException {
-        byte[] iv = Base64.decode(payload.ivBase64, Base64.NO_WRAP);
-        byte[] cipherBytes = Base64.decode(payload.cipherTextBase64, Base64.NO_WRAP);
-
-        if (iv.length != GCM_IV_SIZE) {
-            throw new AEADBadTagException("bad iv length");
-        }
-
-        SecretKeySpec keySpec = new SecretKeySpec(key, KEY_ALGORITHM);
-        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_BITS, iv);
-
-        Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-        cipher.init(Cipher.DECRYPT_MODE, keySpec, spec);
-        return cipher.doFinal(cipherBytes);
-    }
-
-    private static class EncryptedPayload {
-        final String cipherTextBase64;
-        final String ivBase64;
-
-        EncryptedPayload(String cipherTextBase64, String ivBase64) {
-            this.cipherTextBase64 = cipherTextBase64;
-            this.ivBase64 = ivBase64;
         }
     }
 }

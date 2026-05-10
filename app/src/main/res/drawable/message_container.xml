@@ -1,11 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Rounded "card" surface used as the inner background of the
+    send-completed, safety-quiz, and message-information dialogs.
+
+    Fills with @color/colorCommon7 — the canonical theme-aware
+    *surface* color (white in light mode, near-black in dark mode),
+    same as @drawable/center_container and the password dialog.
+    The previous fill was @color/colorCommon6, which is the primary
+    *text* color (black in light, white in dark): that turned the
+    dialog card into a black box on light themes and a white box on
+    dark themes, the exact opposite of every other surface in the
+    app. If you change this fill, walk every layout that includes
+    @drawable/message_container and re-check that the children's
+    text / background colors still produce readable contrast on the
+    new surface.
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:left="0dp"
         android:right="0dp"
         android:top="0dp"
         android:bottom="0dp">
         <shape android:shape="rectangle">
-            <solid android:color="@color/colorCommon6"/>
+            <solid android:color="@color/colorCommon7"/>
             <corners android:radius="15dp" />
         </shape>
     </item>

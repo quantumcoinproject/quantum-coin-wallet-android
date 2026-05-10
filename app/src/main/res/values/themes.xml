@@ -1,6 +1,18 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
      <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
 
+        <!--
+            See styles.xml > AppButtonPlain for the full rationale.
+            Short version: this neutralises MaterialButton's default
+            backgroundTint / insets / elevation so every <Button> that
+            sets a custom android:background drawable renders the
+            drawable as-drawn, regardless of whether the button is
+            hosted by the activity or by an AlertDialog. Without this
+            override the Unlock-dialog buttons render in a noticeably
+            different shade from the same green-pill drawable used by
+            the Next / Add / Save / Send buttons in the host fragments.
+        -->
+        <item name="materialButtonStyle">@style/AppButtonPlain</item>
 
     </style>
 

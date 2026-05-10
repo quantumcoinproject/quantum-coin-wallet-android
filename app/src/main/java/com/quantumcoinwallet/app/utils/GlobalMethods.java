@@ -51,7 +51,7 @@ public class GlobalMethods {
 
     public static String HTTPS = "https://";
 
-    // M-05: these identify the currently active blockchain network and are
+    // These identify the currently active blockchain network and are
     // read by worker threads (REST tasks, JS bridge, etc.) while being
     // written from the UI thread when the user switches network. Writes go
     // through setActiveNetwork() which takes the monitor and publishes a
@@ -63,8 +63,6 @@ public class GlobalMethods {
     public static String BLOCK_EXPLORER_TX_HASH_URL =  "/txn/{txhash}";
     public static String BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL = "/account/{address}/txn/page";
 
-    public static String DP_DOCS_URL = "https://quantumcoin.org/";
-
     //Network
     public static volatile String BLOCKCHAIN_NAME = null;
     public static volatile String NETWORK_ID = null;
@@ -72,7 +70,7 @@ public class GlobalMethods {
     private static final Object ACTIVE_NETWORK_LOCK = new Object();
 
     /**
-     * M-05: switch all active-network fields atomically. Callers (notably
+     * Switch all active-network fields atomically. Callers (notably
      * {@code HomeActivity}) should funnel every network write through here
      * so workers reading the volatile fields see a consistent snapshot and
      * cannot observe mixed state across fields.
@@ -88,6 +86,28 @@ public class GlobalMethods {
         }
     }
 
+    /**
+     * (Android, mirrors iOS SendViewController gas constants):
+     *
+     * <p>We deliberately do NOT call {@code estimateGas} on the
+     * provider before sending. Why:
+     *
+     * <ul>
+     *   <li>An attacker-controlled RPC endpoint (the user can add
+     *   custom networks) can return inflated estimates and drain
+     *   the wallet via fee inflation. The simple-transfer / ERC-20
+     *   transfer paths used here are bounded enough that pinning
+     *   safe constants is the correct trade-off.</li>
+     *   <li>{@code 21000} is the EVM-defined cost of a coin-only
+     *   transfer with no contract interaction.</li>
+     *   <li>{@code 84000} is the empirically-validated upper bound
+     *   for an ERC-20 {@code transfer(address,uint256)} call on the
+     *   reference SDK.</li>
+     * </ul>
+     *
+     * <p>The Review dialog shows the gas limit so the user
+     * can see what they are agreeing to before signing.
+     */
     public static String GAS_QCN_LIMIT = "21000";
     public static String GAS_TOKEN_LIMIT = "84000";
 
@@ -125,41 +145,25 @@ public class GlobalMethods {
         return readRawResource(context, R.raw.en_us);
     }
     public static List<BlockchainNetwork> BlockChainNetworkRead(Context context) throws JSONException {
-        String blockchainJsonString = PrefConnect.readString(context, PrefConnect.BLOCKCHAIN_NETWORK_LIST, "");
-        if (TextUtils.isEmpty(blockchainJsonString)) {
-            blockchainJsonString = readRawResource(context, R.raw.blockchain_networks);
-        }
-
-        Object parsed = new JSONTokener(blockchainJsonString).nextValue();
-        if (!(parsed instanceof JSONObject)) {
-            throw new JSONException("network list root is not a JSON object");
-        }
-        JSONObject jo = (JSONObject) parsed;
-        JSONArray jsonArray = jo.optJSONArray("networks");
-        if (jsonArray == null) {
-            throw new JSONException("network list missing 'networks' array");
-        }
-
-        List<BlockchainNetwork> blockChainNetworks = new ArrayList<>();
-        for (int i = 0; i < jsonArray.length(); i++) {
-            JSONObject entry = jsonArray.optJSONObject(i);
-            if (entry == null) continue;
-
-            String scanApiDomain = entry.optString("scanApiDomain", "").trim();
-            String rpcEndpoint = entry.optString("rpcEndpoint", "").trim();
-            String blockExplorerDomain = entry.optString("blockExplorerDomain", "").trim();
-            String blockchainName = entry.optString("blockchainName", "").trim();
-            String networkId = String.valueOf(entry.opt("networkId")).trim();
-
-            BlockchainNetwork blockchainNetwork = new BlockchainNetwork();
-            blockchainNetwork.setScanApiDomain(scanApiDomain);
-            blockchainNetwork.setRpcEndpoint(rpcEndpoint);
-            blockchainNetwork.setBlockExplorerDomain(blockExplorerDomain);
-            blockchainNetwork.setBlockchainName(blockchainName);
-            blockchainNetwork.setNetworkId(networkId);
-            blockChainNetworks.add(blockchainNetwork);
-        }
-        return blockChainNetworks;
+        // v=3: the single source of truth for user-added networks is
+        // now StrongboxPayload.customNetworks (mirrors iOS
+        // BlockchainNetworkManager which keeps custom networks
+        // inside the encrypted strongbox). Bundled mainnet/testnet
+        // are NEVER persisted inside the payload — they are always
+        // re-prepended at runtime from R.raw.blockchain_networks so
+        // a future change to the bundled list (rename, RPC swap)
+        // takes effect for every existing install without a
+        // migration. When the strongbox is unlocked,
+        // NetworkPersistence merges bundled prefix + customNetworks;
+        // otherwise it returns just the bundled list. The legacy
+        // PrefConnect.BLOCKCHAIN_NETWORK_LIST plaintext blob is no
+        // longer read directly — NetworkPersistence migrates it
+        // into the strongbox at next unlock and clears the prefs
+        // key, so a fresh-install on a device that never unlocks
+        // behaves identically to the strongbox-empty case.
+        com.quantumcoinwallet.app.keystorage.SecureStorage secureStorage =
+                com.quantumcoinwallet.app.viewmodel.KeyViewModel.getSecureStorage();
+        return NetworkPersistence.readNetworks(context, secureStorage);
     }
 
     public static String readRawResource(Context context,  @RawRes int res) {
@@ -206,11 +210,10 @@ public class GlobalMethods {
     public static void ExceptionError(Context context, String tag, Exception e) {
         String message = e != null && e.getMessage() != null ? e.getMessage() : "";
         ShowErrorDialog(context, tag, message);
-        //Firebase.CrashLogcat(tag, e.toString());
     }
 
     public static void ShowErrorDialog(Context context, String title, String message) {
-        // M-03: always route through Timber so ReleaseTree can redact/strip.
+        // Always route through Timber so ReleaseTree can redact/strip.
         // Only write debug details when explicitly running a debug build.
         if (com.quantumcoinwallet.app.BuildConfig.DEBUG) {
             timber.log.Timber.tag("QuantumCoinWallet").w("%s: %s", title, message);
@@ -218,8 +221,19 @@ public class GlobalMethods {
         if (context instanceof Activity && !((Activity) context).isFinishing()) {
             new androidx.appcompat.app.AlertDialog.Builder(context)
                     .setTitle(title)
-                    .setMessage(message)
-                    .setPositiveButton("OK", null)
+                    // Render an orange error glyph to the LEFT of the
+                    // message instead of the stock setMessage() text-only
+                    // body. Mirrors the icon-on-left convention used by
+                    // MessageInformationDialogFragment and the
+                    // safety_quiz_alert_dialog so every error / empty-input
+                    // surface has a consistent visual treatment.
+                    .setView(buildIconMessageView(context, R.drawable.img_error, message))
+                    // Use the platform-localised OK string so the
+                    // system language drives the button text; this
+                    // matches every other generic platform alert and
+                    // avoids drift when the user is running a
+                    // non-English locale.
+                    .setPositiveButton(android.R.string.ok, null)
                     .setCancelable(true)
                     .show();
         } else {
@@ -241,15 +255,79 @@ public class GlobalMethods {
         androidx.appcompat.app.AlertDialog.Builder b =
                 new androidx.appcompat.app.AlertDialog.Builder(context);
         if (title != null && !title.isEmpty()) b.setTitle(title);
-        b.setMessage(message == null ? "" : message);
+        // Info glyph to the LEFT of the message, matching ShowErrorDialog
+        // and MessageInformationDialogFragment so all info / acknowledge
+        // surfaces share the icon-on-left convention.
+        b.setView(buildIconMessageView(context, R.drawable.img_information,
+                message == null ? "" : message));
         b.setCancelable(false);
-        b.setPositiveButton("OK", new android.content.DialogInterface.OnClickListener() {
+        // Platform-localised OK so the affirmative button text follows
+        // the device language, not a hard-coded English literal.
+        b.setPositiveButton(android.R.string.ok, new android.content.DialogInterface.OnClickListener() {
             @Override
             public void onClick(android.content.DialogInterface dialog, int which) {
                 if (onOk != null) onOk.run();
             }
         });
         b.show();
+    }
+
+    /**
+     * Build the standard "icon on the left, message on the right" body
+     * row used by {@link #ShowErrorDialog} and {@link #ShowMessageDialog}
+     * via {@code AlertDialog.Builder.setView(...)}. Mirrors the manual
+     * layout used by {@code message_information_dialog_fragment.xml}
+     * (50dp icon, 12dp end margin, message takes the remaining width
+     * and is start-aligned, vertically centered with the icon).
+     *
+     * <p>Sizing constants kept in sync with the XML layouts so the
+     * stock {@code AlertDialog} surface visually matches the custom
+     * dialog fragments shown elsewhere in the app.</p>
+     */
+    private static View buildIconMessageView(Context context, int iconRes, String message) {
+        float density = context.getResources().getDisplayMetrics().density;
+        int padding = (int) (16 * density);
+        int marginEnd = (int) (12 * density);
+        int iconSize = (int) (40 * density);
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(padding, padding, padding, padding);
+
+        ImageView icon = new ImageView(context);
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconSize, iconSize);
+        iconLp.setMarginEnd(marginEnd);
+        icon.setLayoutParams(iconLp);
+        try {
+            icon.setImageResource(iconRes);
+        } catch (Throwable ignore) {
+            // Defensive: fall back to no icon rather than crashing the
+            // dialog if the resource can't be resolved on the host
+            // configuration.
+        }
+        row.addView(icon);
+
+        TextView body = new TextView(context);
+        LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        body.setLayoutParams(textLp);
+        body.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        body.setText(message == null ? "" : message);
+        // Inherit the surrounding alert's text appearance so dark-mode
+        // contrast and font sizing follow the platform theme.
+        try {
+            android.util.TypedValue tv = new android.util.TypedValue();
+            context.getTheme().resolveAttribute(
+                    android.R.attr.textAppearanceMedium, tv, true);
+            if (tv.resourceId != 0) {
+                androidx.core.widget.TextViewCompat
+                        .setTextAppearance(body, tv.resourceId);
+            }
+        } catch (Throwable ignore) { }
+        row.addView(body);
+
+        return row;
     }
 
     /** Deep-links to the app's settings screen so the user can flip a permanently-denied
@@ -275,7 +353,10 @@ public class GlobalMethods {
                 } catch (Throwable ignore) { }
             }
         });
-        b.setNegativeButton("Cancel", null);
+        // Platform-localised Cancel so the negative affordance
+        // follows the device language alongside the positive
+        // "Open Settings" button.
+        b.setNegativeButton(android.R.string.cancel, null);
         b.show();
     }
 
@@ -343,8 +424,6 @@ public class GlobalMethods {
                 GlobalMethods.ShowToast(context, displayerrormessage);
                 break;
         }
-
-        //Firebase.CrashLog(exceptionError);
     }
 
     //Exception Offline Or exception error

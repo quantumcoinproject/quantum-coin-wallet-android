@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Pressed/normal selector for the network-dialog cancel button.
+    Pressed state reuses the shared button_gray_shadow_selected
+    (semi-transparent dark overlay) which is drawn on top of the
+    constant-gray base, so the press feedback works in both light
+    and dark modes.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true" android:drawable="@drawable/button_gray_shadow_selected"/>
+    <item android:drawable="@drawable/button_network_cancel_shadow"/>
+</selector>

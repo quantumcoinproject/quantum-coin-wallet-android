@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>Bridge</title></head>
 <body>
 <script>
-// M-02: diagnostic console output is gated behind AndroidBridge.isDebug()
+// Diagnostic console output is gated behind AndroidBridge.isDebug()
 // so release builds never stringify exception state (which could contain
 // sensitive argument values) into logcat via onConsoleMessage.
 function _isDebug() {
@@ -112,7 +112,7 @@ async function ensureInitialized(requestId) {
     return true;
 }
 
-// MF-02: sensitive payloads (passwords, private keys, seed words)
+// Sensitive payloads (passwords, private keys, seed words)
 // are never interpolated into the evaluateJavascript string. They are
 // staged by the Java side in a ConcurrentHashMap and pulled here.
 // The getPendingPayload call consumes the entry, so replays are
@@ -267,6 +267,36 @@ var bridge = {
         }
     },
 
+    // ----------------------------------------------------------------
+    // FORBIDDEN PRIMITIVE - rationale below:
+    //
+    // (Android): the send path uses the HIGH-LEVEL surface
+    // wallet.sendTransaction (and IERC20.transfer below). This is a
+    // deliberate posture, mirroring iOS QuantumCoinWallet/Resources/
+    // bridge.html lines 448-490.
+    //
+    // Why we do NOT reach for QuantumCoinSDK.signRawTransaction or
+    // wallet.signTransaction(...) followed by provider.sendTransaction(...):
+    //
+    //   1. signRawTransaction is NOT exposed at runtime by the
+    //      curated quantumcoin-bundle.js. Only signSendCoinTransaction
+    //      and the wallet.signTransaction instance method are public;
+    //      reaching for the low-level entry point will simply break in
+    //      production, even though it looks reachable in the typings.
+    //
+    //   2. tx.hash returned by wallet.sendTransaction is the keccak of
+    //      the LOCALLY signed RLP, NOT the hash echoed back by the RPC
+    //      node. A hostile RPC therefore cannot fabricate a fake hash
+    //      that links to bytes the wallet did not actually sign. If a
+    //      future contributor splits the path into sign-then-send the
+    //      hash provenance becomes RPC-supplied and we lose that
+    //      property silently.
+    //
+    //   3. The Android-side SendSurfaceLockdownTest grep-checks this
+    //      file plus every .java file under app/src/main/java for the
+    //      forbidden symbols; a regression here breaks the build at
+    //      PR time, not at runtime in production.
+    // ----------------------------------------------------------------
     sendTransaction: async function(requestId) {
         var payload = null;
         var privBytes = null;
@@ -301,6 +331,15 @@ var bridge = {
         }
     },
 
+    // ----------------------------------------------------------------
+    // FORBIDDEN PRIMITIVE - rationale below:
+    //
+    // (Android): the token-send path also uses the HIGH-LEVEL
+    // IERC20.transfer surface. The same rationale as sendTransaction
+    // above applies: signRawTransaction / sign-then-broadcast splits
+    // are not exposed, and the locally-derived tx.hash is the only
+    // RPC-tamper-resistant hash provenance we trust.
+    // ----------------------------------------------------------------
     sendTokenTransaction: async function(requestId) {
         var payload = null;
         var privBytes = null;
@@ -343,6 +382,30 @@ var bridge = {
             if (!(await ensureInitialized(requestId))) return;
             var valid = QuantumCoinSDK.isAddress(address);
             sendResult(requestId, { valid: valid });
+        } catch (e) {
+            sendError(requestId, e);
+        }
+    },
+
+    // (Android, mirrors iOS bridge.html `getChecksumAddress`):
+    // return the canonical mixed-case (EIP-55-style) form of the
+    // supplied address. Used by SendFragment's address-checksum
+    // advisory: if the user pasted a mixed-case form whose case map
+    // disagrees with the canonical form, we surface a non-blocking
+    // toast so they can re-verify before signing. If the SDK build
+    // shipped to this device does not export `getAddress` we surface
+    // a hard `SDK_GETADDRESS_UNAVAILABLE` error so the Java caller
+    // can decide its policy (Send fails open -- skip the warning,
+    // send proceeds; the iOS path uses the same envelope).
+    getChecksumAddress: async function(requestId, address) {
+        try {
+            if (!(await ensureInitialized(requestId))) return;
+            if (typeof QuantumCoinSDK.getAddress !== 'function') {
+                sendError(requestId, new Error('SDK_GETADDRESS_UNAVAILABLE'));
+                return;
+            }
+            var out = QuantumCoinSDK.getAddress(address);
+            sendResult(requestId, { address: out });
         } catch (e) {
             sendError(requestId, e);
         }
@@ -487,7 +550,7 @@ var bridge = {
         } catch (e) {
             sendError(requestId, e);
         } finally {
-            // L-01: zeroize every intermediate that held the password or
+            // Zeroize every intermediate that held the password or
             // derived material before returning control. JS string
             // immutability means hexKey/keyHex/keyBase64 can't be wiped
             // in place; we drop the references so GC can collect them

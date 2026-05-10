@@ -5,7 +5,15 @@
     android:shape="rectangle">
     <solid android:color="@color/colorCommonSeedH" />
     <corners android:radius="5dp" />
+    <!--
+        The H tile is BLACK in both light and dark mode for
+        color-identity reasons. In dark mode the tile would be
+        invisible against the dark app background; we draw a 1.4dp
+        white border (via colorCommonSeedHBorder) to keep the tile
+        legible. In light mode colorCommonSeedHBorder resolves to the
+        existing colorCommon3, preserving the original look.
+    -->
     <stroke
-        android:width="0.7dp"
-        android:color="@color/colorCommon3" />
+        android:width="1.4dp"
+        android:color="@color/colorCommonSeedHBorder" />
 </shape>

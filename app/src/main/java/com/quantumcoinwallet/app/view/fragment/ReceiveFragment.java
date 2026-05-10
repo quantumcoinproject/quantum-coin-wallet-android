@@ -83,9 +83,17 @@ public class ReceiveFragment extends Fragment  {
 
         copyClipboardImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                // L-05: IS_SENSITIVE so Android 13+ clipboard previews
-                // do not render the full address.
-                com.quantumcoinwallet.app.utils.SecureClipboard.copyAddress(
+                // (Android, mirrors iOS Pasteboard.copySensitive):
+                // Receive address is public on-chain knowledge but the
+                // INTENT to receive is sensitive: a screen-recorder /
+                // shoulder-surfer reading the clipboard 30+ seconds
+                // later still learns "this user just opened Receive".
+                // We therefore (a) tag the clip IS_SENSITIVE so the
+                // Android 13+ system preview redacts it, and (b)
+                // schedule a 30s auto-clear via copySensitive so the
+                // value does not linger on the global clipboard for
+                // hours.
+                com.quantumcoinwallet.app.utils.SecureClipboard.copySensitive(
                         getActivity(), "receiveAddress",
                         receiveAddressTextView.getText());
                 receiveCopiedTextView.setVisibility(View.VISIBLE);

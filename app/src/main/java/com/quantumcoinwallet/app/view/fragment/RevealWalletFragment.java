@@ -45,11 +45,24 @@ public class RevealWalletFragment extends Fragment {
 
     private static final String TAG = "RevealSeedWalletFragment";
 
-    // L-12: fixed, non-sensitive user-facing message. Any real
+    // Fixed, non-sensitive user-facing message. Any real
     // decrypt / ServiceException / JSON error details are logged via
     // Timber (redacted by ReleaseTree) rather than shown on screen.
+    // The English literal here is the catalog-miss fallback; the
+    // live wording is pulled from {@code reveal-wallet-error-generic}
+    // in the {@code errors} block of {@code en_us.json}.
     private static final String REVEAL_WALLET_ERROR_GENERIC =
             "Unable to reveal the wallet. Please check your password and try again.";
+
+    private static String revealErrorBody(@androidx.annotation.Nullable JsonViewModel vm) {
+        String tpl = (vm == null) ? null : vm.getRevealWalletErrorGenericByErrors();
+        return (tpl == null || tpl.isEmpty()) ? REVEAL_WALLET_ERROR_GENERIC : tpl;
+    }
+
+    private static String revealErrorTitle(@androidx.annotation.Nullable JsonViewModel vm) {
+        String tpl = (vm == null) ? null : vm.getErrorTitleByLangValues();
+        return (tpl == null || tpl.isEmpty()) ? "Error" : tpl;
+    }
 
     private boolean ThreadStop = false;
     private int revealedWordCount = 48;
@@ -88,7 +101,19 @@ public class RevealWalletFragment extends Fragment {
         //LinearLayout revealSetWalletTopLinearLayout = (LinearLayout) getView().findViewById(R.id.top_linear_layout_reveal_seed_wallet_id);
         ImageButton homeWalletBackArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_reveal_seed_wallet_back_arrow);
 
-        //LinearLayout revealSeedWordsViewLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_reveal_seed_words_view);
+        // Hide the entire reveal-seed surface from the
+        // accessibility tree so screen readers (TalkBack) and other
+        // installed accessibility services cannot enumerate or speak
+        // the displayed seed words. Mirrors iOS isAccessibilityElement
+        // = false and accessibilityElementsHidden = true on the
+        // analogous reveal-seed view tree.
+        android.widget.LinearLayout revealSeedWordsViewLinearLayout =
+                (android.widget.LinearLayout) getView()
+                        .findViewById(R.id.linear_layout_reveal_seed_words_view);
+        if (revealSeedWordsViewLinearLayout != null) {
+            revealSeedWordsViewLinearLayout.setImportantForAccessibility(
+                    View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        }
         TextView revealSeedWordsViewTitleTextView = (TextView) getView().findViewById(R.id.textView_reveal_seed_words_view_title);
         TextView[] revealSeedWordsViewCaptionTextViews = RevealSeedWordsViewCaptionTextViews();
         TextView[] revealSeedWordsViewTextViews = RevealSeedWordsViewTextViews();
@@ -102,6 +127,29 @@ public class RevealWalletFragment extends Fragment {
         revealSeedWordsViewCopyLink.setText(jsonViewModel.getCopyByLangValues());
         revealSeedWordsViewCopied.setText(jsonViewModel.getCopiedByLangValues());
 
+        // The seed-copy affordances are removed entirely on Android
+        // 10-12 (API 29-32) where the platform cannot mark the
+        // ClipData with android.content.extra.IS_SENSITIVE. Without
+        // that flag a copied seed phrase is visible to vendor
+        // clipboard managers, accessibility services, and forensic
+        // clipboard-history dumps for the entire 30-second auto-clear
+        // window. On those OS versions the user must write the seed
+        // down by hand; the icon button and the textual "Copy" link
+        // are both hidden and the click listeners below are never
+        // wired up. iOS uses .localOnly + .expirationDate which gives
+        // OS-level guarantees on every supported version, so this
+        // gate has no iOS analogue.
+        boolean seedCopyAvailable = com.quantumcoinwallet.app.utils.SecureClipboard
+                .isSeedClipboardCopyHardened();
+        if (!seedCopyAvailable) {
+            if (revealSeedWordsViewCopyClipboardImageButton != null) {
+                revealSeedWordsViewCopyClipboardImageButton.setVisibility(View.GONE);
+            }
+            if (revealSeedWordsViewCopyLink != null) {
+                revealSeedWordsViewCopyLink.setVisibility(View.GONE);
+            }
+        }
+
         try {
             ShowRevealSeedScreen(jsonViewModel,
                     revealSeedWordsViewTitleTextView, revealSeedWordsViewCaptionTextViews, revealSeedWordsViewTextViews, progressBar, walletAddress);
@@ -109,7 +157,9 @@ public class RevealWalletFragment extends Fragment {
         } catch (Exception e) {
             progressBar.setVisibility(View.GONE);
             timber.log.Timber.w(e, "reveal wallet decrypt failed");
-            GlobalMethods.ShowErrorDialog(getContext(), "Error", REVEAL_WALLET_ERROR_GENERIC);
+            GlobalMethods.ShowErrorDialog(getContext(),
+                    revealErrorTitle(jsonViewModel),
+                    revealErrorBody(jsonViewModel));
         }
         homeWalletBackArrowImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -147,8 +197,10 @@ public class RevealWalletFragment extends Fragment {
                 }, 600);
             }
         };
-        revealSeedWordsViewCopyClipboardImageButton.setOnClickListener(revealCopyClickListener);
-        revealSeedWordsViewCopyLink.setOnClickListener(revealCopyClickListener);
+        if (seedCopyAvailable) {
+            revealSeedWordsViewCopyClipboardImageButton.setOnClickListener(revealCopyClickListener);
+            revealSeedWordsViewCopyLink.setOnClickListener(revealCopyClickListener);
+        }
 
     }
 
@@ -192,11 +244,12 @@ public class RevealWalletFragment extends Fragment {
 
         String[] seedWordsList = seedStr.split(",");
         revealedWordCount = seedWordsList.length;
-        loadRevealSeedWords(seedWordsList, textViews, progressBar);
+        loadRevealSeedWords(jsonViewModel, seedWordsList, textViews, progressBar);
         updateRevealRowVisibility(captionViews, textViews, revealedWordCount);
     }
 
-    private void loadRevealSeedWords(String[] wordList, TextView[] textViews, ProgressBar progressBar) {
+    private void loadRevealSeedWords(JsonViewModel jsonViewModel,
+                                     String[] wordList, TextView[] textViews, ProgressBar progressBar) {
         progressBar.setVisibility(View.VISIBLE);
         try {
             for (int i = 0; i < wordList.length && i < textViews.length; i++) {
@@ -207,7 +260,9 @@ public class RevealWalletFragment extends Fragment {
             }
         } catch (Exception e) {
             timber.log.Timber.w(e, "reveal wallet render failed");
-            GlobalMethods.ShowErrorDialog(getContext(), "Error", REVEAL_WALLET_ERROR_GENERIC);
+            GlobalMethods.ShowErrorDialog(getContext(),
+                    revealErrorTitle(jsonViewModel),
+                    revealErrorBody(jsonViewModel));
         }
         progressBar.setVisibility(View.GONE);
     }

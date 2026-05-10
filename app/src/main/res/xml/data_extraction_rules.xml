@@ -1,19 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Android 12+ (API 31) data extraction rules (MF-09).
+  Android 12+ (API 31) data extraction rules.
 
-  See backup_rules.xml for the rationale. This file governs cloud-backup
-  and device-to-device transfer on API 31+.
+  See backup_rules.xml for the rationale. This file governs
+  cloud-backup and device-to-device transfer on API 31+.
 
-  We whitelist exactly one file: the wallet SharedPreferences blob, which
-  is scrypt+AES encrypted at rest and gated at runtime by
-  WalletBackupAgent before anything is emitted.
+  We whitelist exactly two locations:
+    * files/strongbox/ — the v2 strongbox slot files
+      (scrypt+AES sealed, gated by WalletBackupAgent before
+      anything is emitted)
+    * DP_QUANTUM_COIN_WALLET_APP_PREF.xml — non-secret app
+      state (BACKUP_ENABLED toggle, current network id,
+      advanced-signing toggle). The BACKUP_ENABLED entry is the
+      canonical store of the backup-enabled setting (NOT a
+      write-through mirror of an encrypted payload field), so
+      the OS backup agent can read it pre-unlock without the
+      wallet password.
+
+  Excluded explicitly:
+    * qc_strongbox_counter_v1.xml — AndroidKeystore-bound
+      generation-counter HMAC tag. Device-bound key does not
+      migrate; counter is re-initialised on the new device
+      from the slot file's generation field.
 -->
 <data-extraction-rules>
     <cloud-backup>
+        <include domain="file" path="strongbox/" />
         <include domain="sharedpref" path="DP_QUANTUM_COIN_WALLET_APP_PREF.xml" />
+        <exclude domain="sharedpref" path="qc_strongbox_counter_v1.xml" />
     </cloud-backup>
     <device-transfer>
+        <include domain="file" path="strongbox/" />
         <include domain="sharedpref" path="DP_QUANTUM_COIN_WALLET_APP_PREF.xml" />
+        <exclude domain="sharedpref" path="qc_strongbox_counter_v1.xml" />
     </device-transfer>
 </data-extraction-rules>

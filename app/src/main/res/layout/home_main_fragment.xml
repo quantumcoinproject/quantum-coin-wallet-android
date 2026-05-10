@@ -9,163 +9,376 @@
     android:background="@android:color/transparent"
     android:orientation="vertical">
 
+    <!--
+        Transparent positioning shell. The visible "table card" lives
+        one level deeper so that the rounded background drawable
+        (@drawable/center_container) can be applied with the canonical
+        10dp side margins + 3dp inner inset, exactly mirroring the
+        AccountTransactionsFragment table chrome. Keeping this outer
+        LinearLayout id-stable preserves any external references and
+        keeps the diff scoped to the new card wrapper.
+        <p>Height note: the whole chain from this container down to
+        recyclerView_tokenList is wrap_content, so the card grows
+        only as tall as the adapter actually needs. The fragment host
+        in home_activity.xml is bound above the bottom-nav divider
+        (layout_above="@id/bottom_linear_layout_home_id" with a 5dp
+        marginBottom), so the AT_MOST measure spec that propagates
+        down naturally caps the card just above that divider when the
+        token list is long enough to need scrolling.
+    -->
     <LinearLayout
         android:id="@+id/tokenList_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="12dp">
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/textView_tokenList_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="14dp"
-            android:textStyle="bold"
-            android:textColor="@color/colorCommon6"
-            android:paddingBottom="8dp"
-            tools:ignore="HardcodedText" />
-
+        <!--
+            Tokens table "card" wrapper. Visual contract mirrors
+            account_transactions_fragment.xml lines 65-77:
+              - 10dp left/right margin so the card doesn't touch the
+                screen edge.
+              - @drawable/center_container fills the card with the
+                theme-aware surface (colorCommon7) and applies the
+                15dp corner radius.
+              - Inner inset wrapper gets 3dp margin so the children
+                clear the rounded corners.
+            Restyling either table without restyling the other should
+            be a deliberate choice; if you change one, also walk
+            account_transactions_fragment.xml.
+        -->
         <LinearLayout
-            android:id="@+id/tokenList_scrollRow"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="horizontal">
-
-            <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
-                android:id="@+id/verticalScroll_tokenList_left"
-                android:layout_width="4dp"
-                android:layout_height="match_parent" />
-
-        <HorizontalScrollView
-            android:id="@+id/horizontalScroll_tokenList"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:scrollbars="horizontal"
-            android:scrollbarAlwaysDrawHorizontalTrack="true"
-            android:fadeScrollbars="false"
-            android:fillViewport="true">
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:orientation="vertical"
+            android:background="@drawable/center_container">
 
             <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:orientation="vertical">
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="3dp"
+                android:orientation="vertical"
+                android:background="@android:color/transparent">
 
-                <LinearLayout
-                    android:id="@+id/tokenList_header_row"
-                    android:layout_width="wrap_content"
+                <!--
+                    Tokens / Unrecognized Tokens segmented control.
+                    Visible only when the filtered token list is non-empty
+                    (HomeMainFragment.renderEmptyState manages visibility).
+                    "Recognized" is the safe default and is preselected on
+                    cold launch; the user must tap "Unrecognized Tokens" to
+                    see indexer-supplied tokens whose contract address is
+                    NOT on the RecognizedTokens allow-list. Mirrors iOS
+                    HomeMainViewController.tokensSegmentedControl.
+
+                    Visual styling mirrors the Completed / Pending tabs in
+                    AccountTransactionsFragment: both children share an
+                    equal-weight slot inside the RadioGroup and use the
+                    shared @drawable/toggle_selector background so the
+                    currently-selected segment renders with the same 2dp
+                    underline highlight that flags an active tab elsewhere
+                    in the app. RadioGroup keeps mutual-exclusion semantics
+                    (state_checked drives the selector automatically); the
+                    text colour and typeface are swapped in code by
+                    HomeMainFragment.onCheckedChanged so the selected label
+                    reads bold-purple (colorCommon2) and the inactive label
+                    reads regular-gray (colorCommon3), which matches the
+                    transactions tabs one-for-one.
+
+                    Lives inside the card (above the table header strip)
+                    in the same slot the Completed / Pending tabs occupy
+                    on the transactions screen.
+                -->
+                <RadioGroup
+                    android:id="@+id/radioGroup_tokenList_segment"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:paddingTop="6dp"
-                    android:paddingBottom="6dp"
-                    android:baselineAligned="false">
+                    android:layout_marginBottom="10dp"
+                    android:visibility="gone">
 
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:alpha="0.15"
-                        android:background="@drawable/separator_line_vertical" />
-
-                    <TextView
-                        android:id="@+id/textView_tokenList_header_symbol"
-                        android:layout_width="90dp"
+                    <RadioButton
+                        android:id="@+id/radio_tokenList_recognized"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:textSize="12dp"
-                        android:textStyle="bold" />
+                        android:layout_weight="1"
+                        android:button="@null"
+                        android:gravity="center"
+                        android:paddingTop="6dp"
+                        android:paddingBottom="6dp"
+                        android:checked="true"
+                        android:textAllCaps="false"
+                        android:textSize="14dp"
+                        android:textStyle="bold"
+                        android:textColor="@color/colorCommon2"
+                        android:background="@drawable/toggle_selector" />
 
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:alpha="0.15"
-                        android:background="@drawable/separator_line_vertical" />
-
-                    <TextView
-                        android:id="@+id/textView_tokenList_header_balance"
-                        android:layout_width="130dp"
+                    <RadioButton
+                        android:id="@+id/radio_tokenList_unrecognized"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:textSize="12dp"
-                        android:textStyle="bold" />
+                        android:layout_weight="1"
+                        android:button="@null"
+                        android:gravity="center"
+                        android:paddingTop="6dp"
+                        android:paddingBottom="6dp"
+                        android:textAllCaps="false"
+                        android:textSize="14dp"
+                        android:textColor="@color/colorCommon3"
+                        android:background="@drawable/toggle_selector" />
 
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:alpha="0.15"
-                        android:background="@drawable/separator_line_vertical" />
+                </RadioGroup>
 
-                    <TextView
-                        android:id="@+id/textView_tokenList_header_contract"
-                        android:layout_width="140dp"
+                <TextView
+                    android:id="@+id/textView_tokenList_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="14dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorCommon6"
+                    android:paddingBottom="8dp"
+                    android:visibility="gone"
+                    tools:ignore="HardcodedText" />
+
+                <LinearLayout
+                    android:id="@+id/tokenList_scrollRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
+                        android:id="@+id/verticalScroll_tokenList_left"
+                        android:layout_width="4dp"
+                        android:layout_height="match_parent" />
+
+                <HorizontalScrollView
+                    android:id="@+id/horizontalScroll_tokenList"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:scrollbars="horizontal"
+                    android:scrollbarAlwaysDrawHorizontalTrack="true"
+                    android:fadeScrollbars="false"
+                    android:fillViewport="true">
+
+                    <!--
+                        Tokens table is wrapped in a MaterialCardView
+                        with a 16dp corner radius to match the wallets
+                        list rounded chrome (see wallet_fragment.xml
+                        lines 115-142). cardElevation=0 keeps the flat
+                        aesthetic of the rest of the screen; the
+                        rounded outline is the visual signal that
+                        "this is a contained list" and not edge-to-
+                        edge.
+                        <p>Why MaterialCardView (not the AndroidX
+                        CardView): MaterialCardView clips its children
+                        to the rounded outline, so the table's top /
+                        bottom horizontal rule lines and the column-
+                        divider Views inside each row land BEHIND the
+                        rounded edge instead of overflowing past it. A
+                        1dp stroke in colorCommon3 (gray in light,
+                        white in dark) makes the rounded shape visible
+                        against the outer center_container fill in
+                        both themes without needing a contrasting
+                        background color that would clash with one
+                        mode or the other.
+                        <p>Width is wrap_content so the card grows to
+                        the full column-strip width (90+130+140+130 +
+                        dividers); the parent HorizontalScrollView's
+                        fillViewport=true ensures the card stretches
+                        to at least the viewport width when the user
+                        is not currently panned past the edge.
+                    -->
+                    <!--
+                        layout_marginBottom reserves an 8dp gap between
+                        the rounded bottom border and the
+                        HorizontalScrollView's always-on horizontal
+                        scrollbar (scrollbarAlwaysDrawHorizontalTrack
+                        + fadeScrollbars=false). The scrollbar is
+                        drawn at the parent HorizontalScrollView's
+                        bottom edge regardless of its child's size, so
+                        without this margin the scrollbar paints
+                        directly on top of the card's bottom stroke.
+                        HorizontalScrollView includes the child's
+                        vertical margins when measuring its wrap_content
+                        height, which means the scrollbar sits cleanly
+                        below the card without changing the table's
+                        own dimensions.
+                    -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:textSize="12dp"
-                        android:textStyle="bold" />
+                        android:layout_marginBottom="8dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@android:color/transparent"
+                        app:strokeColor="@color/colorCommon3"
+                        app:strokeWidth="1dp">
 
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:alpha="0.15"
-                        android:background="@drawable/separator_line_vertical" />
-
-                    <TextView
-                        android:id="@+id/textView_tokenList_header_name"
-                        android:layout_width="130dp"
+                    <LinearLayout
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:textSize="12dp"
-                        android:textStyle="bold" />
+                        android:orientation="vertical">
 
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:alpha="0.15"
-                        android:background="@drawable/separator_line_vertical" />
+                        <!--
+                            Top horizontal rule that frames the table
+                            header. Same drawable + alpha as
+                            account_transactions_header.xml so the two
+                            tables read as the same component.
+                        -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:alpha="0.2"
+                            android:background="@drawable/line_2_shape" />
+
+                        <LinearLayout
+                            android:id="@+id/tokenList_header_row"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:orientation="horizontal"
+                            android:baselineAligned="false">
+
+                            <View
+                                android:layout_width="1dp"
+                                android:layout_height="match_parent"
+                                android:alpha="0.15"
+                                android:background="@drawable/separator_line_vertical" />
+
+                            <TextView
+                                android:id="@+id/textView_tokenList_header_symbol"
+                                android:layout_width="90dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginTop="5dp"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:textSize="12dp"
+                                android:textStyle="bold" />
+
+                            <View
+                                android:layout_width="1dp"
+                                android:layout_height="match_parent"
+                                android:alpha="0.15"
+                                android:background="@drawable/separator_line_vertical" />
+
+                            <TextView
+                                android:id="@+id/textView_tokenList_header_balance"
+                                android:layout_width="130dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginTop="5dp"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:textSize="12dp"
+                                android:textStyle="bold" />
+
+                            <View
+                                android:layout_width="1dp"
+                                android:layout_height="match_parent"
+                                android:alpha="0.15"
+                                android:background="@drawable/separator_line_vertical" />
+
+                            <TextView
+                                android:id="@+id/textView_tokenList_header_contract"
+                                android:layout_width="140dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginTop="5dp"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:textSize="12dp"
+                                android:textStyle="bold" />
+
+                            <View
+                                android:layout_width="1dp"
+                                android:layout_height="match_parent"
+                                android:alpha="0.15"
+                                android:background="@drawable/separator_line_vertical" />
+
+                            <TextView
+                                android:id="@+id/textView_tokenList_header_name"
+                                android:layout_width="130dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginTop="5dp"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:textSize="12dp"
+                                android:textStyle="bold" />
+
+                            <View
+                                android:layout_width="1dp"
+                                android:layout_height="match_parent"
+                                android:alpha="0.15"
+                                android:background="@drawable/separator_line_vertical" />
+
+                        </LinearLayout>
+
+                        <!--
+                            Bottom horizontal rule completing the header
+                            frame. Mirrors account_transactions_header.xml
+                            so both tables present the same chrome.
+                        -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:alpha="0.2"
+                            android:background="@drawable/line_2_shape" />
+
+                        <!--
+                            Height is wrap_content so the card shrinks
+                            to the actual row count when the list is
+                            short. The AT_MOST measure spec propagated
+                            from tokenList_container caps the recycler
+                            at the fragment-host's bottom (which sits
+                            just above the bottom-nav divider in
+                            home_activity.xml), so a long list scrolls
+                            inside that bound instead of pushing the
+                            card past the nav. paddingBottom +
+                            clipToPadding were dropped intentionally;
+                            with wrap_content they would render as
+                            visible dead space below the last row
+                            when the list is short.
+                        -->
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/recyclerView_tokenList"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:scrollbars="vertical" />
+
+                    </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </HorizontalScrollView>
+
+                    <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
+                        android:id="@+id/verticalScroll_tokenList_right"
+                        android:layout_width="4dp"
+                        android:layout_height="match_parent" />
 
                 </LinearLayout>
 
-                <View
+                <!--
+                    Empty-state caption ("No tokens for this address"). Hidden
+                    by HomeMainFragment.renderEmptyState in normal flow today,
+                    but uses colorMutedSecondaryText so that if it is ever
+                    surfaced (or unhidden by a future redesign) it stays
+                    legible in dark mode. Previously bound to colorCommon10,
+                    which renders #000000 on dark themes (black-on-black) —
+                    same root cause as the Send-screen contract-address bug.
+                -->
+                <TextView
+                    android:id="@+id/textView_tokenList_empty"
                     android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:alpha="0.25"
-                    android:background="@drawable/separator_line_vertical" />
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerView_tokenList"
-                    android:layout_width="wrap_content"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:scrollbars="vertical" />
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingTop="20dp"
+                    android:paddingBottom="20dp"
+                    android:textSize="13dp"
+                    android:textColor="@color/colorMutedSecondaryText"
+                    android:visibility="gone" />
 
             </LinearLayout>
 
-        </HorizontalScrollView>
-
-            <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
-                android:id="@+id/verticalScroll_tokenList_right"
-                android:layout_width="4dp"
-                android:layout_height="match_parent" />
-
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/textView_tokenList_empty"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingTop="20dp"
-            android:paddingBottom="20dp"
-            android:textSize="13dp"
-            android:textColor="@color/colorCommon10"
-            android:visibility="gone" />
 
     </LinearLayout>
 

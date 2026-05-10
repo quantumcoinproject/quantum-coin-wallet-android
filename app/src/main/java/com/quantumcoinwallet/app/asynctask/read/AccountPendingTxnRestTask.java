@@ -27,10 +27,10 @@ public class AccountPendingTxnRestTask {
     }
 
     public void execute(final String... params) {
-        // MF-24: snapshot base URL at dispatch time.
+        // Snapshot base URL at dispatch time.
         final String basePathSnapshot = GlobalMethods.SCAN_API_URL;
 
-        // MF-25: validate inputs.
+        // Validate inputs.
         if (params == null || params.length < 2
                 || TextUtils.isEmpty(params[0]) || TextUtils.isEmpty(params[1])) {
             notifyFailure(new ApiException("address and pageIndex are required"));
