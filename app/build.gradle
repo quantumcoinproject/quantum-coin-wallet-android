@@ -268,62 +268,20 @@ dependencies {
 }
 
 // =================================================================
-// Cross-platform localization snapshot sync
-// =================================================================
-// The :app:syncIosLocale task copies the iOS en_us.json file into
-// app/src/test/resources/locale-snapshots/ios_en_us.json so the
-// Android EnUsParityTest can byte-compare both files at CI time.
-// Source-of-truth for the iOS file is the sibling repo at
-// ../quantum-coin-wallet-ios. The path is configurable via the
-// -PiosRepo=... gradle property for non-default checkouts.
-// Workflow:
-//   1. Open the Android repo and the iOS repo side-by-side.
-//   2. Make a localization change on whichever side is the
-//      change source.
-//   3. Run `./gradlew :app:syncIosLocale` from the Android repo.
-//   4. Commit BOTH the iOS edit (in the iOS repo) AND the
-//      regenerated snapshot (in the Android repo) so the parity
-//      test sees the new state.
-// The task also runs implicitly before unit tests (`testDebugUnitTest`
-// dependsOn) so a stale snapshot does NOT silently pass parity in CI:
-// the snapshot is regenerated from the iOS sibling on every test
-// run when the sibling repo is present, and the parity test fails
-// loudly if it is not.
-// CI hook: a CI job that mounts both repos can run
-//   ./gradlew :app:syncIosLocale && ./gradlew :app:testDebugUnitTest
-// and fail the build on any drift.
-tasks.register('syncIosLocale') {
-    description = 'Copy iOS en_us.json snapshot into Android test resources for parity test'
-    group = 'verification'
-
-    doLast {
-        def iosRepo = project.findProperty('iosRepo')
-                ?: file("${rootDir}/../quantum-coin-wallet-ios").absolutePath
-        def src = file("${iosRepo}/QuantumCoinWallet/Resources/en_us.json")
-        def dst = file("${projectDir}/src/test/resources/locale-snapshots/ios_en_us.json")
-        if (!src.exists()) {
-            logger.warn("syncIosLocale: source file not found at ${src.absolutePath}; "
-                    + "skipping. Pass -PiosRepo=/path/to/quantum-coin-wallet-ios to override.")
-            return
-        }
-        dst.parentFile.mkdirs()
-        dst.bytes = src.bytes
-        logger.lifecycle("syncIosLocale: snapshot updated -> ${dst.absolutePath}")
-    }
-}
-
-// =================================================================
 // Cross-platform impersonator-filter snapshot sync
 // =================================================================
 // The :app:syncIosImpersonatorFilter task copies the iOS Swift file
 // for StablecoinImpersonatorFilter into
 // app/src/test/resources/code-snapshots/StablecoinImpersonatorFilter.swift
 // so the Android StablecoinImpersonatorFilterTest parity check can
-// byte-compare the two pattern lists at CI time. Same skip-on-missing
-// + auto-runs-before-unit-tests semantics as syncIosLocale; same
-// reasoning. If you change the Android filter PATTERNS list, walk the
-// Swift file too and run :app:syncIosImpersonatorFilter to regenerate
-// the snapshot.
+// byte-compare the two pattern lists at CI time. Source-of-truth for
+// the iOS file is the sibling repo at ../quantum-coin-wallet-ios; the
+// path is configurable via the -PiosRepo=... Gradle property for
+// non-default checkouts. The task is skip-on-missing so a developer
+// without the sibling repo checked out still gets a clean test run.
+// If you change the Android filter PATTERNS list, walk the Swift file
+// too and run :app:syncIosImpersonatorFilter to regenerate the
+// snapshot.
 tasks.register('syncIosImpersonatorFilter') {
     description = 'Copy iOS StablecoinImpersonatorFilter.swift snapshot into Android test resources for parity test'
     group = 'verification'
@@ -346,11 +304,11 @@ tasks.register('syncIosImpersonatorFilter') {
 
 afterEvaluate {
     tasks.matching { it.name.startsWith('test') && it.name.endsWith('UnitTest') }.configureEach {
-        // Best-effort: pull fresh iOS snapshots before unit tests
-        // so the parity checks see current state. The tasks are
-        // skip-on-missing (see above), so a developer without the
-        // sibling repo checked out still gets a clean test run.
-        dependsOn 'syncIosLocale'
+        // Best-effort: pull a fresh impersonator-filter snapshot
+        // before unit tests so the parity check sees current state.
+        // The task is skip-on-missing (see above), so a developer
+        // without the sibling repo checked out still gets a clean
+        // test run.
         dependsOn 'syncIosImpersonatorFilter'
     }
 }

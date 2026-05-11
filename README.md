@@ -7,7 +7,9 @@
 > **iOS counterpart:** the sibling [Quantum Coin iOS wallet](https://github.com/quantumcoinproject/quantum-coin-wallet-ios)
 > is kept feature-parity with this Android client. Both share the same
 > JavaScript SDK bundle byte-for-byte and the same `en_us.json`
-> localization catalog (parity-tested on every build).
+> localization catalog as the canonical reference; the Android-side
+> `JsonInteractParityTest` keeps the key set and accessor surface in
+> lockstep with the iOS catalog.
 
 Native Android client for the [Quantum Coin](https://quantumcoin.org)
 post-quantum blockchain. Quantum Coin is a Layer-1 quantum-resistant
@@ -918,11 +920,11 @@ the one shipped by the iOS wallet at
   regenerates `GeneratedBundleHash.java` so the constant inside
   `classes.dex` stays in lockstep with the shipping bundle bytes.
   Wired as a `preBuild` dependency.
-- **`syncIosLocale` Gradle task** — pulls a snapshot of the iOS
-  `en_us.json` into `app/src/test/resources/locale-snapshots/`
-  before unit tests run, so the
-  [`EnUsParityTest`](app/src/test/java/com/quantumcoinwallet/app/locale/EnUsParityTest.java)
-  byte-compares both files in CI.
+- **`syncIosImpersonatorFilter` Gradle task** — pulls a snapshot of
+  the iOS `StablecoinImpersonatorFilter.swift` into
+  `app/src/test/resources/code-snapshots/` before unit tests run so
+  the Android-side parity test can byte-compare the two pattern
+  lists in CI. Skip-on-missing for fresh checkouts.
 
 ---
 
@@ -997,7 +999,7 @@ contract documented in
 │   ├── webpack.config.js
 │   └── src/                             Re-export glue around the upstream SDKs
 └── app/
-    ├── build.gradle                     App module + embedBundleHash + syncIosLocale tasks
+    ├── build.gradle                     App module + embedBundleHash + syncIosImpersonatorFilter tasks
     ├── proguard-rules.pro
     └── src/
         ├── main/
@@ -1172,7 +1174,6 @@ It contains 29 test classes and 183 unit tests:
 | `interact/JsonInteractParityTest` | Localization-key presence, accessor wiring, OS-specific divergence wording (root vs jailbreak, Play Store vs App Store, Android Auto Backup vs iCloud) |
 | `keystorage/AddNetworkPersistsToStrongboxTest` | Pins that adding a custom network goes through the strongbox `customNetworks` field (not `SharedPreferences`) and survives a relock/unlock round-trip |
 | `keystorage/MacUtilTest` | HMAC + HKDF primitives used by the generation-counter, brute-force-lockout binders, and the v=3 file MAC / inner checksum |
-| `locale/EnUsParityTest` | Cross-file byte-comparison between `app/src/main/res/raw/en_us.json` and the iOS snapshot (synced by `:app:syncIosLocale` before tests run) |
 | `networking/UrlBuilderHostInvariantTest` | Post-substitution URL host MUST equal the configured `BlockchainNetwork.blockExplorerDomain` (anti-host-pivot) |
 | `networking/UrlBuilderLockdownTest` | CI grep guard — fails if a naive `replace("{address}"…)` or `replace("{txhash}"…)` call site reappears anywhere |
 | `networking/UrlBuilderTest` | Strict regex acceptance + percent-encoding behavior |
