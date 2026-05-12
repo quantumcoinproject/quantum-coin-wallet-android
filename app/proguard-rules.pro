@@ -16,7 +16,7 @@
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
--keep class com.quantumcoinwallet.app.bridge.** { *; }
+-keep class com.quantumcoin.app.bridge.** { *; }
 
 # -----------------------------------------------------------
 # Gson model classes (reflection-based (de)serialization)
@@ -28,14 +28,14 @@
 -keep class sun.misc.Unsafe { *; }
 
 # Preserve all model classes used with Gson (serialized/deserialized via reflection).
--keep class com.quantumcoinwallet.app.model.** { *; }
--keepclassmembers class com.quantumcoinwallet.app.model.** { <fields>; <init>(...); }
+-keep class com.quantumcoin.app.model.** { *; }
+-keepclassmembers class com.quantumcoin.app.model.** { <fields>; <init>(...); }
 
--keep class com.quantumcoinwallet.app.api.read.model.** { *; }
--keepclassmembers class com.quantumcoinwallet.app.api.read.model.** { <fields>; <init>(...); }
+-keep class com.quantumcoin.app.api.read.model.** { *; }
+-keepclassmembers class com.quantumcoin.app.api.read.model.** { <fields>; <init>(...); }
 
--keep class com.quantumcoinwallet.app.entity.** { *; }
--keepclassmembers class com.quantumcoinwallet.app.entity.** { <fields>; <init>(...); }
+-keep class com.quantumcoin.app.entity.** { *; }
+-keepclassmembers class com.quantumcoin.app.entity.** { <fields>; <init>(...); }
 
 # Fields annotated with @SerializedName must survive obfuscation.
 -keepclassmembers class * {
@@ -59,7 +59,7 @@
 -dontwarn org.openjsse.**
 
 # Swagger/OpenAPI generated client uses reflection for auth/JSON adapters.
--keep class com.quantumcoinwallet.app.api.read.** { *; }
+-keep class com.quantumcoin.app.api.read.** { *; }
 -keep class io.swagger.annotations.** { *; }
 -dontwarn io.swagger.**
 
@@ -81,19 +81,19 @@
 -keep class androidx.camera.** { *; }
 
 # ViewBinding: generated binding classes.
--keep class com.quantumcoinwallet.app.databinding.** { *; }
+-keep class com.quantumcoin.app.databinding.** { *; }
 
 # -----------------------------------------------------------
 # Reflection-loaded Application class
 # -----------------------------------------------------------
--keep public class com.quantumcoinwallet.app.App
+-keep public class com.quantumcoin.app.App
 
 # -----------------------------------------------------------
 # BackupAgent (declared in manifest via android:backupAgent).
 # Manifest-declared components must survive R8.
 # -----------------------------------------------------------
--keep public class com.quantumcoinwallet.app.backup.WalletBackupAgent
--keepclassmembers class com.quantumcoinwallet.app.backup.WalletBackupAgent { <init>(...); }
+-keep public class com.quantumcoin.app.backup.WalletBackupAgent
+-keepclassmembers class com.quantumcoin.app.backup.WalletBackupAgent { <init>(...); }
 
 # -----------------------------------------------------------
 # Parcelables + Serializables (Android standard keep rules).

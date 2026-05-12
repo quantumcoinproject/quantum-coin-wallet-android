@@ -138,7 +138,7 @@
                                     android:layout_weight="1"
                                     android:orientation="horizontal">
 
-                                    <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
+                                    <com.quantumcoin.app.view.widget.VerticalScrollIndicatorView
                                         android:id="@+id/verticalScroll_account_transactions_left"
                                         android:layout_width="4dp"
                                         android:layout_height="match_parent" />
@@ -172,7 +172,7 @@
 
                                     </HorizontalScrollView>
 
-                                    <com.quantumcoinwallet.app.view.widget.VerticalScrollIndicatorView
+                                    <com.quantumcoin.app.view.widget.VerticalScrollIndicatorView
                                         android:id="@+id/verticalScroll_account_transactions_right"
                                         android:layout_width="4dp"
                                         android:layout_height="match_parent" />

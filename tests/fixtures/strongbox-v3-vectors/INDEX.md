@@ -14,7 +14,7 @@ The expansion rule is:
 
 iOS implements this in `QuantumCoinWalletTests/StrongboxLayerTests.swift`
 as `TestShake256`; Android implements it in
-`app/src/test/java/com/quantumcoinwallet/app/strongbox/StrongboxPortabilityVectorTest.java`
+`app/src/test/java/com/quantumcoin/app/strongbox/StrongboxPortabilityVectorTest.java`
 through BouncyCastle `SHAKEDigest(256)`.
 
 The test code hardcodes only the seed and small expected outputs
