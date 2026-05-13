@@ -17,21 +17,28 @@
       the OS backup agent can read it pre-unlock without the
       wallet password.
 
-  Excluded explicitly:
+  Excluded implicitly:
     * qc_strongbox_counter_v1.xml — AndroidKeystore-bound
-      generation-counter HMAC tag. Device-bound key does not
-      migrate; counter is re-initialised on the new device
-      from the slot file's generation field.
+      generation-counter HMAC tag. The path-specific
+      <include domain="sharedpref" path="DP_QUANTUM_COIN_WALLET_APP_PREF.xml"/>
+      whitelists exactly one sharedpref file, so every other
+      sharedpref (the counter pref included) is excluded by
+      omission. We deliberately do NOT add an explicit
+      <exclude> for it: lint's [FullBackupContent] check
+      rejects <exclude> paths that are not under any <include>
+      path, and the exclude would be a redundant no-op anyway.
+      The counter pref must not travel because the
+      AndroidKeystore-bound HMAC key is not extractable and
+      does not migrate; on the new device the counter is
+      re-initialised from the slot file's generation field.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <include domain="file" path="strongbox/" />
         <include domain="sharedpref" path="DP_QUANTUM_COIN_WALLET_APP_PREF.xml" />
-        <exclude domain="sharedpref" path="qc_strongbox_counter_v1.xml" />
     </cloud-backup>
     <device-transfer>
         <include domain="file" path="strongbox/" />
         <include domain="sharedpref" path="DP_QUANTUM_COIN_WALLET_APP_PREF.xml" />
-        <exclude domain="sharedpref" path="qc_strongbox_counter_v1.xml" />
     </device-transfer>
 </data-extraction-rules>

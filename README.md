@@ -700,12 +700,19 @@ are never persisted.
 Both [`backup_rules.xml`](app/src/main/res/xml/backup_rules.xml)
 and
 [`data_extraction_rules.xml`](app/src/main/res/xml/data_extraction_rules.xml)
-include the slot directory and the `DP_QUANTUM_COIN_WALLET_APP_PREF.xml`
-prefs file, and explicitly **exclude** the
-`qc_strongbox_counter_v1.xml` pref file (its HMAC tag is signed
-by a non-extractable AndroidKeystore key that does not survive a
-device migration; on the new device the counter is heal-forwarded
-from the restored slot's `generation` field).
+whitelist exactly the slot directory and the
+`DP_QUANTUM_COIN_WALLET_APP_PREF.xml` prefs file via
+path-specific `<include>` rules. Because the sharedpref include
+names a single file, the
+`qc_strongbox_counter_v1.xml` pref file is **excluded by
+omission** — no explicit `<exclude>` is used (lint's
+`FullBackupContent` check rejects `<exclude>` paths that are
+not under any `<include>`, and an explicit exclude here would
+be a redundant no-op). The counter pref must not travel because
+its HMAC tag is signed by a non-extractable AndroidKeystore key
+that does not survive a device migration; on the new device the
+counter is heal-forwarded from the restored slot's `generation`
+field.
 
 The runtime gate in
 [`backup/WalletBackupAgent.java`](app/src/main/java/com/quantumcoin/app/backup/WalletBackupAgent.java)

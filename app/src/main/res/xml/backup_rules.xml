@@ -84,15 +84,22 @@
 
   Exclusions:
     The AndroidKeystore-bound generation-counter pref file
-    (qc_strongbox_counter_v1.xml) is explicitly excluded — its
-    HMAC tag is signed by a non-extractable device-bound key
-    that does not survive a device migration, so backing it up
-    would mean the new device's keystore tag check rejects the
-    counter on every unlock. The counter is re-initialised from
-    the slot file's generation field on the new device.
+    (qc_strongbox_counter_v1.xml) is implicitly excluded by the
+    path-specific sharedpref <include> above: only
+    DP_QUANTUM_COIN_WALLET_APP_PREF.xml is whitelisted, so every
+    other sharedpref file (the counter pref included) stays
+    local to the device. We deliberately do NOT add an explicit
+    <exclude> for the counter pref, because lint's
+    [FullBackupContent] check rejects <exclude> paths that are
+    not under any <include> path (the exclude would be a
+    redundant no-op that only adds noise). The counter pref
+    must not travel because its HMAC tag is signed by a
+    non-extractable device-bound AndroidKeystore key that does
+    not survive a device migration; on the new device the
+    counter is re-initialised from the slot file's generation
+    field.
 -->
 <full-backup-content>
     <include domain="file" path="strongbox/" />
     <include domain="sharedpref" path="DP_QUANTUM_COIN_WALLET_APP_PREF.xml" />
-    <exclude domain="sharedpref" path="qc_strongbox_counter_v1.xml" />
 </full-backup-content>
