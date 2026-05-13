@@ -71,6 +71,9 @@ public class AccountTransactionsFragment extends Fragment  {
     private TextView textViewEmpty;
     private JsonViewModel jsonViewModel;
 
+    private ImageButton refreshImageButton;
+    private ProgressBar refreshProgressBar;
+
     private OnAccountTransactionsCompleteListener mAccountTransactionsListener;
 
     private int transactionStatus = 0;
@@ -118,8 +121,10 @@ public class AccountTransactionsFragment extends Fragment  {
         ImageButton backArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_account_transactions_back_arrow);
 
         ImageButton accountTransactionRefreshImageButton = (ImageButton) getView().findViewById(R.id.imageButton_account_transactions_refresh);
+        this.refreshImageButton = accountTransactionRefreshImageButton;
 
-        ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_account_transactions);
+        ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_account_transactions_loader);
+        this.refreshProgressBar = progressBar;
 
         ToggleButton accountTransactionCompletedToggleButton = view.findViewById(R.id.toggleButton_account_transactions_langValues_completed);
         ToggleButton accountTransactionPendingToggleButton = view.findViewById(R.id.toggleButton_account_transactions_langValues_pending);;
@@ -174,18 +179,20 @@ public class AccountTransactionsFragment extends Fragment  {
                 accountPendingTransactionSummaries, walletAddress);
 
         this.recycler.setAdapter(accountTransactionAdapter);
-        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+        // Initial load on screen open is NOT user-initiated, so a
+        // transient failure here stays silent.
+        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, false);
 
         accountTransactionRefreshImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 switch(transactionStatus) {
                     case 0:
                         recycler.setAdapter(accountTransactionAdapter);
-                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, true);
                         break;
                     case 1:
                         recycler.setAdapter(accountPendingTransactionAdapter);
-                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, true);
                         break;
                 }
             }
@@ -221,7 +228,7 @@ public class AccountTransactionsFragment extends Fragment  {
                 }
 
                 recycler.setAdapter(accountTransactionAdapter);
-                ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, true);
             }
         });
 
@@ -249,7 +256,7 @@ public class AccountTransactionsFragment extends Fragment  {
                 }
 
                 recycler.setAdapter(accountPendingTransactionAdapter);
-                ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, true);
             }
         });
 
@@ -274,11 +281,11 @@ public class AccountTransactionsFragment extends Fragment  {
                 switch(transactionStatus) {
                     case 0:
                         recycler.setAdapter(accountTransactionAdapter);
-                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, true);
                         break;
                     case 1:
                         recycler.setAdapter(accountPendingTransactionAdapter);
-                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, true);
                         break;
                 }
             }
@@ -300,11 +307,11 @@ public class AccountTransactionsFragment extends Fragment  {
                 switch(transactionStatus) {
                     case 0:
                         recycler.setAdapter(accountTransactionAdapter);
-                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, requested);
+                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, requested, true);
                         break;
                     case 1:
                         recycler.setAdapter(accountPendingTransactionAdapter);
-                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, requested);
+                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, requested, true);
                         break;
                 }
             }
@@ -315,11 +322,11 @@ public class AccountTransactionsFragment extends Fragment  {
                 switch(transactionStatus) {
                     case 0:
                         recycler.setAdapter(accountTransactionAdapter);
-                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar,pageIndex);
+                        ListAccountTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, true);
                         break;
                     case 1:
                         recycler.setAdapter(accountPendingTransactionAdapter);
-                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex);
+                        ListAccountPendingTransactionByAccount(getContext(), walletAddress, progressBar, pageIndex, true);
                         break;
                 }
             }
@@ -381,9 +388,49 @@ public class AccountTransactionsFragment extends Fragment  {
     }
 
 
-    private void ListAccountTransactionByAccount(Context context, String address, ProgressBar progressBar, int pageIndex) {
+    /**
+     * Swap the toolbar refresh icon with the in-place spinner. The
+     * ImageButton and the ProgressBar share the same 40dp slot in
+     * account_transactions_fragment.xml; only one is visible at a
+     * time so the toolbar never shifts. This is the single loading
+     * indicator on this screen now (refresh, initial load, and
+     * pagination all funnel through the List* helpers below).
+     */
+    private void setRefreshLoading(boolean loading) {
+        if (refreshImageButton != null) {
+            refreshImageButton.setVisibility(loading ? View.GONE : View.VISIBLE);
+        }
+        if (refreshProgressBar != null) {
+            refreshProgressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    /**
+     * Fetches a page of completed transactions and pushes the result
+     * into the recycler.
+     *
+     * <p>{@code userInitiated} controls how failures surface:
+     * <ul>
+     *   <li>{@code true} — user tapped refresh, switched the
+     *       Completed/Pending toggle, paged Prev/Next, or tapped the
+     *       Retry button; a transient failure surfaces a toast.</li>
+     *   <li>{@code false} — initial load when the screen opens; a
+     *       failure stays silent so the user is not toasted just for
+     *       opening the screen.</li>
+     * </ul>
+     *
+     * <p>The full-body retry overlay
+     * ({@code linerLayout_account_transactions_offline}) is no longer
+     * surfaced from this path, and the existing transactions table is
+     * NOT cleared before the fetch. A transient failure therefore
+     * leaves the previously-displayed rows in place; the recycler is
+     * only re-populated on a successful response (or explicitly emptied
+     * on a 404/204 "no transactions" reply).
+     */
+    private void ListAccountTransactionByAccount(Context context, String address,
+                                                 ProgressBar progressBar, int pageIndex,
+                                                 boolean userInitiated) {
         try{
-            linerLayoutOffline.setVisibility(View.GONE);
             if (progressBar.getVisibility() == View.VISIBLE) {
                 String message = getResources().getString(R.string.transaction_message_exits);
                 GlobalMethods.ShowToast(context, message);
@@ -395,11 +442,9 @@ public class AccountTransactionsFragment extends Fragment  {
 
                 String[] taskParams = {address, String.valueOf(pageIndex)};
 
-                progressBar.setVisibility(View.VISIBLE);
-                recycler.removeAllViewsInLayout();
-                accountTransactionSummaries.clear();
+                setRefreshLoading(true);
 
-                hideEmptyState();
+                final boolean userInitiatedFinal = userInitiated;
                 AccountTxnRestTask task = new AccountTxnRestTask(
                         context, new AccountTxnRestTask.TaskListener() {
                     @Override
@@ -422,22 +467,33 @@ public class AccountTransactionsFragment extends Fragment  {
                             } else {
                                 AccountTransactionsFragment.this.pageIndex = pageIndex;
                             }
+                            // Replace the visible rows atomically: clear
+                            // and refill only on a successful response
+                            // so a transient failure cannot wipe the
+                            // previously displayed page.
+                            accountTransactionSummaries.clear();
                             accountTransactionSummaries.addAll(accountTransactionSummaryResponse.getResult());
                             accountTransactionAdapter.notifyDataSetChanged();
                             hideEmptyState();
                         } else {
                             AccountTransactionsFragment.this.pageCount = 0;
                             AccountTransactionsFragment.this.pageIndex = 0;
+                            accountTransactionSummaries.clear();
+                            accountTransactionAdapter.notifyDataSetChanged();
                             showEmptyState();
                         }
-                        progressBar.setVisibility(View.GONE);
+                        setRefreshLoading(false);
                     }
 
                     @Override
                     public void onFailure(com.quantumcoin.app.api.read.ApiException e) {
-                        progressBar.setVisibility(View.GONE);
+                        setRefreshLoading(false);
                         int code = e.getCode();
                         if (code == 404 || code == 204) {
+                            // Authoritative "this account has no
+                            // transactions on this page" response from
+                            // the server. Clear the visible rows and
+                            // show the empty placeholder.
                             accountTransactionSummaries.clear();
                             accountTransactionAdapter.notifyDataSetChanged();
                             showEmptyState();
@@ -445,13 +501,14 @@ public class AccountTransactionsFragment extends Fragment  {
                         }
                         boolean check = GlobalMethods.ApiExceptionSourceCodeBoolean(code);
                         if(check == true) {
-                            GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
-                                    getString(R.string.apierror),
-                                    TAG + " : AccountTxnRestTask : " + e.toString());
+                            if (userInitiatedFinal) {
+                                GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
+                                        getString(R.string.apierror),
+                                        TAG + " : AccountTxnRestTask : " + e.toString());
+                            }
                         } else {
-                            GlobalMethods.OfflineOrExceptionError(getContext(),
-                                    linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                                    textViewSubTitleRetry, true);
+                            GlobalMethods.NotifyServiceUnavailable(
+                                    getContext(), true, userInitiatedFinal);
                         }
                     }
                 });
@@ -459,23 +516,23 @@ public class AccountTransactionsFragment extends Fragment  {
                 try {
                     task.execute(taskParams);
                 } catch (Exception ex) {
-                    progressBar.setVisibility(View.GONE);
+                    setRefreshLoading(false);
                     GlobalMethods.ExceptionError(getContext(), TAG, ex);
                 }
             } else {
-                GlobalMethods.OfflineOrExceptionError(getContext(),
-                        linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                        textViewSubTitleRetry, false);
+                GlobalMethods.NotifyServiceUnavailable(
+                        getContext(), false, userInitiated);
             }
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getContext(), TAG, e);
         }
     }
 
-    private void ListAccountPendingTransactionByAccount(Context context, String address, ProgressBar progressBar, int pageIndex) {
+    /** See {@link #ListAccountTransactionByAccount}; same contract for the pending-transactions list. */
+    private void ListAccountPendingTransactionByAccount(Context context, String address,
+                                                       ProgressBar progressBar, int pageIndex,
+                                                       boolean userInitiated) {
         try{
-
-            linerLayoutOffline.setVisibility(View.GONE);
 
             if (progressBar.getVisibility() == View.VISIBLE) {
                 String message = getResources().getString(R.string.transaction_message_exits);
@@ -488,11 +545,9 @@ public class AccountTransactionsFragment extends Fragment  {
 
                 String[] taskParams = { address, String.valueOf(pageIndex) };
 
-                progressBar.setVisibility(View.VISIBLE);
-                recycler.removeAllViewsInLayout();
-                accountPendingTransactionSummaries.clear();
+                setRefreshLoading(true);
 
-                hideEmptyState();
+                final boolean userInitiatedFinal = userInitiated;
                 AccountPendingTxnRestTask task = new AccountPendingTxnRestTask(
                         context, new AccountPendingTxnRestTask.TaskListener() {
                     @Override
@@ -513,20 +568,23 @@ public class AccountTransactionsFragment extends Fragment  {
                             } else {
                                 AccountTransactionsFragment.this.pageIndex = pageIndex;
                             }
+                            accountPendingTransactionSummaries.clear();
                             accountPendingTransactionSummaries.addAll(accountPendingTransactionSummaryResponse.getResult());
                             accountPendingTransactionAdapter.notifyDataSetChanged();
                             hideEmptyState();
                         } else {
                             AccountTransactionsFragment.this.pageCount = 0;
                             AccountTransactionsFragment.this.pageIndex = 0;
+                            accountPendingTransactionSummaries.clear();
+                            accountPendingTransactionAdapter.notifyDataSetChanged();
                             showEmptyState();
                         }
-                        progressBar.setVisibility(View.GONE);
+                        setRefreshLoading(false);
                     }
 
                     @Override
                     public void onFailure(com.quantumcoin.app.api.read.ApiException e) {
-                        progressBar.setVisibility(View.GONE);
+                        setRefreshLoading(false);
                         int code = e.getCode();
                         if (code == 404 || code == 204) {
                             accountPendingTransactionSummaries.clear();
@@ -536,13 +594,14 @@ public class AccountTransactionsFragment extends Fragment  {
                         }
                         boolean check = GlobalMethods.ApiExceptionSourceCodeBoolean(code);
                         if(check == true) {
-                            GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
-                                    getString(R.string.apierror),
-                                    TAG + " : AccountPendingTxnRestTask : " + e.toString());
+                            if (userInitiatedFinal) {
+                                GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
+                                        getString(R.string.apierror),
+                                        TAG + " : AccountPendingTxnRestTask : " + e.toString());
+                            }
                         } else {
-                            GlobalMethods.OfflineOrExceptionError(getContext(),
-                                    linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                                    textViewSubTitleRetry, true);
+                            GlobalMethods.NotifyServiceUnavailable(
+                                    getContext(), true, userInitiatedFinal);
                         }
                     }
                 });
@@ -550,13 +609,12 @@ public class AccountTransactionsFragment extends Fragment  {
                 try {
                     task.execute(taskParams);
                 } catch (Exception ex) {
-                    progressBar.setVisibility(View.GONE);
+                    setRefreshLoading(false);
                     GlobalMethods.ExceptionError(getContext(), TAG, ex);
                 }
             } else {
-                GlobalMethods.OfflineOrExceptionError(getContext(),
-                        linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                        textViewSubTitleRetry, false);
+                GlobalMethods.NotifyServiceUnavailable(
+                        getContext(), false, userInitiated);
             }
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getContext(), TAG, e);

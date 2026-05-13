@@ -31,6 +31,10 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentTransaction;
@@ -132,6 +136,7 @@ public class HomeActivity extends FragmentActivity implements
     private TextView walletAddressTextView;
     private TextView balanceValueTextView;
     private ProgressBar progressBar;
+    private ImageButton refreshImageButton;
     private BottomNavigationView bottomNavigationView;
 
     private LinearLayout linerLayoutOffline;
@@ -198,6 +203,40 @@ public class HomeActivity extends FragmentActivity implements
             TextView titleTextView = (TextView) findViewById(R.id.textView_home_tile);
             TextView loadSeedTextView = (TextView) findViewById(R.id.textView_home_load_seed);
 
+            // Edge-to-edge (default on Android 15 / targetSdk 35) lets the
+            // status bar and any display cutout draw on top of our top-aligned
+            // header. Push the logo + titles below them via a status-bar +
+            // cutout inset, while leaving the gradient background pinned to
+            // the top edge so it still extends under the cutout. The same
+            // top-inset is applied to the network chip (also alignParentTop)
+            // so it doesn't get clipped on the right edge of a wide cutout.
+            ViewCompat.setOnApplyWindowInsetsListener(topLinearLayout,
+                    new OnApplyWindowInsetsListener() {
+                        @Override
+                        public WindowInsetsCompat onApplyWindowInsets(
+                                View v, WindowInsetsCompat insets) {
+                            Insets bars = insets.getInsets(
+                                    WindowInsetsCompat.Type.statusBars()
+                                            | WindowInsetsCompat.Type.displayCutout());
+                            v.setPadding(v.getPaddingLeft(), bars.top,
+                                    v.getPaddingRight(), v.getPaddingBottom());
+                            return insets;
+                        }
+                    });
+            ViewCompat.setOnApplyWindowInsetsListener(blockChainNetworkTextView,
+                    new OnApplyWindowInsetsListener() {
+                        @Override
+                        public WindowInsetsCompat onApplyWindowInsets(
+                                View v, WindowInsetsCompat insets) {
+                            Insets bars = insets.getInsets(
+                                    WindowInsetsCompat.Type.statusBars()
+                                            | WindowInsetsCompat.Type.displayCutout());
+                            v.setPadding(v.getPaddingLeft(), bars.top,
+                                    v.getPaddingRight(), v.getPaddingBottom());
+                            return insets;
+                        }
+                    });
+
             //loadSeedsThread(loadSeedTextView);
 
             //Center Relative layout & Image Button
@@ -210,7 +249,7 @@ public class HomeActivity extends FragmentActivity implements
 
             TextView balanceCoinSymbolTextView = (TextView) findViewById(R.id.textView_home_coin_symbol);
             balanceValueTextView = (TextView) findViewById(R.id.textView_home_balance_value);
-            ImageButton refreshImageButton = (ImageButton) findViewById(R.id.imageButton_home_refresh);
+            refreshImageButton = (ImageButton) findViewById(R.id.imageButton_home_refresh);
             progressBar = (ProgressBar) findViewById(R.id.progress_home_loader);
 
             TextView sendTitleTextView = (TextView) findViewById(R.id.textView_home_send_title);
@@ -238,7 +277,12 @@ public class HomeActivity extends FragmentActivity implements
             transactionsTitleTextView.setText(jsonViewModel.getTransactionsByLangValues());
 
             walletAddressTextView.setText("");
-            balanceValueTextView.setText("");
+            // "-" placeholder (NOT "0") so the user is never shown an
+            // authoritative-looking zero balance before the first
+            // balance fetch completes. Matches the XML default in
+            // home_activity.xml (textView_home_balance_value) and the
+            // matching default on the Send / Seed-Confirmation screens.
+            balanceValueTextView.setText("-");
             screenViewType(-1);
 
             //Notification permission
@@ -467,7 +511,9 @@ public class HomeActivity extends FragmentActivity implements
     @Override
     public void onHomeMainComplete() {
         try {
-            getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
+            // Initial load on fragment-attach is NOT user-initiated, so
+            // a transient failure here stays silent (no toast).
+            getBalanceByAccount(walletAddress, balanceValueTextView, progressBar, false);
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);
         }
@@ -498,13 +544,19 @@ public class HomeActivity extends FragmentActivity implements
      */
     public void performHomeRefresh() {
         try {
-            // A balance refresh should also invalidate the cached token
-            // list so the user sees fresh balances and any newly arrived
-            // tokens. Mirrors iOS where the refresh action re-pulls coin
-            // balance + tokens together.
-            getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
-            GlobalMethods.CURRENT_WALLET_TOKEN_LIST = new java.util.ArrayList<>();
-            GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
+            // userInitiated=true: the user explicitly tapped refresh
+            // (toolbar button or pull-to-refresh) so a failure here
+            // surfaces a toast.
+            getBalanceByAccount(walletAddress, balanceValueTextView, progressBar, true);
+            // Re-pull the token list, but DO NOT pre-clear the cache or
+            // the in-fragment list before the fetch. Previously the
+            // cache was nulled and the network-change broadcast caused
+            // HomeMainFragment to reset the token adapter to empty
+            // before re-fetching, which meant a transient REST failure
+            // wiped the user's visible token table for no reason. The
+            // cache is now repopulated only by a successful response;
+            // a failed re-fetch leaves the previously displayed list
+            // intact (matches iOS UIRefreshControl semantics).
             com.quantumcoin.app.events.NetworkChangeBroadcaster
                     .broadcastActiveNetworkChanged(getApplicationContext());
         } catch (Exception e) {
@@ -616,8 +668,11 @@ public class HomeActivity extends FragmentActivity implements
             if (reloadBalance
                     && walletAddress != null && !walletAddress.isEmpty()
                     && balanceValueTextView != null) {
-                balanceValueTextView.setText("");
-                getBalanceByAccount(walletAddress, balanceValueTextView, progressBar);
+                // Network switch is a user-initiated refresh: surface
+                // failures via toast. Don't clear the existing balance
+                // first so a transient failure leaves the previous
+                // value visible until the next successful fetch.
+                getBalanceByAccount(walletAddress, balanceValueTextView, progressBar, true);
             }
         } catch (Exception e) {
             timber.log.Timber.w(e, "refresh active network chrome");
@@ -1314,20 +1369,60 @@ public class HomeActivity extends FragmentActivity implements
         }
     }
 
-    //Get balance task
-    private void getBalanceByAccount(String address, TextView balanceValueTextView, ProgressBar progressBar) {
-        try {
-            linerLayoutOffline.setVisibility(View.GONE);
+    /**
+     * Swap the toolbar refresh icon with the in-place spinner. The
+     * ImageButton and the ProgressBar share the same horizontal slot
+     * in home_activity.xml; both are sized 40dp and only one is
+     * visible at a time so the row's layout never shifts. Helper is
+     * null-safe so the broadcast-driven re-fetch path can call into
+     * getBalanceByAccount even if the toolbar views haven't been
+     * resolved yet.
+     */
+    private void setRefreshLoading(boolean loading) {
+        if (refreshImageButton != null) {
+            refreshImageButton.setVisibility(loading ? View.GONE : View.VISIBLE);
+        }
+        if (progressBar != null) {
+            progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+        }
+    }
 
+    //Get balance task
+    /**
+     * Fetches the native QC balance and updates the on-screen value.
+     *
+     * <p>{@code userInitiated} controls how failures surface:
+     * <ul>
+     *   <li>{@code true} (refresh button, pull-to-refresh, retry tap,
+     *       network switch) — a transient failure / 5xx / offline
+     *       state shows a non-blocking toast.</li>
+     *   <li>{@code false} (initial fragment-attach load) — failures
+     *       are silent so the user isn't toasted just for opening the
+     *       screen.</li>
+     * </ul>
+     *
+     * <p>The full-body retry overlay ({@code linerLayout_home_offline})
+     * is no longer surfaced from this path. The previous behavior
+     * replaced the entire body region of the home screen with a
+     * "Service unavailable" placeholder whenever a single REST call
+     * failed, which (a) hid wallet info that was already on screen and
+     * (b) looked particularly broken on tablets where the placeholder
+     * left a giant empty area below the wallet header card. The
+     * existing balance value (the user's last successful read) is also
+     * intentionally preserved instead of being reset to "0" before the
+     * fetch, so a transient failure does not visually wipe the balance.
+     */
+    private void getBalanceByAccount(String address, TextView balanceValueTextView,
+                                     ProgressBar progressBar, boolean userInitiated) {
+        try {
             //Internet connection check
             if (GlobalMethods.IsNetworkAvailable(getApplicationContext())) {
 
-                progressBar.setVisibility(View.VISIBLE);
-
-                balanceValueTextView.setText("0");
+                setRefreshLoading(true);
 
                 String[] taskParams = {address};
 
+                final boolean userInitiatedFinal = userInitiated;
                 AccountBalanceRestTask task = new AccountBalanceRestTask(
                         getApplicationContext(), new AccountBalanceRestTask.TaskListener() {
                     @Override
@@ -1338,31 +1433,34 @@ public class HomeActivity extends FragmentActivity implements
 
                             balanceValueTextView.setText(quantity);
                         }
-                        progressBar.setVisibility(View.GONE);
+                        setRefreshLoading(false);
                     }
 
                     @Override
                     public void onFailure(com.quantumcoin.app.api.read.ApiException e) {
-                        progressBar.setVisibility(View.GONE);
+                        setRefreshLoading(false);
 
                         int code = e.getCode();
                         boolean check = GlobalMethods.ApiExceptionSourceCodeBoolean(code);
                         if (check == true) {
-                            GlobalMethods.ApiExceptionSourceCodeRoute(getApplicationContext(), code,
-                                    getString(R.string.apierror),
-                                    TAG + " : AccountBalanceRestTask : " + e.toString());
-                        } else if (shouldShowHomeOfflineOverlay()) {
-                            GlobalMethods.OfflineOrExceptionError(getApplicationContext(),
-                                    linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                                    textViewSubTitleRetry, true);
+                            // Specific HTTP status (401/404/406/409/417):
+                            // route to the per-code toast only when the
+                            // user explicitly asked for this fetch.
+                            if (userInitiatedFinal) {
+                                GlobalMethods.ApiExceptionSourceCodeRoute(getApplicationContext(), code,
+                                        getString(R.string.apierror),
+                                        TAG + " : AccountBalanceRestTask : " + e.toString());
+                            }
+                        } else {
+                            GlobalMethods.NotifyServiceUnavailable(
+                                    getApplicationContext(), true, userInitiatedFinal);
                         }
                     }
                 });
                 task.execute(taskParams);
-            } else if (shouldShowHomeOfflineOverlay()) {
-                GlobalMethods.OfflineOrExceptionError(getApplicationContext(),
-                        linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                        textViewSubTitleRetry, false);
+            } else {
+                GlobalMethods.NotifyServiceUnavailable(
+                        getApplicationContext(), false, userInitiated);
             }
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getApplicationContext(), TAG, e);

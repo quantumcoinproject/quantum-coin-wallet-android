@@ -390,7 +390,9 @@ public class SendFragment extends Fragment  {
                 public void onClick(View v) {
                     switch (retryStatus) {
                         case 0:
-                            getBalanceByAccount(walletAddress, balanceTextView, progressBar);
+                            // Retry tap is an explicit user-initiated
+                            // refresh: surface failures via toast.
+                            getBalanceByAccount(walletAddress, balanceTextView, progressBar, true);
                             break;
                         case 1:
                             String  message = getResources().getString(R.string.send_transaction_message_description);
@@ -1092,11 +1094,33 @@ public class SendFragment extends Fragment  {
         }
     }
 
-    private void getBalanceByAccount(String address, TextView balanceTextView, ProgressBar progressBar) {
+    /**
+     * Fetches the native QC balance for the Send screen and updates the
+     * displayed amount.
+     *
+     * <p>{@code userInitiated} controls how failures surface:
+     * <ul>
+     *   <li>{@code true} — the user explicitly asked for a refresh
+     *       (retry button, asset re-selection, etc.); a failure
+     *       surfaces a non-blocking toast.</li>
+     *   <li>{@code false} — initial load when the screen opens; a
+     *       failure stays silent so the user is not toasted just for
+     *       opening the screen.</li>
+     * </ul>
+     *
+     * <p>The full-body retry overlay ({@code linerLayout_send_offline})
+     * is no longer surfaced from this path. Replacing the entire send
+     * form with a "Service unavailable" placeholder on a transient
+     * balance-fetch failure was disproportionate (especially on
+     * tablets where the overlay leaves a huge empty body region) and
+     * blocked the user from continuing to compose a transaction with
+     * the previous balance value. The previously-displayed balance is
+     * left in place.
+     */
+    private void getBalanceByAccount(String address, TextView balanceTextView,
+                                     ProgressBar progressBar, boolean userInitiated) {
         try{
             retryStatus = 0;
-
-            linerLayoutOffline.setVisibility(View.GONE);
 
             //Internet connection check
             if (GlobalMethods.IsNetworkAvailable(getContext())) {
@@ -1105,6 +1129,7 @@ public class SendFragment extends Fragment  {
 
                 String[] taskParams = { address };
 
+                final boolean userInitiatedFinal = userInitiated;
                 AccountBalanceRestTask task = new AccountBalanceRestTask(
                     getContext(), new AccountBalanceRestTask.TaskListener() {
                     @Override
@@ -1122,22 +1147,22 @@ public class SendFragment extends Fragment  {
                         int code = e.getCode();
                         boolean check = GlobalMethods.ApiExceptionSourceCodeBoolean(code);
                         if(check==true) {
-                            GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
-                                    getString(R.string.apierror),
-                                    TAG + " : AccountBalanceRestTask : " + e.toString());
+                            if (userInitiatedFinal) {
+                                GlobalMethods.ApiExceptionSourceCodeRoute(getContext(), code,
+                                        getString(R.string.apierror),
+                                        TAG + " : AccountBalanceRestTask : " + e.toString());
+                            }
                         } else {
-                            GlobalMethods.OfflineOrExceptionError(getContext(),
-                                    linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                                    textViewSubTitleRetry, true);
+                            GlobalMethods.NotifyServiceUnavailable(
+                                    getContext(), true, userInitiatedFinal);
                         }
                     }
                  });
 
                 task.execute(taskParams);
             } else {
-                GlobalMethods.OfflineOrExceptionError(getContext(),
-                        linerLayoutOffline, imageViewRetry, textViewTitleRetry,
-                        textViewSubTitleRetry, false);
+                GlobalMethods.NotifyServiceUnavailable(
+                        getContext(), false, userInitiated);
             }
         } catch (Exception e) {
             GlobalMethods.ExceptionError(getContext(), TAG, e);
@@ -1358,7 +1383,14 @@ public class SendFragment extends Fragment  {
                     selectedDecimals = 18;
                     selectedTokenBalanceWei = null;
                     assetSelectedTextView.setText("QuantumCoin");
-                    getBalanceByAccount(walletAddress, balanceValueTextView, balanceProgress);
+                    // Asset spinner re-selecting QC is the user picking
+                    // an asset; treat it as user-initiated so a failure
+                    // surfaces via toast. The first fetch on screen open
+                    // also flows through here (ArrayAdapter.set ->
+                    // OnItemSelected position=0); that initial firing
+                    // also benefits from a toast on a 5xx since the user
+                    // is actively using the screen.
+                    getBalanceByAccount(walletAddress, balanceValueTextView, balanceProgress, true);
                     return;
                 }
                 int tokenIndex = position - 1;
