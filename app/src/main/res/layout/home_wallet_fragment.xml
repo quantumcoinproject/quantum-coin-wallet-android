@@ -104,7 +104,7 @@
                             app:layout_constraintStart_toStartOf="parent"
                             app:hintAnimationEnabled="true"
                             app:endIconMode="password_toggle"
-                            app:endIconTint="@color/colorEye"
+                            app:endIconTint="@color/colorCommon6"
                             app:endIconDrawable="@drawable/show_password_selector"
                             app:endIconContentDescription="@string/password_toggle_content_description">
 
@@ -140,7 +140,7 @@
                             app:layout_constraintStart_toStartOf="parent"
                             app:hintAnimationEnabled="true"
                             app:endIconMode="password_toggle"
-                            app:endIconTint="@color/colorEye"
+                            app:endIconTint="@color/colorCommon6"
                             app:endIconDrawable="@drawable/show_password_selector"
                             app:endIconContentDescription="@string/password_toggle_content_description">
 
@@ -3866,11 +3866,23 @@
                             android:gravity="center_vertical"
                             android:orientation="horizontal">
 
+                            <!--
+                                Default text is "-". populateConfirmWalletAddressAndBalance
+                                already resets to "-" before the network
+                                fetch, so the XML default just guarantees
+                                the same placeholder is visible during the
+                                brief window between layout inflation and
+                                that reset. Mirrors textView_home_balance_value
+                                / textView_send_balance_value so all three
+                                balance-display surfaces read the same way
+                                before data lands.
+                            -->
                             <TextView
                                 android:id="@+id/textView_home_confirm_wallet_balance_value"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
+                                android:text="-"
                                 android:textSize="14dp"
                                 android:focusable="true"
                                 android:accessibilityLiveRegion="polite"

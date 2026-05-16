@@ -406,6 +406,13 @@ public class HomeMainFragment extends Fragment  {
         swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
+                // Hide SwipeRefreshLayout's built-in circular indicator
+                // immediately. The toolbar refresh icon now renders the
+                // spinner in-place via HomeActivity.performHomeRefresh ->
+                // getBalanceByAccount -> setRefreshLoading, so the user
+                // sees a single, consistent loading affordance rather than
+                // two competing spinners.
+                swipeRefreshLayout.setRefreshing(false);
                 if (mHomeMainListener != null) {
                     mHomeMainListener.onHomeMainRefreshRequested();
                 }
@@ -434,15 +441,17 @@ public class HomeMainFragment extends Fragment  {
                 @Override
                 public void onReceive(android.content.Context context, android.content.Intent intent) {
                     // Token list and balances are network-scoped, so any
-                    // network-state change forces a fresh fetch. Cached
-                    // tokens are tied to (address, network) elsewhere;
-                    // we simply re-issue the listing.
-                    GlobalMethods.CURRENT_WALLET_TOKEN_LIST = null;
-                    GlobalMethods.CURRENT_WALLET_TOKEN_LIST_ADDRESS = null;
-                    if (tokenAdapter != null) {
-                        tokenAdapter.setTokens(new java.util.ArrayList<AccountTokenSummary>());
-                        renderEmptyState(true);
-                    }
+                    // network-state change re-issues the listing.
+                    // <p>Intentionally do NOT pre-clear the cache or the
+                    // adapter before the fetch: a transient REST failure
+                    // would otherwise wipe the user's visible token table
+                    // and replace it with the empty-state placeholder
+                    // even though we still have a perfectly good cached
+                    // listing on screen. The success path
+                    // (refreshTokenList -> applyFilteredItems) replaces
+                    // the in-memory list atomically; the failure path
+                    // (refreshTokenList onFailure) is silent and leaves
+                    // the previously displayed entries in place.
                     refreshTokenList(walletAddress);
                 }
             };

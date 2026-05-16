@@ -1533,7 +1533,12 @@ public class HomeWalletFragment extends Fragment {
             homeConfirmWalletAddressValueTextView.setText("");
         }
         if (homeConfirmWalletBalanceValueTextView != null) {
-            homeConfirmWalletBalanceValueTextView.setText("");
+            // "-" placeholder (NOT "" or "0") so the row is visibly
+            // populated with the same "no value yet" marker used by the
+            // main and send screens, including in the brief window
+            // before populateConfirmWalletAddressAndBalance reasserts it
+            // and kicks off the balance fetch.
+            homeConfirmWalletBalanceValueTextView.setText("-");
         }
 
         if (backButton != null) {

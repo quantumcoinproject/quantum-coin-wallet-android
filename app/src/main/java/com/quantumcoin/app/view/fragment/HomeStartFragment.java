@@ -94,7 +94,7 @@ public class HomeStartFragment extends Fragment  {
             public void onClick(View v) {
                 try {
                     //Next
-                    if(jsonIndex +1 >= jsonViewModel.getInfoLength()-1){
+                    if(jsonIndex +1 >= jsonViewModel.getInfoLength()){
                         jsonIndex = 0;
                         homeStartLinearLayout.setVisibility(View.GONE);
                         homeSaftyQuizLinearLayout.setVisibility(View.VISIBLE);
@@ -149,13 +149,13 @@ public class HomeStartFragment extends Fragment  {
                                 public void onClick(View v) {
                                     dialog.dismiss();
 
-                                    if(jsonIndex +1 >= jsonViewModel.getQuizLength()-1) {
+                                    if(jsonIndex +1 >= jsonViewModel.getQuizLength()) {
                                         mHomeStartListener.onHomeStartComplete();
                                         return;
                                     }
 
                                     QuizView(jsonViewModel, homeSaftyQuizQuizStepTextView,homeSaftyQuizQuizStepQuizeTitleTextView,homeSaftyQuizQuizStepQuizQuestionTextView,
-                                            homeStartLangValuesNextButton,
+                                            homeSaftyQuizLangValuesNextButton,
                                             homeSafetyQuizQuizStepQuizChoicesRadioButton_0,homeSafetyQuizQuizStepQuizChoicesRadioButton_1,homeSafetyQuizQuizStepQuizChoicesRadioButton_2,homeSafetyQuizQuizStepQuizChoicesRadioButton_3,
                                             jsonViewModel.getQuizStep(), jsonIndex + 1, jsonViewModel.getQuizLength());
 
@@ -211,7 +211,7 @@ public class HomeStartFragment extends Fragment  {
     private void InfoView(JsonViewModel jsonViewModel, TextView infoStepTextView,TextView infoStepInfoTileTextView,TextView infoStepInfoDescTextView, Button  langValuesNextButton,
                           String infoStep, int index, int length){
         infoStepTextView.setText(infoStep.replace(GlobalMethods.step, String.valueOf(index +1))
-                .replace(GlobalMethods.totalSteps,String.valueOf(length-1)));
+                .replace(GlobalMethods.totalSteps,String.valueOf(length)));
 
         infoStepInfoTileTextView.setText(jsonViewModel.getTitleByInfo(index));
         infoStepInfoDescTextView.setText(jsonViewModel.getDescByInfo(index));
@@ -224,7 +224,7 @@ public class HomeStartFragment extends Fragment  {
                       RadioButton quizStepQuizChoicesRadioButton_3, String quizStep, int index, int length){
 
         quizStepTextView.setText(quizStep.toString().replace(GlobalMethods.step, String.valueOf(index +1))
-                    .replace(GlobalMethods.totalSteps,String.valueOf(length-1)));
+                    .replace(GlobalMethods.totalSteps,String.valueOf(length)));
 
             quizStepQuizeTitleTextView.setText(jsonViewModel.getTitleByQuiz(index));
             quizStepQuizQuestionTextView.setText(jsonViewModel.getQuestionByQuiz(index));

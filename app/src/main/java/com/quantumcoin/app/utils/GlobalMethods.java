@@ -448,6 +448,71 @@ public class GlobalMethods {
         }
     }
 
+    /**
+     * Surfaces a "service unavailable" / "no connection" failure as a
+     * non-blocking toast instead of the full-body retry overlay
+     * (R.layout.retry_layout). The overlay used to swallow the entire
+     * body region of the home / send / transactions screens whenever a
+     * single REST call failed (including on a transient 5xx during a
+     * background poll), which (a) hid wallet info that was already on
+     * screen behind a "Service unavailable" placeholder and (b) looked
+     * particularly bad on tablets where the placeholder left a huge
+     * empty body region under the wallet header.
+     *
+     * <p>Replacement contract:
+     * <ul>
+     *   <li>Toast is shown only when {@code userInitiated} is
+     *       {@code true} (an explicit refresh button tap, retry tap,
+     *       network switch, etc.). Background polls / silent first-load
+     *       fetches stay quiet so the user is not pestered.</li>
+     *   <li>Already-loaded UI state (balance number, token list,
+     *       transactions table, etc.) is intentionally NOT cleared by
+     *       the caller before the fetch, so a transient failure leaves
+     *       the previous values visible instead of replacing them with
+     *       a blank "0" / empty table.</li>
+     * </ul>
+     *
+     * <p>The legacy {@link #OfflineOrExceptionError} helper is kept
+     * around so external callers don't break, but every internal
+     * surface has been migrated to this method.
+     */
+    public static void NotifyServiceUnavailable(Context context,
+                                                boolean isNetworkAvailable,
+                                                boolean userInitiated) {
+        if (!userInitiated) return;
+        if (context == null) return;
+        final String message;
+        if (!isNetworkAvailable) {
+            message = context.getString(R.string.general_connect_internet);
+        } else {
+            message = context.getString(R.string.offline_exception_error_title)
+                    + ". "
+                    + context.getString(R.string.offline_exception_error_subtitle);
+        }
+        // NOTE: we deliberately do NOT route through ShowToast here.
+        // The legacy ShowToast helper wraps the system Toast in a
+        // CountDownTimer that calls Toast.cancel() at 600ms, which
+        // forces the toast off-screen long before LENGTH_LONG would
+        // otherwise (~3.5s on most OEMs) -- on a tablet that 600ms
+        // flash is essentially invisible because the user's eye is
+        // still on the refresh button when it disappears, especially
+        // when the toast renders near the bottom-edge of a large
+        // screen. We dispatch a plain LENGTH_LONG toast on the main
+        // thread so the message stays up long enough to read.
+        final Context appCtx = context.getApplicationContext();
+        Runnable show = new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(appCtx, message, Toast.LENGTH_LONG).show();
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            show.run();
+        } else {
+            new android.os.Handler(Looper.getMainLooper()).post(show);
+        }
+    }
+
 
     public static void ShowToast(final Context context, final String message) {
         if (context == null) {

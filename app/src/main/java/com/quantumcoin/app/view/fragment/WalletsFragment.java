@@ -19,9 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.quantumcoin.app.R;
 import com.quantumcoin.app.keystorage.SecureStorage;
 import com.quantumcoin.app.utils.GlobalMethods;
-import com.quantumcoin.app.utils.GridAutoFitLayoutManager;
 import com.quantumcoin.app.utils.PrefConnect;
-import com.quantumcoin.app.utils.Utility;
 import com.quantumcoin.app.view.adapter.WalletAdapter;
 import com.quantumcoin.app.viewmodel.JsonViewModel;
 import com.quantumcoin.app.viewmodel.KeyViewModel;
@@ -88,10 +86,21 @@ public class WalletsFragment extends Fragment  {
 
         this.recycler.removeAllViewsInLayout();
 
-        int mNoOfColumns = Utility.calculateNoOfColumns(getContext(), R.id.recycler_wallets);
-
-        GridAutoFitLayoutManager mLayoutManager = new GridAutoFitLayoutManager(getContext(),
-                mNoOfColumns, 1, false);
+        // Each wallet is a single full-width row whose four cells line up
+        // with the four columns of wallet_header (Address / Block Explorer
+        // / Backup / Reveal Seed). The previous GridAutoFitLayoutManager
+        // call passed R.id.recycler_wallets (a resource id like
+        // ~2_131_297_012) as the column-width-in-dp argument, which made
+        // calculateNoOfColumns return 0 and the layout manager fall back
+        // to its 200dp default. On phones that still produced one column
+        // (~360dp wide), but on tablets (~700-900dp wide) it produced
+        // 3-4 columns, so each wallet item shrank to a fraction of the
+        // recycler width and its inner weight=1 cells no longer aligned
+        // with the header columns above. A plain vertical
+        // LinearLayoutManager guarantees one wallet per row at every
+        // form factor.
+        androidx.recyclerview.widget.LinearLayoutManager mLayoutManager =
+                new androidx.recyclerview.widget.LinearLayoutManager(getContext());
 
         this.recycler.setLayoutManager(mLayoutManager);
 

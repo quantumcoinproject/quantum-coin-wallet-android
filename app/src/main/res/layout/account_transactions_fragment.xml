@@ -68,6 +68,28 @@
                         android:background="@drawable/image_selector"
                         android:src="@drawable/retry"
                         app:tint="@color/colorCommon6" />
+
+                    <!--
+                        In-place spinner that swaps with the refresh
+                        ImageButton above. Same 40dp x 40dp slot so
+                        toggling visibility doesn't shift the toolbar.
+                        The previously-centered loader on the table
+                        card was replaced with this single source of
+                        truth so initial-load, pagination, and refresh
+                        all signal progress in the same place.
+                    -->
+                    <ProgressBar
+                        android:id="@+id/progress_account_transactions_loader"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="center_vertical"
+                        android:padding="5dp"
+                        android:indeterminate="true"
+                        android:visibility="gone"
+                        android:max="100"
+                        android:progress="0"
+                        android:background="@android:color/transparent"
+                        android:indeterminateDrawable="@drawable/progress" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -243,20 +265,6 @@
                     </RelativeLayout>
 
                 </LinearLayout>
-
-                <ProgressBar
-                    android:id="@+id/progress_loader_account_transactions"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:layout_gravity="center_horizontal|center_vertical"
-                    android:layout_alignParentBottom="false"
-                    android:indeterminate="true"
-                    android:visibility="gone"
-                    android:max="100"
-                    android:progress="0"
-                    android:background="@android:color/transparent"
-                    android:indeterminateDrawable="@drawable/progress" />
 
             </RelativeLayout>
 

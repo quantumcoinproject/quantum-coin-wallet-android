@@ -203,8 +203,8 @@
 
                         <ProgressBar
                             android:id="@+id/progress_home_loader"
-                            android:layout_width="50dp"
-                            android:layout_height="50dp"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
                             android:layout_gravity="center_vertical|left"
                             android:padding="5dp"
                             android:indeterminate="true"
@@ -234,12 +234,23 @@
                             android:textStyle="bold"
                             android:visibility="gone"/>
 
+                        <!--
+                            Default text is "-" (NOT "0"). The view starts
+                            empty conceptually; "0" would be a misleading
+                            authoritative claim that the wallet has no
+                            funds before the balance fetch has even
+                            returned. The "-" placeholder also matches the
+                            seed-confirmation balance row in
+                            home_wallet_fragment.xml so all three
+                            balance-display surfaces (main / send / seed
+                            confirm) read the same way before data lands.
+                        -->
                         <TextView
                             android:id="@+id/textView_home_balance_value"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:paddingBottom="5dp"
-                            android:text="0"
+                            android:text="-"
                             android:textStyle="bold"
                             android:textSize="18dp"
                             android:textColor="@color/colorCommon6" />
