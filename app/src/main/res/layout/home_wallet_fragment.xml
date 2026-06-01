@@ -3981,7 +3981,8 @@
                             android:layout_marginTop="4dp"
                             android:padding="10dp"
                             android:textAllCaps="false"
-                            android:textColor="@color/colorCommon7" />
+                            android:textColor="@color/colorCommon7"
+                            android:visibility="gone" />
 
                         <TextView
                             android:id="@+id/textView_home_backup_cloud_status"
