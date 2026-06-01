@@ -476,6 +476,15 @@ public class HomeWalletFragment extends Fragment {
         jsonViewModel = new JsonViewModel(getContext(), languageKey);
         keyViewModel = new KeyViewModel();
 
+        // Edge-to-edge (default on Android 15 / targetSdk 35) lets the system
+        // navigation bar and the on-screen keyboard (IME) draw over the bottom
+        // of this wizard, partially hiding the seed-screen Next button and the
+        // password / seed-verification fields. Add an always-on 72dp baseline of
+        // bottom scroll space (guarantees scroll travel even when the insets
+        // resolve to 0 on some devices / OEM skins) plus max(ime, navigationBars)
+        // so content can always be scrolled clear of whichever is showing.
+        GlobalMethods.applyImeBottomInset(getView().findViewById(R.id.scrollview_home_wallet), 72);
+
         LinearLayout homeSetWalletTopLinearLayout = (LinearLayout) getView().findViewById(R.id.top_linear_layout_home_wallet_id);
         ImageButton homeWalletBackArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_home_wallet_back_arrow);
 

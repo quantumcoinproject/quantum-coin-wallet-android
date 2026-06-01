@@ -189,6 +189,10 @@ public class SendFragment extends Fragment  {
 
             jsonViewModel = new JsonViewModel(getContext(), languageKey);
 
+            // Add IME-aware bottom scroll space so the keyboard never hides the
+            // address / amount fields or the Send button on small screens.
+            GlobalMethods.applyImeBottomInset(getView().findViewById(R.id.scrollview_send), 24);
+
             ImageButton backArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_send_back_arrow);
 
             TextView sendTextView = (TextView) getView().findViewById(R.id.textView_send_langValue_send);

@@ -211,9 +211,14 @@ public class BackupPasswordDialog {
         com.quantumcoin.app.security.CredentialIdentifier
                 .attachUsernameField(root, createUsername);
 
+        // Wrap in a ScrollView so the fields can be scrolled above the on-screen
+        // keyboard on small screens (OK/Cancel live on the dialog button bar).
+        ScrollView createScroll = new ScrollView(ctx);
+        createScroll.addView(root);
+
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(safe(vm.getBackupPasswordByLangValues(), "Backup password"))
-                .setView(root)
+                .setView(createScroll)
                 .setPositiveButton(safe(vm.getOkByLangValues(), "OK"), null)
                 .setNegativeButton(safe(vm.getCancelByLangValues(), "Cancel"), null)
                 .setCancelable(false)
@@ -318,9 +323,14 @@ public class BackupPasswordDialog {
         com.quantumcoin.app.security.CredentialIdentifier
                 .attachUsernameField(root, restoreUsername);
 
+        // Wrap in a ScrollView so the fields can be scrolled above the on-screen
+        // keyboard on small screens (OK/Cancel live on the dialog button bar).
+        ScrollView restoreScroll = new ScrollView(ctx);
+        restoreScroll.addView(root);
+
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(title)
-                .setView(root)
+                .setView(restoreScroll)
                 .setPositiveButton(safe(vm.getOkByLangValues(), "OK"), null)
                 .setNegativeButton(safe(vm.getCancelByLangValues(), "Cancel"), null)
                 .setCancelable(false)
@@ -475,9 +485,15 @@ public class BackupPasswordDialog {
                         com.quantumcoin.app.security.CredentialIdentifier
                                 .backupBatchUsername(ctx));
 
+        // Wrap in a ScrollView so the password field and content can be scrolled
+        // above the on-screen keyboard on small screens. The inner address list
+        // keeps its own fixed-height scroll; OK/Cancel are on the dialog bar.
+        ScrollView batchScroll = new ScrollView(ctx);
+        batchScroll.addView(root);
+
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(title)
-                .setView(root)
+                .setView(batchScroll)
                 .setPositiveButton(safe(vm.getOkByLangValues(), "OK"), null)
                 .setNegativeButton(safe(vm.getCancelByLangValues(), "Cancel"), null)
                 .setCancelable(false)

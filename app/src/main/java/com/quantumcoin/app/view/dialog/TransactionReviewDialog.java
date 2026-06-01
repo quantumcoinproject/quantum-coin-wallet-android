@@ -255,7 +255,8 @@ public final class TransactionReviewDialog {
         if (dlg.getWindow() != null) {
             dlg.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             dlg.getWindow().setSoftInputMode(
-                    WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+                            | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
         cancel.setOnClickListener(new View.OnClickListener() {

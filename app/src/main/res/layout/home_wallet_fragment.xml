@@ -11,8 +11,10 @@
     tools:viewBindingIgnore="true">
 
     <ScrollView
+        android:id="@+id/scrollview_home_wallet"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:clipToPadding="false">
 
         <RelativeLayout
             android:layout_width="match_parent"

@@ -121,6 +121,10 @@ public class BlockchainNetworkAddFragment extends Fragment  {
 
             JsonViewModel jsonViewModel = new JsonViewModel(getContext(), languageKey);
 
+            // Add IME-aware bottom scroll space so the keyboard never hides the
+            // network JSON field or the Add button on small screens.
+            GlobalMethods.applyImeBottomInset(getView().findViewById(R.id.scrollview_blockchain_network_add), 24);
+
             ImageButton backArrowImageButton = (ImageButton) getView().findViewById(R.id.imageButton_blockchain_network_add_back_arrow);
 
             TextView blockchainNetworkAddNetworkTextView = (TextView) getView().findViewById(R.id.textview_blockchain_network_add_langValues_add_network);
