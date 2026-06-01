@@ -239,7 +239,8 @@
                                 android:layout_height="30dp"
                                 android:layout_marginBottom="2dp"
                                 android:alpha="0.6"
-                                android:textAppearance="@style/regular_text" />
+                                android:textAppearance="@style/regular_text"
+                                android:visibility="gone" />
 
                         </RadioGroup>
 
@@ -3981,7 +3982,8 @@
                             android:layout_marginTop="4dp"
                             android:padding="10dp"
                             android:textAllCaps="false"
-                            android:textColor="@color/colorCommon7" />
+                            android:textColor="@color/colorCommon7"
+                            android:visibility="gone" />
 
                         <TextView
                             android:id="@+id/textView_home_backup_cloud_status"
