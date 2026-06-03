@@ -333,33 +333,17 @@ public class JsonViewModel extends ViewModel{
     public String getBackupFailedByLangValues() {
         try { return _jsonInteract.getBackupFailedByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
-    /**
-     * Cloud-vs-local export messaging mirror of iOS. Used by
-     * {@code BackupExecutor.writeExportToUri} when the SAF
-     * authority resolves to a known cloud DocumentsProvider so
-     * the user sees a modal warning that the upload is still in
-     * progress, not a "saved" toast.
-     */
-    public String getBackupSubmittedCloudTitleByLangValues() {
-        try { return _jsonInteract.getBackupSubmittedTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
-    }
-    public String getBackupSubmittedCloudMessageByLangValues() {
-        try { return _jsonInteract.getBackupSubmittedBodyByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
-    }
     public String getBackupPasswordByLangValues() {
         try { return _jsonInteract.getBackupPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getConfirmBackupPasswordByLangValues() {
         try { return _jsonInteract.getConfirmBackupPasswordByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
-    public String getRestoreFromCloudByLangValues() {
-        try { return _jsonInteract.getRestoreFromCloudByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
+    public String getRestoreFromFolderByLangValues() {
+        try { return _jsonInteract.getRestoreFromFolderByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getRestoreFromFileByLangValues() {
         try { return _jsonInteract.getRestoreFromFileByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
-    }
-    public String getBackupToCloudByLangValues() {
-        try { return _jsonInteract.getBackupToCloudByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getCloudBackupInfoByLangValues() {
         try { return _jsonInteract.getCloudBackupInfoByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
@@ -478,12 +462,6 @@ public class JsonViewModel extends ViewModel{
     }
     public String getTypeIAgreeWarningByLangValues() {
         try { return _jsonInteract.getTypeIAgreeWarningByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
-    }
-    public String getBackupSubmittedTitleByLangValues() {
-        try { return _jsonInteract.getBackupSubmittedTitleByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
-    }
-    public String getBackupSubmittedBodyByLangValues() {
-        try { return _jsonInteract.getBackupSubmittedBodyByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
     public String getNoTokensByLangValues() {
         try { return _jsonInteract.getNoTokensByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;

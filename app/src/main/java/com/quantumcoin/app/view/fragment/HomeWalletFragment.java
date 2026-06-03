@@ -170,16 +170,13 @@ public class HomeWalletFragment extends Fragment {
     private  String  walletPassword = null;
     private String walletIndexKey = "0";
     private OnHomeWalletCompleteListener mHomeWalletListener;
-    private ActivityResultLauncher<Intent> cloudFolderPickerLauncher;
     private ActivityResultLauncher<Intent> fileBackupLauncher;
     private ActivityResultLauncher<Intent> restoreFilePickerLauncher;
-    private ActivityResultLauncher<Intent> restoreCloudFolderPickerLauncher;
-    private Runnable pendingCloudContinuation;
+    private ActivityResultLauncher<Intent> restoreFolderPickerLauncher;
     private JSONObject pendingBackupWalletJson;
     private String pendingBackupEncryptedJson;
     private String pendingBackupAddress;
     private LinearLayout backupOptionsLinearLayout;
-    private TextView backupCloudStatusTextView;
     private TextView backupFileStatusTextView;
 
     // Phone-backup radio step (shown in place of a yes/no dialog). Held as fields
@@ -338,7 +335,7 @@ public class HomeWalletFragment extends Fragment {
                         handleRestoreFromUri(result.getData().getData());
                     }
                 });
-        restoreCloudFolderPickerLauncher = registerForActivityResult(
+        restoreFolderPickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 new ActivityResultCallback<ActivityResult>() {
                     @Override
@@ -356,33 +353,7 @@ public class HomeWalletFragment extends Fragment {
                         } catch (Exception ignore) { }
                         PrefConnect.writeString(getContext(),
                                 PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, treeUri.toString());
-                        showRestoreCloudFilePicker(treeUri);
-                    }
-                });
-        cloudFolderPickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        markActivityUnlocked();
-                        Runnable continuation = pendingCloudContinuation;
-                        pendingCloudContinuation = null;
-                        try {
-                            if (result != null && result.getResultCode() == android.app.Activity.RESULT_OK
-                                    && result.getData() != null && result.getData().getData() != null) {
-                                Uri treeUri = result.getData().getData();
-                                int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
-                                try {
-                                    getContext().getContentResolver()
-                                            .takePersistableUriPermission(treeUri, takeFlags);
-                                } catch (Exception ignore) { }
-                                PrefConnect.writeString(getContext(),
-                                        PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, treeUri.toString());
-                            }
-                        } finally {
-                            if (continuation != null) continuation.run();
-                        }
+                        showRestoreFolderFilePicker(treeUri);
                     }
                 });
     }
@@ -713,7 +684,7 @@ public class HomeWalletFragment extends Fragment {
                 } else if (homeCreateRestoreWalletRadioButton_2.isChecked() == true) {
                     startRestoreFromFileFlow();
                 } else if (homeCreateRestoreWalletRadioButton_3.isChecked() == true) {
-                    startRestoreFromCloudFlow();
+                    startRestoreFromFolderFlow();
                 } else {
                     String message = jsonViewModel.getSelectOptionByErrors();
                     Bundle bundleRoute = new Bundle();
@@ -1166,7 +1137,7 @@ public class HomeWalletFragment extends Fragment {
         createRestoreWalletRadioButton_0.setText(jsonViewModel.getCreateNewWalletByLangValues());
         createRestoreWalletRadioButton_1.setText(jsonViewModel.getRestoreWalletFromSeedByLangValues());
         createRestoreWalletRadioButton_2.setText(jsonViewModel.getRestoreFromFileByLangValues());
-        createRestoreWalletRadioButton_3.setText(jsonViewModel.getRestoreFromCloudByLangValues());
+        createRestoreWalletRadioButton_3.setText(jsonViewModel.getRestoreFromFolderByLangValues());
 
         createRestoreWalletRadioButton_0.setTag(0);
         createRestoreWalletRadioButton_1.setTag(1);
@@ -2241,22 +2212,6 @@ public class HomeWalletFragment extends Fragment {
         nextButton.setText(jsonViewModel.getNextByLangValues());
     }
 
-    private void launchFolderPicker() {
-        try {
-            setSuppressNextResumeLock(true);
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                    | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-            cloudFolderPickerLauncher.launch(intent);
-        } catch (Exception e) {
-            setSuppressNextResumeLock(false);
-            Runnable continuation = pendingCloudContinuation;
-            pendingCloudContinuation = null;
-            if (continuation != null) continuation.run();
-        }
-    }
-
     /**
      * (Android): on iOS the BackupOptions screen omits the
      * Next pill in the existing-wallet-backup flow (entered from
@@ -2275,37 +2230,22 @@ public class HomeWalletFragment extends Fragment {
         hideAllHomeWalletLayouts();
         if (backupOptionsLinearLayout == null) {
             backupOptionsLinearLayout = (LinearLayout) getView().findViewById(R.id.linear_layout_home_backup_options);
-            backupCloudStatusTextView = (TextView) getView().findViewById(R.id.textView_home_backup_cloud_status);
             backupFileStatusTextView = (TextView) getView().findViewById(R.id.textView_home_backup_file_status);
         }
         if (backupOptionsLinearLayout == null) return;
 
         TextView titleTextView = (TextView) getView().findViewById(R.id.textView_home_backup_options_title);
         TextView descriptionTextView = (TextView) getView().findViewById(R.id.textView_home_backup_options_description);
-        Button cloudBtn = (Button) getView().findViewById(R.id.button_home_backup_to_cloud);
         Button fileBtn = (Button) getView().findViewById(R.id.button_home_backup_to_file);
         Button doneBtn = (Button) getView().findViewById(R.id.button_home_backup_done);
 
         titleTextView.setText(jsonViewModel.getBackupOptionsTitleByLangValues());
         descriptionTextView.setText(jsonViewModel.getBackupOptionsDescriptionByLangValues());
-        cloudBtn.setText(jsonViewModel.getBackupToCloudByLangValues());
         fileBtn.setText(jsonViewModel.getBackupToFileByLangValues());
         doneBtn.setText(jsonViewModel.getNextByLangValues());
 
-        backupCloudStatusTextView.setVisibility(View.GONE);
         backupFileStatusTextView.setVisibility(View.GONE);
 
-        cloudBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showCloudBackupInfoAndContinue(new Runnable() {
-                    @Override
-                    public void run() {
-                        startCloudBackupFromOptionsScreen();
-                    }
-                });
-            }
-        });
         fileBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -2339,126 +2279,6 @@ public class HomeWalletFragment extends Fragment {
             View v = getView().findViewById(id);
             if (v != null) v.setVisibility(View.GONE);
         }
-    }
-
-    /**
-     * Show an OK-only confirmation explaining the Android cloud-folder picker
-     * depends on phone configuration, and only continue with {@code next} when
-     * the user acknowledges.
-     */
-    private void showCloudBackupInfoAndContinue(final Runnable next) {
-        if (getContext() == null) {
-            if (next != null) next.run();
-            return;
-        }
-        String message = jsonViewModel.getCloudBackupInfoByLangValues();
-        if (message == null || message.isEmpty()) {
-            message = "You will be able to see cloud options only if configured in the phone";
-        }
-        new AlertDialog.Builder(getContext())
-                .setTitle(jsonViewModel.getBackupByLangValues())
-                .setMessage(message)
-                .setCancelable(false)
-                .setPositiveButton(jsonViewModel.getOkByLangValues(), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                        if (next != null) next.run();
-                    }
-                })
-                .show();
-    }
-
-    private void startCloudBackupFromOptionsScreen() {
-        if (pendingBackupWalletJson == null) return;
-        BackupPasswordDialogShow(new BackupPasswordReceiver() {
-            @Override
-            public void onPassword(final String backupPassword) {
-                encryptWalletForBackup(backupPassword, new EncryptedReady() {
-                    @Override
-                    public void onReady(final String encryptedJson, final String address) {
-                        String folderUriStr = PrefConnect.readString(getContext(),
-                                PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
-                        if (folderUriStr == null || folderUriStr.isEmpty()) {
-                            pendingCloudContinuation = new Runnable() {
-                                @Override
-                                public void run() {
-                                    String chosen = PrefConnect.readString(getContext(),
-                                            PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
-                                    if (chosen != null && !chosen.isEmpty()) {
-                                        writeEncryptedToSafFolder(encryptedJson, address);
-                                    }
-                                }
-                            };
-                            launchFolderPicker();
-                        } else {
-                            writeEncryptedToSafFolder(encryptedJson, address);
-                        }
-                    }
-                });
-            }
-        });
-    }
-
-    private void writeEncryptedToSafFolder(final String encryptedJson, final String address) {
-        final String folderUriStr = PrefConnect.readString(getContext(),
-                PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
-        if (folderUriStr == null || folderUriStr.isEmpty()) return;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    String filename = com.quantumcoin.app.backup.CloudBackupManager.buildFilename(address);
-                    // Use the verified write path so we get a
-                    // BackupWriteOutcome that distinguishes (a) cloud
-                    // vs local destination and (b) verify-by-readback
-                    // success/failure. The user-facing modal must
-                    // differ: a cloud destination is "submitted" (may
-                    // not yet be visible from another device until the
-                    // provider syncs); a local destination is "saved".
-                    final com.quantumcoin.app.backup.CloudBackupManager.BackupWriteOutcome outcome =
-                            com.quantumcoin.app.backup.CloudBackupManager.writeToSafFolderVerified(
-                                    getContext(), Uri.parse(folderUriStr), filename, encryptedJson);
-                    if (outcome.kind == com.quantumcoin.app.backup.CloudBackupManager.BackupWriteKind.VERIFY_FAILED) {
-                        throw new java.io.IOException("verify-by-readback failed: "
-                                + (outcome.detail == null ? "unknown" : outcome.detail));
-                    }
-                    getActivity().runOnUiThread(new Runnable() {
-                        public void run() {
-                            flagCloudBackupSaved();
-                            // Cloud destination -> show explicit
-                            // "submitted, may take a moment to sync"
-                            // dialog so the user knows the bytes
-                            // haven't necessarily reached the cloud
-                            // backend yet. iOS shows the same modal.
-                            if (outcome.kind == com.quantumcoin.app.backup.CloudBackupManager.BackupWriteKind.SUBMITTED_CLOUD) {
-                                String title = jsonViewModel.getBackupSubmittedTitleByLangValues();
-                                String body = jsonViewModel.getBackupSubmittedBodyByLangValues();
-                                if (title == null || title.isEmpty()) title = "Backup submitted";
-                                if (body == null || body.isEmpty()) {
-                                    body = "Your backup has been submitted to the cloud destination. "
-                                         + "It may take a moment to appear on your other devices "
-                                         + "depending on the provider's sync state. Press OK to dismiss.";
-                                }
-                                GlobalMethods.ShowMessageDialog(getContext(), title, body, null);
-                            }
-                        }
-                    });
-                } catch (final Exception e) {
-                    com.quantumcoin.app.Logger.e(TAG, "cloud backup write failed", e);
-                    getActivity().runOnUiThread(new Runnable() {
-                        public void run() {
-                            String tmpl = jsonViewModel.getBackupFailedByLangValues();
-                            String msg = tmpl != null
-                                    ? tmpl.replace("[ERROR]", e.getMessage() == null ? "" : e.getMessage())
-                                    : ("Backup failed: " + e.getMessage());
-                            GlobalMethods.ShowErrorDialog(getContext(),
-                                    jsonViewModel.getErrorTitleByLangValues(), msg);
-                        }
-                    });
-                }
-            }
-        }).start();
     }
 
     private void startFileBackupFromOptionsScreen() {
@@ -2542,15 +2362,6 @@ public class HomeWalletFragment extends Fragment {
                 }
             }
         }).start();
-    }
-
-    private void flagCloudBackupSaved() {
-        if (backupCloudStatusTextView == null) return;
-        String msg = jsonViewModel.getBackupSavedShortByLangValues();
-        backupCloudStatusTextView.setText(msg);
-        backupCloudStatusTextView.setVisibility(View.VISIBLE);
-        GlobalMethods.ShowMessageDialog(getContext(), null,
-                msg != null && !msg.isEmpty() ? msg : "Saved", null);
     }
 
     private void flagFileBackupSaved() {
@@ -2701,7 +2512,7 @@ public class HomeWalletFragment extends Fragment {
         }
     }
 
-    private void startRestoreFromCloudFlow() {
+    private void startRestoreFromFolderFlow() {
         String folderUriStr = PrefConnect.readString(getContext(),
                 PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
         if (folderUriStr == null || folderUriStr.isEmpty()) {
@@ -2711,21 +2522,30 @@ public class HomeWalletFragment extends Fragment {
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                         | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                         | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-                restoreCloudFolderPickerLauncher.launch(intent);
+                // Open the folder picker at the same location the "Backup to a
+                // file" save picker uses (shared CLOUD_BACKUP_FOLDER_URI pref),
+                // so backup and restore stay anchored to the same folder.
+                String initialUriStr = PrefConnect.readString(getContext(),
+                        PrefConnect.CLOUD_BACKUP_FOLDER_URI_KEY, "");
+                if (initialUriStr != null && !initialUriStr.isEmpty()) {
+                    intent.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI,
+                            Uri.parse(initialUriStr));
+                }
+                restoreFolderPickerLauncher.launch(intent);
             } catch (Exception e) {
                 setSuppressNextResumeLock(false);
                 GlobalMethods.ExceptionError(getContext(), TAG, e);
             }
             return;
         }
-        showRestoreCloudFilePicker(Uri.parse(folderUriStr));
+        showRestoreFolderFilePicker(Uri.parse(folderUriStr));
     }
 
     /** First restored wallet's index key, captured during the batched restore pass so the
      *  final summary dialog can hand it to the home listener when the user acknowledges. */
     private String firstRestoredIndexKey = null;
 
-    /** Strongbox password collected once at the start of a cloud-restore session
+    /** Strongbox password collected once at the start of a folder-restore session
      *  via the dedicated unlock-app dialog (split from the per-file backup
      *  password). Mirrors iOS {@code RestoreFlow.strongboxPassword}: every
      *  strongbox write performed inside the batch loop reuses this value so a
@@ -2744,7 +2564,7 @@ public class HomeWalletFragment extends Fragment {
         pendingStrongboxPassword = null;
     }
 
-    private void showRestoreCloudFilePicker(final Uri folderUri) {
+    private void showRestoreFolderFilePicker(final Uri folderUri) {
         final Context ctx = getContext();
         if (ctx == null) return;
         final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_home_wallet);
@@ -3158,7 +2978,7 @@ public class HomeWalletFragment extends Fragment {
                     }
                     // Strongbox unlock/verify is handled BEFORE this method
                     // runs, by ensureStrongboxReadyForRestore (called from
-                    // showRestoreCloudFilePicker). At this point the
+                    // showRestoreFolderFilePicker). At this point the
                     // strongbox is guaranteed to be unlocked AND
                     // pendingStrongboxPassword is guaranteed to be non-null
                     // (the user proved they know the device's strongbox
@@ -3489,10 +3309,10 @@ public class HomeWalletFragment extends Fragment {
         container.addView(table);
         scroll.addView(container);
 
-        String title = jsonViewModel.getRestoreFromCloudByLangValues();
+        String title = jsonViewModel.getRestoreFromFolderByLangValues();
         String ok = jsonViewModel.getOkByLangValues();
         new AlertDialog.Builder(ctx)
-                .setTitle(title != null && !title.isEmpty() ? title : "Restore from cloud")
+                .setTitle(title != null && !title.isEmpty() ? title : "Restore from folder")
                 .setView(scroll)
                 .setCancelable(false)
                 .setPositiveButton(ok != null && !ok.isEmpty() ? ok : "OK",
@@ -3570,7 +3390,7 @@ public class HomeWalletFragment extends Fragment {
                     SecureStorage secureStorage = KeyViewModel.getSecureStorage();
                     // On a fresh install the file-restore screen is the first touch of
                     // SecureStorage, so the backup password also bootstraps the app's
-                    // main key (mirrors create-wallet at L1097-1104 and the cloud-restore
+                    // main key (mirrors create-wallet at L1097-1104 and the folder-restore
                     // path in attemptBatchDecrypt). Skipped on subsequent restores when
                     // SecureStorage is already initialized + unlocked.
                     if (!secureStorage.isInitialized(getContext())) {

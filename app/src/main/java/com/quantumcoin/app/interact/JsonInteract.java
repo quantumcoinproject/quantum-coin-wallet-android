@@ -117,7 +117,7 @@ public class JsonInteract {
     private static final String data_lang_key_backup_failed = "backup-failed";
     private static final String data_lang_key_backup_password = "backup-password";
     private static final String data_lang_key_confirm_backup_password = "confirm-backup-password";
-    private static final String data_lang_key_restore_from_cloud = "restore-from-cloud";
+    private static final String data_lang_key_restore_from_folder = "restore-from-folder";
     private static final String data_lang_key_restore_from_file = "restore-from-file";
     private static final String data_lang_key_restore_decrypt_failed = "restore-decrypt-failed";
     private static final String data_lang_key_restore_enter_different_password = "restore-enter-different-password";
@@ -134,7 +134,6 @@ public class JsonInteract {
     private static final String data_lang_key_restore_partial_progress = "restore-partial-progress";
     private static final String data_lang_key_restore_wallets_decrypting = "restore-wallets-decrypting";
     private static final String data_lang_key_camera_permission_denied = "camera-permission-denied";
-    private static final String data_lang_key_backup_to_cloud = "backup-to-cloud";
     private static final String data_lang_key_cloud_backup_info = "cloud-backup-info";
     private static final String data_lang_key_backup_to_file = "backup-to-file";
     private static final String data_lang_key_backup_done = "backup-done";
@@ -165,8 +164,6 @@ public class JsonInteract {
     private static final String data_lang_key_i_agree_literal = "i-agree-literal";
     private static final String data_lang_key_must_agree_to_submit = "must-agree-to-submit";
     private static final String data_lang_key_back = "back";
-    private static final String data_lang_key_backup_submitted_cloud_title = "backup-submitted-cloud-title";
-    private static final String data_lang_key_backup_submitted_cloud_message = "backup-submitted-cloud-message";
     private static final String data_lang_key_confirm_wallet = "confirm-wallet";
     private static final String data_lang_key_confirm_wallet_description = "confirm-wallet-description";
 
@@ -583,8 +580,8 @@ public class JsonInteract {
     public String getConfirmBackupPasswordByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_confirm_backup_password);
     }
-    public String getRestoreFromCloudByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_restore_from_cloud);
+    public String getRestoreFromFolderByLangValues() throws JSONException{
+        return getLangValues().getString(data_lang_key_restore_from_folder);
     }
     public String getRestoreFromFileByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_restore_from_file);
@@ -633,9 +630,6 @@ public class JsonInteract {
     }
     public String getCameraPermissionDeniedByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_camera_permission_denied);
-    }
-    public String getBackupToCloudByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backup_to_cloud);
     }
     public String getCloudBackupInfoByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_cloud_backup_info);
@@ -724,12 +718,6 @@ public class JsonInteract {
     }
     public String getTypeIAgreeWarningByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_must_agree_to_submit);
-    }
-    public String getBackupSubmittedTitleByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backup_submitted_cloud_title);
-    }
-    public String getBackupSubmittedBodyByLangValues() throws JSONException{
-        return getLangValues().getString(data_lang_key_backup_submitted_cloud_message);
     }
     public String getConfirmWalletByLangValues() throws JSONException{
         return getLangValues().getString(data_lang_key_confirm_wallet);

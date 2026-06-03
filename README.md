@@ -129,16 +129,13 @@ signed transaction is reproducible across both clients.
   (`Intent.ACTION_CREATE_DOCUMENT`) — wallet is re-encrypted
   under a user-supplied backup password (independent of the
   unlock password), then handed to the picker.
-- **Cloud-folder backup** — user picks a folder once (typically
-  Google Drive, OneDrive, or any document provider that exposes
-  a `DocumentsProvider`) and subsequent writes go to a remembered
-  `Uri` permission grant; an explicit "submitted to cloud, sync
-  may take time" dialog runs after cloud writes so the user
-  knows the file isn't yet on the provider's servers
+- **Restore from folder** — user picks a folder via the Storage
+  Access Framework (`Intent.ACTION_OPEN_DOCUMENT_TREE`); the
+  picker opens at the same remembered location used by the file
+  backup save picker. All `.wallet` files in the picked folder are
+  enumerated and run through the same batched-decrypt loop the
+  single-file restore uses
   ([`backup/CloudBackupManager.java`](app/src/main/java/com/quantumcoin/app/backup/CloudBackupManager.java)).
-- **Restore from cloud folder** enumerates `.wallet` files in the
-  remembered folder and runs the same batched-decrypt loop the
-  file restore uses.
 - **Android Auto-Backup gate** — wallet files are excluded from
   Auto-Backup by default
   ([`app/src/main/res/xml/backup_rules.xml`](app/src/main/res/xml/backup_rules.xml),
@@ -679,7 +676,7 @@ The allowlist:
 | `WALLET_CURRENT_ADDRESS_INDEX_KEY` | Reads pre-unlock so the home screen can render the right wallet skeleton; mirrors the in-payload `currentWalletIndex` post-unlock |
 | `BLOCKCHAIN_NETWORK_ID_INDEX_KEY` | Same rationale for the network strip |
 | `BLOCKCHAIN_NETWORK_LIST` | Legacy fallback, migrated into the encrypted payload's `customNetworks` array post-unlock |
-| `CLOUD_BACKUP_FOLDER_URI_KEY` | The persistable URI permission grant for the SAF folder picker; must be readable before any unlock to surface the "go back to cloud folder" UI |
+| `CLOUD_BACKUP_FOLDER_URI_KEY` | The persistable URI permission grant for the SAF folder picker; shared by the file backup save picker and the folder-restore picker so both open at the same remembered folder (read before any unlock) |
 | `BACKUP_ENABLED_KEY` | Drives the runtime gate inside `WalletBackupAgent.onFullBackup` before any unlock |
 | `ADVANCED_SIGNING_ENABLED_KEY` | Mirrors the payload field; used pre-unlock for the splash UI |
 | `CAMERA_PERMISSION_ASKED_ONCE` | Idempotency flag for the Android permission dialog |
@@ -1174,8 +1171,8 @@ It contains 29 test classes and 183 unit tests:
 
 | Suite | Coverage |
 | --- | --- |
-| `backup/BackupExecutorExportPathTest` | Pins the export → verify-by-readback → user-feedback flow for both local SAF writes and cloud-folder writes (separate "saved" vs "submitted to cloud" wording) |
-| `backup/CloudBackupManagerScanTest` | Bounded SAF restore scan — per-file size cap, total-folder candidate cap, lazy ciphertext loading; pins the cloud-vs-local outcome enum |
+| `backup/BackupExecutorExportPathTest` | Pins the file export → verify-by-readback → user-feedback flow for SAF writes, and the SAF authority detection helper |
+| `backup/CloudBackupManagerScanTest` | Bounded SAF folder-restore scan — per-file size cap, total-folder candidate cap, lazy ciphertext loading; pins the scan outcome enum |
 | `bridge/SendBridgeContractTest` | Pins the `sendTransactionAsync` / `sendTokenTransactionAsync` payload shape AND the `bridge.html` success-envelope shape byte-for-byte against the iOS contract |
 | `bridge/SendSurfaceLockdownTest` | CI grep guard — fails if any forbidden low-level signing primitive (`signRawTransaction`, `signSendCoinTransaction(`, raw `provider.sendTransaction()`) appears outside the documented rationale block |
 | `interact/JsonInteractParityTest` | Localization-key presence, accessor wiring, OS-specific divergence wording (root vs jailbreak, Play Store vs App Store, Android Auto Backup vs iCloud) |
@@ -1263,8 +1260,8 @@ configuration stays resolvable in IDE syncs).
   impassable.
 - **Custodial recovery.** There is no remote escrow of seed
   phrases or unlock passwords. Lost seed = lost wallet. The
-  backup flow (file or cloud folder) is the only recovery
-  path.
+  backup flow (file backup / folder restore) is the only
+  recovery path.
 - **Remote-signed metadata channels.** The recognized-token
   list is intentionally hard-coded in the app binary rather
   than fetched from a server. The wallet targets a

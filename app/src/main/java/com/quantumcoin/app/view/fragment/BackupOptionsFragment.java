@@ -113,7 +113,6 @@ public class BackupOptionsFragment extends Fragment {
 
         TextView title = (TextView) view.findViewById(R.id.textView_backup_options_title);
         TextView body = (TextView) view.findViewById(R.id.textView_backup_options_body);
-        Button cloud = (Button) view.findViewById(R.id.button_backup_options_cloud);
         Button file = (Button) view.findViewById(R.id.button_backup_options_file);
         ImageView back = (ImageView) view.findViewById(R.id.imageView_backup_options_back);
 
@@ -121,8 +120,6 @@ public class BackupOptionsFragment extends Fragment {
                 "Backup your wallet"));
         body.setText(safe(jsonViewModel.getBackupOptionsDescriptionByLangValues(),
                 ""));
-        cloud.setText(safe(jsonViewModel.getBackupToCloudByLangValues(),
-                "Backup to cloud"));
         file.setText(safe(jsonViewModel.getBackupToFileByLangValues(),
                 "Backup to a file"));
         back.setContentDescription(safe(jsonViewModel.getBackByLangValues(), "Back"));
@@ -131,23 +128,6 @@ public class BackupOptionsFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 if (listener != null) listener.onBackupOptionsBack();
-            }
-        });
-        cloud.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (walletAddress == null || walletPassword == null
-                        || backupExecutor == null) return;
-                // Cloud requires the OK-only "depends on phone
-                // configuration" advisory first; on OK the executor
-                // collects the backup password and runs the encrypt +
-                // folder-picker pipeline. Fragment stays put.
-                backupExecutor.showCloudBackupInfoAndContinue(new Runnable() {
-                    @Override
-                    public void run() {
-                        backupExecutor.startCloudBackup(walletAddress, walletPassword);
-                    }
-                });
             }
         });
         file.setOnClickListener(new View.OnClickListener() {
