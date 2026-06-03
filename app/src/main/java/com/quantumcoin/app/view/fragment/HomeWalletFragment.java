@@ -611,6 +611,24 @@ public class HomeWalletFragment extends Fragment {
                     if (!pwRaw.equals(pwRaw.trim())) {
                         message = jsonViewModel.getPasswordSpaceByErrors();
                     } else if (pwRaw.equals(homeSetWalletRetypePasswordEditText.getText().toString())) {
+                        // Finish the autofill context now that the user
+                        // has accepted a valid password. The set-password
+                        // UI lives inside HomeActivity (which never
+                        // finish()es) and on Next the fields are only
+                        // hidden, not detached, so the autofill framework
+                        // would never see the context end and would never
+                        // offer to save the (generated or typed) password.
+                        // commit() while the fields still hold the value
+                        // triggers the system "Save password?" sheet so
+                        // the credential is persisted for later unlocks.
+                        try {
+                            android.view.autofill.AutofillManager afm =
+                                    requireContext().getSystemService(
+                                            android.view.autofill.AutofillManager.class);
+                            if (afm != null) {
+                                afm.commit();
+                            }
+                        } catch (Throwable ignore) { }
                         // Phone-backup yes/no decision is made
                         // RIGHT AFTER the user sets the wallet password,
                         // BEFORE the Create/Restore choice. Mirrors iOS
@@ -1124,6 +1142,22 @@ public class HomeWalletFragment extends Fragment {
                                 .strongboxUsername(getContext()));
             }
         }
+
+        // Diagnostic: a missing/disabled autofill provider is the most
+        // common reason the OS "Suggest strong password" sheet never
+        // appears (no app code can force a provider that isn't enabled).
+        // Logging the framework state here makes "no provider" easy to
+        // distinguish from a wiring bug during on-device testing.
+        try {
+            android.view.autofill.AutofillManager afm = getContext() == null ? null
+                    : getContext().getSystemService(android.view.autofill.AutofillManager.class);
+            if (afm != null) {
+                timber.log.Timber.d("Autofill on set-password: isEnabled=%b, hasEnabledServices=%b",
+                        afm.isEnabled(), afm.hasEnabledAutofillServices());
+            } else {
+                timber.log.Timber.d("Autofill on set-password: AutofillManager unavailable");
+            }
+        } catch (Throwable ignore) { }
     }
 
     private void CreateRestoreWalletView(TextView createRestoreWalletTitleTextView, TextView createRestoreWalletDescriptionTextView,
@@ -2318,8 +2352,16 @@ public class HomeWalletFragment extends Fragment {
     }
 
     private void BackupPasswordDialogShow(final BackupPasswordReceiver receiver) {
+        // Scope the saved backup password to the specific wallet so a
+        // password manager keeps a per-wallet slot (no overwrite across
+        // wallets). The just-created wallet's address is available in
+        // pendingBackupWalletJson; pass it through so the dialog uses
+        // backupUsername(address) rather than the address-less batch slot.
+        String address = pendingBackupWalletJson == null
+                ? null
+                : pendingBackupWalletJson.optString("address", null);
         com.quantumcoin.app.view.dialog.BackupPasswordDialog.show(
-                getContext(), jsonViewModel,
+                getContext(), jsonViewModel, address,
                 new com.quantumcoin.app.view.dialog.BackupPasswordDialog.OnBackupPasswordListener() {
                     @Override
                     public void onPasswordSelected(String password) {
@@ -3346,7 +3388,44 @@ public class HomeWalletFragment extends Fragment {
 
     private void handleRestoreFromUri(final Uri fileUri) {
         final ProgressBar progressBar = (ProgressBar) getView().findViewById(R.id.progress_loader_home_wallet);
+        // Resolve the wallet address from the encrypted backup file's
+        // plaintext JSON (top-level "address" field, readable WITHOUT
+        // decrypting) so the restore password dialog scopes its autofill
+        // suggestion to this wallet's saved backup-password slot instead
+        // of the address-less batch slot. readSafFile must run off the
+        // main thread; once resolved we hop back to the UI thread to show
+        // the dialog. If the file is unreadable or has no address (a
+        // foreign/renamed file), we fall back to the batch slot (null).
+        final Context appCtx = getContext();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String resolved = null;
+                try {
+                    String encryptedJson = com.quantumcoin.app.backup.CloudBackupManager
+                            .readSafFile(appCtx, fileUri);
+                    resolved = com.quantumcoin.app.backup.CloudBackupManager
+                            .extractAddressFromEncryptedJson(encryptedJson);
+                } catch (Throwable t) {
+                    timber.log.Timber.w(t, "restore: could not resolve address from backup "
+                            + "file; falling back to batch autofill slot");
+                }
+                final String address = resolved;
+                if (getActivity() == null) return;
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showRestorePasswordDialog(fileUri, address, progressBar);
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void showRestorePasswordDialog(final Uri fileUri, final String address,
+                                           final ProgressBar progressBar) {
         com.quantumcoin.app.view.dialog.BackupPasswordDialog.showRestore(getContext(), jsonViewModel,
+                address,
                 new com.quantumcoin.app.view.dialog.BackupPasswordDialog.OnPasswordAttemptListener() {
                     @Override
                     public void onAttempt(String password,

@@ -656,5 +656,52 @@ public class GlobalMethods {
             }
         });
     }
+
+    /**
+     * Proactively asks the active autofill provider to show its
+     * suggestion UI (the saved-credential dropdown) for {@code field}.
+     *
+     * <p>Why this is needed: some keyboards — notably Samsung Keyboard —
+     * do NOT render inline autofill chips in the suggestion strip, so a
+     * saved credential only appears if the user opens the keyboard's
+     * overflow (three-dot) menu and taps "Autofill". Issuing a manual
+     * autofill request here surfaces that same dropdown automatically as
+     * soon as the field is shown, with no extra taps. Gboard users (who
+     * already get inline chips) just see the request resolve to the same
+     * dataset. No-op when autofill is disabled or no provider is set.</p>
+     *
+     * <p>Deferred so the field is focused + attached and its autofill
+     * session has started (which happens on focus) before the manual
+     * request fires; otherwise the provider has nothing to anchor the
+     * dropdown to.</p>
+     */
+    public static void requestAutofill(final EditText field) {
+        if (field == null) {
+            return;
+        }
+        field.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (!field.isAttachedToWindow()) {
+                        return;
+                    }
+                    Context ctx = field.getContext();
+                    if (ctx == null) {
+                        return;
+                    }
+                    android.view.autofill.AutofillManager afm =
+                            ctx.getSystemService(android.view.autofill.AutofillManager.class);
+                    if (afm == null || !afm.isEnabled()) {
+                        return;
+                    }
+                    if (!field.hasFocus()) {
+                        field.requestFocus();
+                    }
+                    afm.requestAutofill(field);
+                } catch (Throwable ignored) { }
+            }
+        }, 400L);
+    }
 }
 

@@ -203,11 +203,17 @@ public class BackupPasswordDialog {
         // `UsernameField.make(CredentialIdentifier.backupUsername(address:))`
         // or `UsernameField.make(CredentialIdentifier.backupBatchUsername)`
         // depending on the call site.
-        String createUsername = address == null
+        // Canonicalize so the SAVE site (here) and the SUGGEST site
+        // (restore) produce a byte-identical per-wallet username on
+        // this device; otherwise the saved backup password would never
+        // be suggested on restore. Null/empty -> batch slot.
+        String createCanonAddress = com.quantumcoin.app.security.CredentialIdentifier
+                .canonicalBackupAddress(address);
+        String createUsername = (createCanonAddress == null || createCanonAddress.isEmpty())
                 ? com.quantumcoin.app.security.CredentialIdentifier
                         .backupBatchUsername(ctx)
                 : com.quantumcoin.app.security.CredentialIdentifier
-                        .backupUsername(ctx, address);
+                        .backupUsername(ctx, createCanonAddress);
         com.quantumcoin.app.security.CredentialIdentifier
                 .attachUsernameField(root, createUsername);
 
@@ -247,6 +253,18 @@ public class BackupPasswordDialog {
                                     "Passwords do not match"));
                     return;
                 }
+                // Do NOT call AutofillManager.commit() here. Dismissing
+                // the dialog removes its window, which makes all savable
+                // views invisible and lets the framework finish the
+                // autofill context via saveOnAllViewsInvisible -> the
+                // "Save password?" sheet appears reliably. Calling
+                // commit() first fired the save evaluation while the
+                // dialog was still up, and the immediate dismiss() below
+                // then tore the window down and CANCELLED the pending
+                // save UI, so no save sheet was shown at all. The
+                // synthetic username is pre-filled in that sheet thanks
+                // to CredentialIdentifier.attachUsernameField making the
+                // field visible-to-autofill (non-zero alpha).
                 dialog.dismiss();
                 listener.onPasswordSelected(p);
             });
@@ -315,11 +333,15 @@ public class BackupPasswordDialog {
 
         // Per-wallet (or batch when address unknown) username so the
         // autofill provider scopes its suggestion to the right slot.
-        String restoreUsername = address == null
+        // Canonicalized to match the SAVE site (export / post-create)
+        // byte-for-byte on this device. Null/empty -> batch slot.
+        String restoreCanonAddress = com.quantumcoin.app.security.CredentialIdentifier
+                .canonicalBackupAddress(address);
+        String restoreUsername = (restoreCanonAddress == null || restoreCanonAddress.isEmpty())
                 ? com.quantumcoin.app.security.CredentialIdentifier
                         .backupBatchUsername(ctx)
                 : com.quantumcoin.app.security.CredentialIdentifier
-                        .backupUsername(ctx, address);
+                        .backupUsername(ctx, restoreCanonAddress);
         com.quantumcoin.app.security.CredentialIdentifier
                 .attachUsernameField(root, restoreUsername);
 

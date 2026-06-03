@@ -1007,6 +1007,10 @@ public class HomeActivity extends FragmentActivity implements
                                 .strongboxUsername(this));
             }
             GlobalMethods.focusAndShowKeyboard(passwordEditText, dialog);
+            // Auto-present the saved-password autofill dropdown so the
+            // user does not have to open the keyboard overflow menu and
+            // tap "Autofill" (Samsung Keyboard shows no inline chip).
+            GlobalMethods.requestAutofill(passwordEditText);
 
             Button unlockButton = (Button) dialog.findViewById(
                     R.id.button_unlock_langValues_unlock);
