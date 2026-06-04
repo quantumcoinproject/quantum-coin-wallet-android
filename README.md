@@ -383,6 +383,61 @@ contract.
   fails the build if a stray direct `Log.*` call slips into a
   security-sensitive file.
 
+### Password-manager (Autofill) integration
+
+The wallet offers the device's Autofill provider to **generate, save,
+and re-fill** the single **unlock password** and each **per-wallet
+backup password**. All wiring is centralized in
+[`security/CredentialIdentifier.java`](app/src/main/java/com/quantumcoin/app/security/CredentialIdentifier.java).
+
+- **The OS draws the password sheet, not the app.** The "Suggest strong
+  password" / "Save password?" sheets are presented by the active
+  Autofill provider; the app only marks fields so the provider can act.
+  If no provider (or a non-generating one) is selected, no sheet appears.
+- **Per-credential scoping via a synthetic username field.**
+  `CredentialIdentifier.attachUsernameField(...)` injects a hidden
+  username next to each password field so the provider stores each
+  secret in its own slot instead of overwriting a single app-wide entry:
+  - unlock: `QuantumCoin-<deviceSuffix>`
+  - backup: `QuantumCoin-backup-<canonical-address>-<deviceSuffix>`
+
+  The wallet address is canonicalized (lowercase, `0x` prefix) so the
+  save site (create) and the suggest site (restore) produce an identical
+  username on the same device; otherwise a saved backup password would
+  never be suggested on restore. `<deviceSuffix>` is a per-install UUID
+  that isolates credentials across devices.
+- **The synthetic username field stays visible to autofill.** It is
+  rendered imperceptibly (1dp tall, ~1% alpha) rather than fully
+  transparent, because the framework treats a zero-alpha view as
+  invisible and the provider will not pre-fill the username from an
+  invisible field — leaving its save sheet asking the user to type one.
+- **Finishing the autofill context differs by host.** The set-password
+  screen is a fragment inside an Activity that is never finished, so it
+  explicitly commits the autofill context once the password is accepted
+  to trigger the save sheet. The backup dialogs instead let the context
+  finish when the dialog is dismissed (its views become invisible); they
+  must not commit early, or the pending save sheet is cancelled.
+- **"Suggest strong password" uses the provider's own credential sheet.**
+  Google's password-generation flow shows a dedicated save sheet that
+  requires a username and ignores the app-supplied username value. The
+  normal (manually typed) save sheet honors the synthetic username and
+  pre-fills it.
+- **No save prompt after an autofill is expected.** When a password box
+  is filled from an already-saved credential, the OS suppresses the save
+  sheet — there is nothing new to store.
+- **Auto-presenting the saved password on unlock.** When the unlock
+  dialog's password field gains focus, the app requests autofill so the
+  saved password is offered immediately, without the user opening the
+  keyboard's autofill menu.
+
+Relevant files:
+[`view/fragment/HomeWalletFragment.java`](app/src/main/java/com/quantumcoin/app/view/fragment/HomeWalletFragment.java)
+(set-password + post-create backup),
+[`view/dialog/BackupPasswordDialog.java`](app/src/main/java/com/quantumcoin/app/view/dialog/BackupPasswordDialog.java)
+(backup create / restore),
+[`view/activities/HomeActivity.java`](app/src/main/java/com/quantumcoin/app/view/activities/HomeActivity.java)
+(unlock dialog).
+
 ### Defense layering recap
 
 Each layer below independently raises an attacker's cost; they

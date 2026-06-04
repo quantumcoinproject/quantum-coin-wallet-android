@@ -52,6 +52,31 @@ import timber.log.Timber;
  * prefixes ({@code "QuantumCoin-"}, {@code "QuantumCoin-backup-"})
  * are validated by
  * {@code CredentialIdentifierUsernameParityTest}.
+ *
+ * <h3>Autofill framework behavior notes (confirmed on-device)</h3>
+ * <ul>
+ *   <li><b>The synthetic username field MUST be visible to autofill.</b>
+ *       {@link android.view.View#isVisibleToUser()} returns false the
+ *       instant {@code getAlpha() <= 0} (regardless of size), which puts
+ *       the field in {@code AutofillManager.mInvisibleTrackedIds}.
+ *       Google Password Manager then refuses to surface an invisible
+ *       field's value as the saved username (anti-honeypot) and its save
+ *       sheet shows a blank "Username required" box. Hence
+ *       {@link #attachUsernameField} uses a NON-zero (~1%) alpha on a
+ *       1dp-tall field: imperceptible, yet classified visible.</li>
+ *   <li><b>Finishing the context is host-specific.</b> A fragment-hosted
+ *       password screen (never-{@code finish()}ed Activity) calls
+ *       {@code AutofillManager.commit()} to trigger the save sheet. A
+ *       dialog must NOT call {@code commit()}: dismissing it makes the
+ *       savable views invisible and finishes the context via
+ *       {@code saveOnAllViewsInvisible}; {@code commit()}-then-dismiss
+ *       cancels the pending save UI and no sheet appears.</li>
+ *   <li><b>"Suggest strong password" ignores this username.</b> Google's
+ *       password-<i>generation</i> sheet ("Save password to Google?")
+ *       requires a username and ignores the app-supplied value by
+ *       design. Only the normal (manually typed) save sheet pre-fills
+ *       the synthetic username below.</li>
+ * </ul>
  */
 public final class CredentialIdentifier {
 

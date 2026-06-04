@@ -621,6 +621,12 @@ public class HomeWalletFragment extends Fragment {
                         // commit() while the fields still hold the value
                         // triggers the system "Save password?" sheet so
                         // the credential is persisted for later unlocks.
+                        // NOTE: if the user picked the provider's "Suggest
+                        // strong password" generator, Google shows its own
+                        // "Save password to Google?" sheet that mandates a
+                        // username and ignores our synthetic username value
+                        // (provider policy, not fixable app-side). The
+                        // normal typed-password sheet does pre-fill it.
                         try {
                             android.view.autofill.AutofillManager afm =
                                     requireContext().getSystemService(
