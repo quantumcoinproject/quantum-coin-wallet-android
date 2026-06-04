@@ -11,8 +11,10 @@
     tools:viewBindingIgnore="true">
 
     <ScrollView
+        android:id="@+id/scrollview_home_wallet"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:clipToPadding="false">
 
         <RelativeLayout
             android:layout_width="match_parent"
@@ -239,8 +241,7 @@
                                 android:layout_height="30dp"
                                 android:layout_marginBottom="2dp"
                                 android:alpha="0.6"
-                                android:textAppearance="@style/regular_text"
-                                android:visibility="gone" />
+                                android:textAppearance="@style/regular_text" />
 
                         </RadioGroup>
 
@@ -3973,26 +3974,6 @@
                             android:layout_marginBottom="16dp"
                             android:alpha="0.2"
                             android:background="@drawable/line_2_shape" />
-
-                        <Button
-                            android:id="@+id/button_home_backup_to_cloud"
-                            android:background="@drawable/button_green_selector"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:padding="10dp"
-                            android:textAllCaps="false"
-                            android:textColor="@color/colorCommon7"
-                            android:visibility="gone" />
-
-                        <TextView
-                            android:id="@+id/textView_home_backup_cloud_status"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:textSize="13dp"
-                            android:textColor="@color/colorCommon6"
-                            android:visibility="gone" />
 
                         <Button
                             android:id="@+id/button_home_backup_to_file"

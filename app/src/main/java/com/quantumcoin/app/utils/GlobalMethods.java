@@ -585,6 +585,42 @@ public class GlobalMethods {
     }
 
     /**
+     * Add IME-aware bottom scroll space to a scroll container so that, when the
+     * on-screen keyboard is up, all fields/buttons can still be scrolled into
+     * view. The padding is sized {@code baselineDp + max(ime, navigationBars)}:
+     * the navigation-bar inset keeps the existing edge-to-edge behavior when the
+     * keyboard is closed, and the IME inset adds keyboard-height room when it is
+     * open. clipToPadding is disabled so the padding is pure scroll travel with
+     * no visible gap when the content is short.
+     */
+    public static void applyImeBottomInset(final View scrollContainer, final int baselineDp) {
+        if (scrollContainer == null) {
+            return;
+        }
+        final int baselinePx = Math.round(
+                scrollContainer.getResources().getDisplayMetrics().density * baselineDp);
+        if (scrollContainer instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) scrollContainer).setClipToPadding(false);
+        }
+        scrollContainer.setPadding(scrollContainer.getPaddingLeft(), scrollContainer.getPaddingTop(),
+                scrollContainer.getPaddingRight(), baselinePx);
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(scrollContainer,
+                new androidx.core.view.OnApplyWindowInsetsListener() {
+                    @Override
+                    public androidx.core.view.WindowInsetsCompat onApplyWindowInsets(
+                            View v, androidx.core.view.WindowInsetsCompat insets) {
+                        int ime = insets.getInsets(
+                                androidx.core.view.WindowInsetsCompat.Type.ime()).bottom;
+                        int nav = insets.getInsets(
+                                androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom;
+                        v.setPadding(v.getPaddingLeft(), v.getPaddingTop(),
+                                v.getPaddingRight(), baselinePx + Math.max(ime, nav));
+                        return insets;
+                    }
+                });
+    }
+
+    /**
      * Request focus on {@code field} and open the soft keyboard. Works for
      * password prompts shown inside a {@link Dialog}: the window flag alone is
      * not reliable on every OEM so we also request an explicit IME show on the
@@ -619,6 +655,53 @@ public class GlobalMethods {
                 } catch (Exception ignored) { }
             }
         });
+    }
+
+    /**
+     * Proactively asks the active autofill provider to show its
+     * suggestion UI (the saved-credential dropdown) for {@code field}.
+     *
+     * <p>Why this is needed: some keyboards — notably Samsung Keyboard —
+     * do NOT render inline autofill chips in the suggestion strip, so a
+     * saved credential only appears if the user opens the keyboard's
+     * overflow (three-dot) menu and taps "Autofill". Issuing a manual
+     * autofill request here surfaces that same dropdown automatically as
+     * soon as the field is shown, with no extra taps. Gboard users (who
+     * already get inline chips) just see the request resolve to the same
+     * dataset. No-op when autofill is disabled or no provider is set.</p>
+     *
+     * <p>Deferred so the field is focused + attached and its autofill
+     * session has started (which happens on focus) before the manual
+     * request fires; otherwise the provider has nothing to anchor the
+     * dropdown to.</p>
+     */
+    public static void requestAutofill(final EditText field) {
+        if (field == null) {
+            return;
+        }
+        field.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (!field.isAttachedToWindow()) {
+                        return;
+                    }
+                    Context ctx = field.getContext();
+                    if (ctx == null) {
+                        return;
+                    }
+                    android.view.autofill.AutofillManager afm =
+                            ctx.getSystemService(android.view.autofill.AutofillManager.class);
+                    if (afm == null || !afm.isEnabled()) {
+                        return;
+                    }
+                    if (!field.hasFocus()) {
+                        field.requestFocus();
+                    }
+                    afm.requestAutofill(field);
+                } catch (Throwable ignored) { }
+            }
+        }, 400L);
     }
 }
 

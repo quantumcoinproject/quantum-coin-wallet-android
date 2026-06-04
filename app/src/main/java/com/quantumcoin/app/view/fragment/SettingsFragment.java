@@ -137,7 +137,7 @@ public class SettingsFragment extends Fragment  {
 
         RadioButton radioEnabled = new RadioButton(getContext());
         radioEnabled.setId(View.generateViewId());
-        radioEnabled.setText(jsonViewModel.getAdvancedSigningOptionByLangValues());
+        radioEnabled.setText(jsonViewModel.getEnabledByLangValues());
         radioGroup.addView(radioEnabled);
 
         RadioButton radioDisabled = new RadioButton(getContext());

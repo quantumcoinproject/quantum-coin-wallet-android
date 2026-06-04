@@ -52,6 +52,31 @@ import timber.log.Timber;
  * prefixes ({@code "QuantumCoin-"}, {@code "QuantumCoin-backup-"})
  * are validated by
  * {@code CredentialIdentifierUsernameParityTest}.
+ *
+ * <h3>Autofill framework behavior notes (confirmed on-device)</h3>
+ * <ul>
+ *   <li><b>The synthetic username field MUST be visible to autofill.</b>
+ *       {@link android.view.View#isVisibleToUser()} returns false the
+ *       instant {@code getAlpha() <= 0} (regardless of size), which puts
+ *       the field in {@code AutofillManager.mInvisibleTrackedIds}.
+ *       Google Password Manager then refuses to surface an invisible
+ *       field's value as the saved username (anti-honeypot) and its save
+ *       sheet shows a blank "Username required" box. Hence
+ *       {@link #attachUsernameField} uses a NON-zero (~1%) alpha on a
+ *       1dp-tall field: imperceptible, yet classified visible.</li>
+ *   <li><b>Finishing the context is host-specific.</b> A fragment-hosted
+ *       password screen (never-{@code finish()}ed Activity) calls
+ *       {@code AutofillManager.commit()} to trigger the save sheet. A
+ *       dialog must NOT call {@code commit()}: dismissing it makes the
+ *       savable views invisible and finishes the context via
+ *       {@code saveOnAllViewsInvisible}; {@code commit()}-then-dismiss
+ *       cancels the pending save UI and no sheet appears.</li>
+ *   <li><b>"Suggest strong password" ignores this username.</b> Google's
+ *       password-<i>generation</i> sheet ("Save password to Google?")
+ *       requires a username and ignores the app-supplied value by
+ *       design. Only the normal (manually typed) save sheet pre-fills
+ *       the synthetic username below.</li>
+ * </ul>
  */
 public final class CredentialIdentifier {
 
@@ -231,6 +256,45 @@ public final class CredentialIdentifier {
         return "QuantumCoin-backup-" + deviceSuffix(ctx);
     }
 
+    /**
+     * Canonical address form used when scoping a per-wallet backup
+     * credential. The same wallet's address can reach the backup
+     * flows in slightly different string forms (checksummed vs
+     * lowercase, with or without the {@code 0x} prefix) depending on
+     * whether it comes from the in-memory wallet map (export) or the
+     * backup file's plaintext {@code address} field (restore). Unless
+     * both the SAVE site (export / post-create) and the SUGGEST site
+     * (restore) feed {@link #backupUsername} an identical string, the
+     * password manager scopes them to different slots and the saved
+     * password is never suggested on restore. Normalizing to lowercase
+     * + a single {@code 0x} prefix at the call sites guarantees a
+     * byte-identical username on this device.
+     *
+     * <p>This is applied at the call sites (see
+     * {@code BackupPasswordDialog}) and deliberately NOT inside
+     * {@link #backupUsername}: the iOS-parity literals validated by
+     * {@code CredentialIdentifierUsernameParityTest} pass the address
+     * verbatim. Per-device isolation (the {@code -<deviceSuffix>}
+     * suffix) already keeps backup slots disjoint across devices, so
+     * normalizing on Android only affects this device's own
+     * export<->restore matching. If iOS later needs to share a backup
+     * slot it must adopt the same canonical form.
+     *
+     * @return the canonical address, or {@code null}/empty unchanged
+     *         (callers treat null/empty as "no address" -> batch slot)
+     */
+    @Nullable
+    public static String canonicalBackupAddress(@Nullable String address) {
+        if (address == null) return null;
+        String a = address.trim();
+        if (a.isEmpty()) return a;
+        a = a.toLowerCase(java.util.Locale.US);
+        if (!a.startsWith("0x")) {
+            a = "0x" + a;
+        }
+        return a;
+    }
+
     // -----------------------------------------------------------------
     // EditText autofill wiring
     // -----------------------------------------------------------------
@@ -318,8 +382,10 @@ public final class CredentialIdentifier {
      * {@code UsernameField.make(_:)} which does the equivalent for
      * iOS QuickType save / autofill.
      *
-     * <p>The field is invisible (alpha 0, focusable false, 1dp tall)
-     * and tagged with a sentinel so a re-render of the parent (e.g.
+     * <p>The field is imperceptible (near-zero alpha, focusable false,
+     * 1dp tall) yet still counts as "visible to user" for autofill so
+     * providers pre-fill its username value in their save sheet, and is
+     * tagged with a sentinel so a re-render of the parent (e.g.
      * fragment {@code onCreateView}) re-uses the existing field
      * rather than piling up duplicates.</p>
      *
@@ -381,22 +447,42 @@ public final class CredentialIdentifier {
         username.setText(usernameValue);
         username.setAutofillHints(View.AUTOFILL_HINT_USERNAME);
         username.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
-        // 1dp tall, alpha 0, non-focusable, non-clickable: present in
-        // the AssistStructure so autofill providers can scope to
-        // {username, password}, but visually and behaviourally inert.
+        // 1dp tall, near-zero (but NON-zero) alpha, non-focusable,
+        // non-clickable: present in the AssistStructure AND classified
+        // "visible to user" by the framework so autofill providers can
+        // both scope to {username, password} AND pre-fill the username
+        // in their "Save password?" sheet, while staying imperceptible.
+        //
+        // CRITICAL: alpha MUST be > 0. View.isVisibleToUser() returns
+        // false the instant getAlpha() <= 0 (regardless of size), which
+        // lands the field in AutofillManager's mInvisibleTrackedIds.
+        // Google Password Manager then refuses to surface an INVISIBLE
+        // field's value as the saved username (anti-honeypot behaviour),
+        // so its save sheet shows a blank username and asks the user to
+        // type one. A 1% alpha on a 1dp-tall field is invisible to the
+        // eye but flips the framework's visibility verdict to true.
         int onePx = (int) TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP, 1f,
                 ctx.getResources().getDisplayMetrics());
         ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, onePx);
         username.setLayoutParams(lp);
-        username.setAlpha(0f);
+        username.setAlpha(0.01f);
         username.setFocusable(false);
         username.setFocusableInTouchMode(false);
         username.setClickable(false);
         username.setLongClickable(false);
         username.setCursorVisible(false);
-        username.setEnabled(false);
+        // Intentionally left ENABLED. Several autofill providers
+        // (incl. Google Password Manager's "Suggest strong password"
+        // generation heuristic) skip disabled views when deciding
+        // whether a screen is a credential-creation/login form. A
+        // disabled username would drop the field from that heuristic
+        // and suppress the generate/save offer. The field stays inert
+        // for the user via alpha 0 / non-focusable / non-clickable /
+        // 1dp height above, so keeping it enabled has no visible or
+        // behavioural effect while preserving it in the AssistStructure
+        // as a fillable username paired with the password field.
         username.setBackground(null);
         try {
             // Strip the field from accessibility focus order so

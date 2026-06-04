@@ -129,16 +129,13 @@ signed transaction is reproducible across both clients.
   (`Intent.ACTION_CREATE_DOCUMENT`) — wallet is re-encrypted
   under a user-supplied backup password (independent of the
   unlock password), then handed to the picker.
-- **Cloud-folder backup** — user picks a folder once (typically
-  Google Drive, OneDrive, or any document provider that exposes
-  a `DocumentsProvider`) and subsequent writes go to a remembered
-  `Uri` permission grant; an explicit "submitted to cloud, sync
-  may take time" dialog runs after cloud writes so the user
-  knows the file isn't yet on the provider's servers
+- **Restore from folder** — user picks a folder via the Storage
+  Access Framework (`Intent.ACTION_OPEN_DOCUMENT_TREE`); the
+  picker opens at the same remembered location used by the file
+  backup save picker. All `.wallet` files in the picked folder are
+  enumerated and run through the same batched-decrypt loop the
+  single-file restore uses
   ([`backup/CloudBackupManager.java`](app/src/main/java/com/quantumcoin/app/backup/CloudBackupManager.java)).
-- **Restore from cloud folder** enumerates `.wallet` files in the
-  remembered folder and runs the same batched-decrypt loop the
-  file restore uses.
 - **Android Auto-Backup gate** — wallet files are excluded from
   Auto-Backup by default
   ([`app/src/main/res/xml/backup_rules.xml`](app/src/main/res/xml/backup_rules.xml),
@@ -385,6 +382,61 @@ contract.
   ([`LoggerFacadeLockdownTest`](app/src/test/java/com/quantumcoin/app/LoggerFacadeLockdownTest.java))
   fails the build if a stray direct `Log.*` call slips into a
   security-sensitive file.
+
+### Password-manager (Autofill) integration
+
+The wallet offers the device's Autofill provider to **generate, save,
+and re-fill** the single **unlock password** and each **per-wallet
+backup password**. All wiring is centralized in
+[`security/CredentialIdentifier.java`](app/src/main/java/com/quantumcoin/app/security/CredentialIdentifier.java).
+
+- **The OS draws the password sheet, not the app.** The "Suggest strong
+  password" / "Save password?" sheets are presented by the active
+  Autofill provider; the app only marks fields so the provider can act.
+  If no provider (or a non-generating one) is selected, no sheet appears.
+- **Per-credential scoping via a synthetic username field.**
+  `CredentialIdentifier.attachUsernameField(...)` injects a hidden
+  username next to each password field so the provider stores each
+  secret in its own slot instead of overwriting a single app-wide entry:
+  - unlock: `QuantumCoin-<deviceSuffix>`
+  - backup: `QuantumCoin-backup-<canonical-address>-<deviceSuffix>`
+
+  The wallet address is canonicalized (lowercase, `0x` prefix) so the
+  save site (create) and the suggest site (restore) produce an identical
+  username on the same device; otherwise a saved backup password would
+  never be suggested on restore. `<deviceSuffix>` is a per-install UUID
+  that isolates credentials across devices.
+- **The synthetic username field stays visible to autofill.** It is
+  rendered imperceptibly (1dp tall, ~1% alpha) rather than fully
+  transparent, because the framework treats a zero-alpha view as
+  invisible and the provider will not pre-fill the username from an
+  invisible field — leaving its save sheet asking the user to type one.
+- **Finishing the autofill context differs by host.** The set-password
+  screen is a fragment inside an Activity that is never finished, so it
+  explicitly commits the autofill context once the password is accepted
+  to trigger the save sheet. The backup dialogs instead let the context
+  finish when the dialog is dismissed (its views become invisible); they
+  must not commit early, or the pending save sheet is cancelled.
+- **"Suggest strong password" uses the provider's own credential sheet.**
+  Google's password-generation flow shows a dedicated save sheet that
+  requires a username and ignores the app-supplied username value. The
+  normal (manually typed) save sheet honors the synthetic username and
+  pre-fills it.
+- **No save prompt after an autofill is expected.** When a password box
+  is filled from an already-saved credential, the OS suppresses the save
+  sheet — there is nothing new to store.
+- **Auto-presenting the saved password on unlock.** When the unlock
+  dialog's password field gains focus, the app requests autofill so the
+  saved password is offered immediately, without the user opening the
+  keyboard's autofill menu.
+
+Relevant files:
+[`view/fragment/HomeWalletFragment.java`](app/src/main/java/com/quantumcoin/app/view/fragment/HomeWalletFragment.java)
+(set-password + post-create backup),
+[`view/dialog/BackupPasswordDialog.java`](app/src/main/java/com/quantumcoin/app/view/dialog/BackupPasswordDialog.java)
+(backup create / restore),
+[`view/activities/HomeActivity.java`](app/src/main/java/com/quantumcoin/app/view/activities/HomeActivity.java)
+(unlock dialog).
 
 ### Defense layering recap
 
@@ -679,7 +731,7 @@ The allowlist:
 | `WALLET_CURRENT_ADDRESS_INDEX_KEY` | Reads pre-unlock so the home screen can render the right wallet skeleton; mirrors the in-payload `currentWalletIndex` post-unlock |
 | `BLOCKCHAIN_NETWORK_ID_INDEX_KEY` | Same rationale for the network strip |
 | `BLOCKCHAIN_NETWORK_LIST` | Legacy fallback, migrated into the encrypted payload's `customNetworks` array post-unlock |
-| `CLOUD_BACKUP_FOLDER_URI_KEY` | The persistable URI permission grant for the SAF folder picker; must be readable before any unlock to surface the "go back to cloud folder" UI |
+| `CLOUD_BACKUP_FOLDER_URI_KEY` | The persistable URI permission grant for the SAF folder picker; shared by the file backup save picker and the folder-restore picker so both open at the same remembered folder (read before any unlock) |
 | `BACKUP_ENABLED_KEY` | Drives the runtime gate inside `WalletBackupAgent.onFullBackup` before any unlock |
 | `ADVANCED_SIGNING_ENABLED_KEY` | Mirrors the payload field; used pre-unlock for the splash UI |
 | `CAMERA_PERMISSION_ASKED_ONCE` | Idempotency flag for the Android permission dialog |
@@ -1174,8 +1226,8 @@ It contains 29 test classes and 183 unit tests:
 
 | Suite | Coverage |
 | --- | --- |
-| `backup/BackupExecutorExportPathTest` | Pins the export → verify-by-readback → user-feedback flow for both local SAF writes and cloud-folder writes (separate "saved" vs "submitted to cloud" wording) |
-| `backup/CloudBackupManagerScanTest` | Bounded SAF restore scan — per-file size cap, total-folder candidate cap, lazy ciphertext loading; pins the cloud-vs-local outcome enum |
+| `backup/BackupExecutorExportPathTest` | Pins the file export → verify-by-readback → user-feedback flow for SAF writes, and the SAF authority detection helper |
+| `backup/CloudBackupManagerScanTest` | Bounded SAF folder-restore scan — per-file size cap, total-folder candidate cap, lazy ciphertext loading; pins the scan outcome enum |
 | `bridge/SendBridgeContractTest` | Pins the `sendTransactionAsync` / `sendTokenTransactionAsync` payload shape AND the `bridge.html` success-envelope shape byte-for-byte against the iOS contract |
 | `bridge/SendSurfaceLockdownTest` | CI grep guard — fails if any forbidden low-level signing primitive (`signRawTransaction`, `signSendCoinTransaction(`, raw `provider.sendTransaction()`) appears outside the documented rationale block |
 | `interact/JsonInteractParityTest` | Localization-key presence, accessor wiring, OS-specific divergence wording (root vs jailbreak, Play Store vs App Store, Android Auto Backup vs iCloud) |
@@ -1263,8 +1315,8 @@ configuration stays resolvable in IDE syncs).
   impassable.
 - **Custodial recovery.** There is no remote escrow of seed
   phrases or unlock passwords. Lost seed = lost wallet. The
-  backup flow (file or cloud folder) is the only recovery
-  path.
+  backup flow (file backup / folder restore) is the only
+  recovery path.
 - **Remote-signed metadata channels.** The recognized-token
   list is intentionally hard-coded in the app binary rather
   than fetched from a server. The wallet targets a

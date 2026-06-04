@@ -12,8 +12,9 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Regression coverage for the single-file export verify-by-
- * readback + cloud-vs-local message-branching pipeline that lives
- * in {@link BackupExecutor#writeExportToUri}.
+ * readback path that lives in {@link BackupExecutor#writeExportToUri},
+ * plus the shared SAF cloud-authority detection helper in
+ * {@link CloudBackupManager}.
  *
  * <p>The full {@code writeExportToUri} method is intertwined with
  * {@code Fragment} / {@code Activity} surfaces that are not unit-
@@ -22,17 +23,16 @@ import java.nio.charset.StandardCharsets;
  *
  * <ol>
  *   <li>verify-by-readback failure suppresses the success path
- *       (driven by {@link BackupExecutor#verifyReadback}),</li>
- *   <li>the cloud-folder authority detection routes to the modal
- *       warning ({@link CloudBackupManager#isCloudAuthority}), and</li>
- *   <li>the local authority routes to the toast (same path).</li>
+ *       (driven by {@link BackupExecutor#verifyReadback}), and</li>
+ *   <li>the SAF authority detection helper correctly classifies
+ *       known cloud vs local/unknown authorities
+ *       ({@link CloudBackupManager#isCloudAuthority}).</li>
  * </ol>
  *
  * <p>are exercised via the two narrow seams that production code
- * delegates to. Both seams are package-private specifically so this
- * test can call them without the Android {@code Uri} / SAF surface.
- * The actual {@code AlertDialog.Builder} call is verified by code
- * review of {@code BackupExecutor.showCloudSubmittedModal}.</p>
+ * delegates to. Both seams are package-private/static specifically
+ * so this test can call them without the Android {@code Uri} / SAF
+ * surface.</p>
  */
 public class BackupExecutorExportPathTest {
 

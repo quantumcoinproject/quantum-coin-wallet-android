@@ -203,17 +203,28 @@ public class BackupPasswordDialog {
         // `UsernameField.make(CredentialIdentifier.backupUsername(address:))`
         // or `UsernameField.make(CredentialIdentifier.backupBatchUsername)`
         // depending on the call site.
-        String createUsername = address == null
+        // Canonicalize so the SAVE site (here) and the SUGGEST site
+        // (restore) produce a byte-identical per-wallet username on
+        // this device; otherwise the saved backup password would never
+        // be suggested on restore. Null/empty -> batch slot.
+        String createCanonAddress = com.quantumcoin.app.security.CredentialIdentifier
+                .canonicalBackupAddress(address);
+        String createUsername = (createCanonAddress == null || createCanonAddress.isEmpty())
                 ? com.quantumcoin.app.security.CredentialIdentifier
                         .backupBatchUsername(ctx)
                 : com.quantumcoin.app.security.CredentialIdentifier
-                        .backupUsername(ctx, address);
+                        .backupUsername(ctx, createCanonAddress);
         com.quantumcoin.app.security.CredentialIdentifier
                 .attachUsernameField(root, createUsername);
 
+        // Wrap in a ScrollView so the fields can be scrolled above the on-screen
+        // keyboard on small screens (OK/Cancel live on the dialog button bar).
+        ScrollView createScroll = new ScrollView(ctx);
+        createScroll.addView(root);
+
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(safe(vm.getBackupPasswordByLangValues(), "Backup password"))
-                .setView(root)
+                .setView(createScroll)
                 .setPositiveButton(safe(vm.getOkByLangValues(), "OK"), null)
                 .setNegativeButton(safe(vm.getCancelByLangValues(), "Cancel"), null)
                 .setCancelable(false)
@@ -242,6 +253,18 @@ public class BackupPasswordDialog {
                                     "Passwords do not match"));
                     return;
                 }
+                // Do NOT call AutofillManager.commit() here. Dismissing
+                // the dialog removes its window, which makes all savable
+                // views invisible and lets the framework finish the
+                // autofill context via saveOnAllViewsInvisible -> the
+                // "Save password?" sheet appears reliably. Calling
+                // commit() first fired the save evaluation while the
+                // dialog was still up, and the immediate dismiss() below
+                // then tore the window down and CANCELLED the pending
+                // save UI, so no save sheet was shown at all. The
+                // synthetic username is pre-filled in that sheet thanks
+                // to CredentialIdentifier.attachUsernameField making the
+                // field visible-to-autofill (non-zero alpha).
                 dialog.dismiss();
                 listener.onPasswordSelected(p);
             });
@@ -310,17 +333,26 @@ public class BackupPasswordDialog {
 
         // Per-wallet (or batch when address unknown) username so the
         // autofill provider scopes its suggestion to the right slot.
-        String restoreUsername = address == null
+        // Canonicalized to match the SAVE site (export / post-create)
+        // byte-for-byte on this device. Null/empty -> batch slot.
+        String restoreCanonAddress = com.quantumcoin.app.security.CredentialIdentifier
+                .canonicalBackupAddress(address);
+        String restoreUsername = (restoreCanonAddress == null || restoreCanonAddress.isEmpty())
                 ? com.quantumcoin.app.security.CredentialIdentifier
                         .backupBatchUsername(ctx)
                 : com.quantumcoin.app.security.CredentialIdentifier
-                        .backupUsername(ctx, address);
+                        .backupUsername(ctx, restoreCanonAddress);
         com.quantumcoin.app.security.CredentialIdentifier
                 .attachUsernameField(root, restoreUsername);
 
+        // Wrap in a ScrollView so the fields can be scrolled above the on-screen
+        // keyboard on small screens (OK/Cancel live on the dialog button bar).
+        ScrollView restoreScroll = new ScrollView(ctx);
+        restoreScroll.addView(root);
+
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(title)
-                .setView(root)
+                .setView(restoreScroll)
                 .setPositiveButton(safe(vm.getOkByLangValues(), "OK"), null)
                 .setNegativeButton(safe(vm.getCancelByLangValues(), "Cancel"), null)
                 .setCancelable(false)
@@ -475,9 +507,15 @@ public class BackupPasswordDialog {
                         com.quantumcoin.app.security.CredentialIdentifier
                                 .backupBatchUsername(ctx));
 
+        // Wrap in a ScrollView so the password field and content can be scrolled
+        // above the on-screen keyboard on small screens. The inner address list
+        // keeps its own fixed-height scroll; OK/Cancel are on the dialog bar.
+        ScrollView batchScroll = new ScrollView(ctx);
+        batchScroll.addView(root);
+
         final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(title)
-                .setView(root)
+                .setView(batchScroll)
                 .setPositiveButton(safe(vm.getOkByLangValues(), "OK"), null)
                 .setNegativeButton(safe(vm.getCancelByLangValues(), "Cancel"), null)
                 .setCancelable(false)
