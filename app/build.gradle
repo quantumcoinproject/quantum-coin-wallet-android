@@ -4,7 +4,9 @@ plugins {
 
 android {
     namespace 'com.quantumcoin.app'
-    compileSdk 35
+    // API 36 (Android 16): the minimum target level Google Play
+    // requires for new apps as of 2026-08-31.
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.quantumcoin.app"
@@ -26,7 +28,7 @@ android {
         // negotiated automatically when the server also supports
         // it. See TlsPinning.applyTo for the full posture comment.
         minSdk 29
-        targetSdk 35
+        targetSdk 36
         versionCode 3
         versionName "1.2"
 

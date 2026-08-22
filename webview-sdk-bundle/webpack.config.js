@@ -1,6 +1,17 @@
 const path = require('path');
 const webpack = require('webpack');
 
+// quantumcoin 8.x / quantumswap 1.x / seed-words 1.1.x are browser-clean:
+// randomness and hashing go through WebCrypto and the SDK's self-contained
+// WASM (shipped as base64 inside quantum-coin-js-sdk), so the old
+// crypto/stream/buffer/process polyfills, shims, and aliases were removed.
+// The single stub below is the one exception: quantumcoin's optional IPC
+// socket provider lazily requires `node:net` (guarded by try/catch at
+// runtime), and webpack 5 does not honor the SDK's own
+// `browser: { "node:net": false }` field for the node:-schemed request,
+// so the plugin strips the prefix and the fallback maps the result to an
+// empty module. Any future dependency that pulls in another Node builtin
+// will fail this build loudly.
 module.exports = {
   entry: './src/index.js',
   output: {
@@ -12,65 +23,18 @@ module.exports = {
     },
   },
   target: 'web',
-  resolve: {
-    fallback: {
-      crypto: path.resolve(__dirname, 'src/crypto-shim.js'),
-      stream: require.resolve('stream-browserify'),
-      buffer: require.resolve('buffer/'),
-      events: require.resolve('events/'),
-      util: false,
-      fs: false,
-      path: require.resolve('path-browserify'),
-      os: require.resolve('os-browserify/browser'),
-      vm: require.resolve('vm-browserify'),
-      assert: require.resolve('assert/'),
-      http: require.resolve('http-browserify'),
-      https: require.resolve('https-browserify'),
-      url: require.resolve('url/'),
-      net: false,
-      tls: false,
-      child_process: false,
-      dns: false,
-      readline: false,
-      string_decoder: require.resolve('string_decoder/'),
-      zlib: false,
-      'node:net': false,
-      'node:crypto': path.resolve(__dirname, 'src/crypto-shim.js'),
-    },
-    alias: {
-      process: 'process/browser',
-      util: path.resolve(__dirname, 'src/util-shim.js'),
-      quantumcoin: path.resolve(__dirname, 'node_modules/quantumcoin'),
-      'seed-words': path.resolve(__dirname, 'node_modules/seed-words'),
-      'quantum-coin-js-sdk': path.resolve(
-        __dirname,
-        'node_modules/quantumcoin/node_modules/quantum-coin-js-sdk'
-      ),
-    },
-    symlinks: true,
-  },
   plugins: [
-    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
-      resource.request = resource.request.replace(/^node:/, '');
-    }),
-    new webpack.ProvidePlugin({
-      Buffer: ['buffer', 'Buffer'],
-      process: 'process/browser',
-    }),
-    new webpack.DefinePlugin({
-      'process.env.NODE_DEBUG': JSON.stringify(''),
+    new webpack.NormalModuleReplacementPlugin(/^node:net$/, (resource) => {
+      resource.request = 'net';
     }),
   ],
-  module: {
-    rules: [
-      {
-        test: /\.wasm$/,
-        type: 'asset/inline',
-      },
-    ],
+  resolve: {
+    fallback: {
+      net: false,
+    },
   },
   performance: {
-    maxAssetSize: 10 * 1024 * 1024,
-    maxEntrypointSize: 10 * 1024 * 1024,
+    maxAssetSize: 16 * 1024 * 1024,
+    maxEntrypointSize: 16 * 1024 * 1024,
   },
 };

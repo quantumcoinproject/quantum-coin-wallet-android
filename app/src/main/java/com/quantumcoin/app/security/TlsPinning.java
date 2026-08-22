@@ -116,9 +116,12 @@ import okhttp3.TlsVersion;
  */
 public final class TlsPinning {
 
-    /** Master enforcement flag. Flip to false ONLY for an emergency
-     *  rollback paired with a new app version. */
-    public static final boolean K_TLS_PINNING_ENFORCED = true;
+    /** Master enforcement flag. DISABLED by product decision
+     *  (2026-08-21): the wallet trusts the OS trust store only -
+     *  SPKI pinning bricked scan-API access when the server key
+     *  rotated ahead of an app release. Baseline TLS 1.3 +
+     *  system-CA validation still applies to every connection. */
+    public static final boolean K_TLS_PINNING_ENFORCED = false;
 
     /** Soft-launch mode: log pin misses but do not refuse the
      *  handshake. Both feature flags default to the safe value. */
@@ -165,7 +168,10 @@ public final class TlsPinning {
      * network's name.
      */
     public static boolean isPinned(String host) {
-        return SPKI_PINS_BY_HOST.containsKey(canonicalHost(host));
+        // With enforcement off no host is actually pinned; keep the
+        // network-config padlock honest.
+        return K_TLS_PINNING_ENFORCED
+                && SPKI_PINS_BY_HOST.containsKey(canonicalHost(host));
     }
 
     /**
