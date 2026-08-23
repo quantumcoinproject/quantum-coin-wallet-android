@@ -902,6 +902,27 @@ public class JsonInteract {
     private JSONArray getQuiz() throws JSONException{
         return jsonObject.getJSONArray(data_lang_key_quiz);
     }
+    /** Generic langValues lookup with a code-side fallback (for keys
+     *  that have no dedicated accessor). */
+    public String getLangValue(String key, String fallback) {
+        try {
+            String v = getLangValues().optString(key, "");
+            return v.isEmpty() ? fallback : v;
+        } catch (JSONException e) {
+            return fallback;
+        }
+    }
+
+    /** Generic errors lookup with a code-side fallback. */
+    public String getErrorValue(String key, String fallback) {
+        try {
+            String v = getErrors().optString(key, "");
+            return v.isEmpty() ? fallback : v;
+        } catch (JSONException e) {
+            return fallback;
+        }
+    }
+
     private JSONObject getLangValues() throws JSONException{
         return jsonObject.getJSONObject(data_lang_key_langValues);
     }

@@ -44,6 +44,9 @@ import com.quantumcoin.app.keystorage.SecureStorage;
 import com.quantumcoin.app.utils.CoinUtils;
 import com.quantumcoin.app.utils.GlobalMethods;
 import com.quantumcoin.app.utils.PrefConnect;
+import com.quantumcoin.app.gas.GasChipController;
+import com.quantumcoin.app.gas.GasEstimator;
+import com.quantumcoin.app.gas.GasKind;
 import com.quantumcoin.app.view.dialog.TransactionReviewDialog;
 import com.quantumcoin.app.viewmodel.JsonViewModel;
 import com.quantumcoin.app.viewmodel.KeyViewModel;
@@ -336,10 +339,20 @@ public class SendFragment extends Fragment  {
                 @Override
                 public void afterTextChanged(android.text.Editable s) {
                     scheduleAddressLiveValidation(addressToSendEditText, addressExplorerButton);
+                    scheduleSendGasEstimate();
                 }
             });
             // Initial state: empty field on screen open, explorer hidden.
             addressExplorerButton.setVisibility(View.GONE);
+
+            gasChip = new GasChipController(getActivity(), jsonViewModel, walletAddress,
+                    (android.widget.ImageView) getView().findViewById(R.id.imageView_send_gas_icon),
+                    (TextView) getView().findViewById(R.id.textView_send_gas_fee), GasKind.SEND_COIN);
+            quantityToSendEditText.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
+                @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
+                @Override public void afterTextChanged(android.text.Editable s) { scheduleSendGasEstimate(); }
+            });
 
             sendButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
@@ -814,6 +827,11 @@ public class SendFragment extends Fragment  {
         return sym + " - " + name;
     }
 
+    /** Desktop one-dialog review: Action, Contract (token), From, To,
+     *  Quantity (Q) / Token quantity, Gas limit, Estimated gas fee,
+     *  Network (all addresses link to the block explorer), then
+     *  "i agree". The header chip's estimate (or the user's override)
+     *  is the gas that gets signed. */
     private void showTransactionReview(final View view,
                                         final ProgressBar progressBarSendCoins,
                                         final String walletAddress,
@@ -821,33 +839,45 @@ public class SendFragment extends Fragment  {
                                         final String quantity,
                                         final String languageKey) {
         try {
-            int chainId = 0;
-            try {
-                chainId = Integer.parseInt(GlobalMethods.NETWORK_ID == null
-                        ? "0" : GlobalMethods.NETWORK_ID);
-            } catch (NumberFormatException nfe) {
-                chainId = 0;
-            }
-            String asset = reviewAssetText();
-            String contract = (selectedContract == null || selectedContract.isEmpty())
-                    ? null : selectedContract;
-            TransactionReviewDialog.show(getContext(), jsonViewModel,
-                    asset, contract,
-                    walletAddress == null ? "" : walletAddress,
-                    toAddress,
-                    quantity,
-                    GlobalMethods.BLOCKCHAIN_NAME == null ? "" : GlobalMethods.BLOCKCHAIN_NAME,
-                    chainId,
-                    new TransactionReviewDialog.OnConfirm() {
-                        @Override
-                        public void onConfirm() {
-                            // Capture network + wallet at the
-                            // exact moment the user agreed. Re-asserted
-                            // before signing in sendTransaction /
-                            // sendTokenTransaction so a network switch
-                            // (or wallet swap) between Review and Sign
-                            // aborts the broadcast instead of producing
-                            // a wrong-chain signature.
+            if (gasChip == null) throw new IllegalStateException("gas chip not ready");
+            gasChip.setKind(selectedContract == null ? GasKind.SEND_COIN : GasKind.SEND_TOKEN);
+            gasChip.ensureReady(() -> {
+                if (getActivity() == null) return;
+                final GasEstimator.Resolved gas = gasChip.resolve();
+                if (gas.gasLimit <= 0) {
+                    sendButtonStatus = 0;
+                    GlobalMethods.ShowErrorDialog(getContext(),
+                            jsonViewModel.getErrorTitleByLangValues(),
+                            jsonViewModel.lang("tx-step-invalid-gas", "Enter a valid positive gas limit."));
+                    return;
+                }
+                pendingGasLimit = gas.gasLimit;
+                final boolean isCoin = selectedContract == null || selectedContract.isEmpty();
+                String sym = selectedSymbol == null ? "" : selectedSymbol;
+                String name = "";
+                if (!isCoin) {
+                    for (AccountTokenSummary t : tokenOptions) {
+                        if (t != null && selectedContract.equalsIgnoreCase(t.getContractAddress())) {
+                            name = t.getName() == null ? "" : t.getName();
+                            break;
+                        }
+                    }
+                }
+                String sendWord = jsonViewModel.lang("send", "Send");
+                TransactionReviewDialog.ReviewSpec spec = new TransactionReviewDialog.ReviewSpec()
+                        .action(isCoin ? sendWord + " " + GlobalMethods.COIN_SYMBOL
+                                       : sendWord + " " + name + " (" + sym + ")")
+                        .contractAddress(isCoin ? null : selectedContract)
+                        .contractIsToken(!isCoin)
+                        .fromAddress(walletAddress == null ? "" : walletAddress)
+                        .toAddress(toAddress)
+                        .quantityValue(isCoin ? quantity : "0")
+                        .tokenQuantityValue(isCoin ? null : quantity + " " + sym)
+                        .gas(gas.gasLimit, gas.feeLabel())
+                        .networkText(TransactionReviewDialog.networkText(jsonViewModel));
+                TransactionReviewDialog.show(getActivity(), jsonViewModel,
+                        walletAddress == null ? "" : walletAddress, spec,
+                        () -> {
                             try {
                                 pendingNetworkSnapshot =
                                         com.quantumcoin.app.networking.NetworkSnapshot
@@ -858,22 +888,53 @@ public class SendFragment extends Fragment  {
                             }
                             unlockDialogFragment(view, progressBarSendCoins,
                                     walletAddress, toAddress, quantity, languageKey);
-                        }
-                    },
-                    new TransactionReviewDialog.OnCancel() {
-                        @Override
-                        public void onCancel() {
+                        },
+                        () -> {
                             pendingNetworkSnapshot = null;
                             sendButtonStatus = 0;
-                        }
-                    });
+                        });
+            });
         } catch (Exception e) {
-            // If the review dialog cannot be presented for any reason,
-            // do not silently fall through to the unlock + sign path.
-            // Reset the button and surface the error to the user.
             sendButtonStatus = 0;
             GlobalMethods.ExceptionError(getContext(), TAG, e);
         }
+    }
+
+    // ---------------------------------------------------------------
+    // Gas chip (desktop scheduleSendGasEstimate)
+    // ---------------------------------------------------------------
+
+    private GasChipController gasChip;
+    /** Gas limit the user agreed to in the review (signed as-is). */
+    private long pendingGasLimit;
+
+    /** 2 s debounce after any edit of address / amount / asset; nothing
+     *  is requested until the form is complete enough. Buffer: 0% for a
+     *  coin send, +10% for a token send. */
+    private void scheduleSendGasEstimate() {
+        if (gasChip == null || getView() == null) return;
+        final EditText addr = getView().findViewById(R.id.editText_send_address_to_send);
+        final EditText qty = getView().findViewById(R.id.editText_send_quantity_to_send);
+        gasChip.setKind(selectedContract == null ? GasKind.SEND_COIN : GasKind.SEND_TOKEN);
+        gasChip.schedule(() -> {
+            String to = addr == null || addr.getText() == null ? "" : addr.getText().toString().trim();
+            String amount = qty == null || qty.getText() == null ? "" : qty.getText().toString().trim();
+            if (!com.quantumcoin.app.networking.UrlBuilder.isValidAddress(to)) return null;
+            if (validateAmount(amount) != null) return null;
+            try {
+                JSONObject p = new JSONObject();
+                p.put("toAddress", to);
+                if (selectedContract != null) {
+                    p.put("contractAddress", selectedContract);
+                    p.put("amount", CoinUtils.parseUnits(amount, selectedDecimals));
+                } else {
+                    p.put("value", CoinUtils.parseEther(amount));
+                }
+                return p;
+            } catch (Exception e) {
+                return null;
+            }
+        });
     }
 
     private void unlockDialogFragment(View view, ProgressBar progressBarSendCoins,
@@ -922,6 +983,7 @@ public class SendFragment extends Fragment  {
                                 .strongboxUsername(getContext()));
             }
             GlobalMethods.focusAndShowKeyboard(passwordEditText, dialog);
+            GlobalMethods.requestAutofill(passwordEditText);
 
             Button unlockButton = (Button) dialog.findViewById(R.id.button_unlock_langValues_unlock);
             unlockButton.setText(jsonViewModel.getUnlockByLangValues());
@@ -1260,7 +1322,7 @@ public class SendFragment extends Fragment  {
                                 // tx hash through to the completion
                                 // dialog so the user gets a copy +
                                 // explorer affordance, not just OK.
-                                sendCompletedDialogFragment(context, txHash);
+                                sendCompletedDialogFragment(context, fromAddress, txHash);
                             } catch (Exception e) {
                                 try { if (waitHandle != null) waitHandle.dismiss(); } catch (Throwable ignore) { }
                                 progressBar.setVisibility(View.GONE);
@@ -1293,12 +1355,12 @@ public class SendFragment extends Fragment  {
 
             if (selectedContract == null) {
                 String valueWei = CoinUtils.parseEther(quantity);
-                String gasLimit = GlobalMethods.GAS_QCN_LIMIT;
+                String gasLimit = String.valueOf(pendingGasLimit > 0 ? pendingGasLimit : GasKind.SEND_COIN.defaultGasLimit);
                 keyViewModel.sendTransaction(privKeyBase64, pubKeyBase64, toAddress, valueWei,
                         gasLimit, rpcEndpoint, chainId, advancedSigningEnabled, callback);
             } else {
                 String amountWei = CoinUtils.parseUnits(quantity, selectedDecimals);
-                String gasLimit = GlobalMethods.GAS_TOKEN_LIMIT;
+                String gasLimit = String.valueOf(pendingGasLimit > 0 ? pendingGasLimit : GasKind.SEND_TOKEN.defaultGasLimit);
                 keyViewModel.sendTokenTransaction(privKeyBase64, pubKeyBase64, selectedContract,
                         toAddress, amountWei, gasLimit, rpcEndpoint, chainId,
                         advancedSigningEnabled, callback);
@@ -1395,6 +1457,8 @@ public class SendFragment extends Fragment  {
                     // also benefits from a toast on a 5xx since the user
                     // is actively using the screen.
                     getBalanceByAccount(walletAddress, balanceValueTextView, balanceProgress, true);
+                    if (gasChip != null) gasChip.reset();
+                    scheduleSendGasEstimate();
                     return;
                 }
                 int tokenIndex = position - 1;
@@ -1410,6 +1474,8 @@ public class SendFragment extends Fragment  {
                 balanceValueTextView.setText(
                         CoinUtils.formatUnits(safe(selectedTokenBalanceWei), selectedDecimals));
                 balanceProgress.setVisibility(View.GONE);
+                if (gasChip != null) gasChip.reset();
+                scheduleSendGasEstimate();
             }
 
             @Override
@@ -1474,12 +1540,90 @@ public class SendFragment extends Fragment  {
     }
 
     private void sendCompletedDialogFragment(Context context, final String txHash) {
+        sendCompletedDialogFragment(context, null, txHash);
+    }
+
+    /** Desktop send-completed dialog with LIVE on-chain status: the
+     *  status text rotates every 3600 ms while the scan API is polled
+     *  every 9000 ms (immediately first, no cap); success swaps the
+     *  spinner for the green check and reveals the big check, failure
+     *  shows the red alert icon. */
+    private void sendCompletedDialogFragment(Context context, final String fromAddress,
+                                             final String txHash) {
         try {
             final AlertDialog dialog = new AlertDialog.Builder(getContext())
                     .setTitle((CharSequence) "").setView((int)
                             R.layout.send_completed_dialog_fragment).create();
             dialog.setCancelable(false);
             dialog.show();
+
+            final android.widget.ProgressBar statusSpinner = dialog.findViewById(R.id.progress_send_completed_status);
+            final android.widget.ImageView statusIcon = dialog.findViewById(R.id.imageView_send_completed_status);
+            final TextView statusText = dialog.findViewById(R.id.textView_send_completed_status);
+            final android.widget.ImageView bigCheck = dialog.findViewById(R.id.imageView_send_completed_check);
+            final String[] rotatingStatuses = {
+                    jsonViewModel.lang("send-status-checking", "Checking transaction status..."),
+                    jsonViewModel.lang("send-status-waiting", "Waiting..."),
+                    jsonViewModel.lang("send-status-checking-short", "Checking...")
+            };
+            final android.os.Handler statusHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+            final boolean[] settled = { false };
+            final long statusStart = android.os.SystemClock.uptimeMillis();
+            if (statusText != null) statusText.setText(rotatingStatuses[0]);
+            final Runnable rotateRunnable = new Runnable() {
+                @Override public void run() {
+                    if (settled[0]) return;
+                    int idx = (int) (((android.os.SystemClock.uptimeMillis() - statusStart) / 3600) % rotatingStatuses.length);
+                    if (statusText != null) statusText.setText(rotatingStatuses[idx]);
+                    statusHandler.postDelayed(this, 3600);
+                }
+            };
+            statusHandler.postDelayed(rotateRunnable, 3600);
+            final String pollAddress = fromAddress != null ? fromAddress
+                    : (getArguments() == null ? "" : getArguments().getString("walletAddress", ""));
+            final com.quantumcoin.app.networking.TxStatusPoller poller =
+                    com.quantumcoin.app.networking.TxStatusPoller.start(
+                            getContext(), pollAddress, txHash, 9000, 0, false,
+                            new com.quantumcoin.app.networking.TxStatusPoller.Listener() {
+                @Override public void onSucceeded() {
+                    if (settled[0]) return;
+                    settled[0] = true;
+                    statusHandler.removeCallbacksAndMessages(null);
+                    if (statusSpinner != null) statusSpinner.setVisibility(View.GONE);
+                    if (statusIcon != null) {
+                        statusIcon.setImageResource(R.drawable.ic_status_success);
+                        statusIcon.setVisibility(View.VISIBLE);
+                    }
+                    if (statusText != null) {
+                        statusText.setText(jsonViewModel.lang("send-transaction-succeeded",
+                                "Transaction completed successfully."));
+                    }
+                    if (bigCheck != null) bigCheck.setVisibility(View.VISIBLE);
+                }
+                @Override public void onFailed(String error) {
+                    if (settled[0]) return;
+                    settled[0] = true;
+                    statusHandler.removeCallbacksAndMessages(null);
+                    if (statusSpinner != null) statusSpinner.setVisibility(View.GONE);
+                    if (statusIcon != null) {
+                        statusIcon.setImageResource(R.drawable.ic_status_failed);
+                        statusIcon.setVisibility(View.VISIBLE);
+                    }
+                    if (statusText != null) {
+                        String failed = jsonViewModel.lang("send-transaction-failed", "Transaction failed.");
+                        if (error != null && !error.isEmpty()) failed += " " + sanitizeErrorMessage(error);
+                        statusText.setText(failed);
+                    }
+                }
+                @Override public void onTimeout() { }
+            });
+            dialog.setOnDismissListener(new android.content.DialogInterface.OnDismissListener() {
+                @Override public void onDismiss(android.content.DialogInterface d) {
+                    settled[0] = true;
+                    statusHandler.removeCallbacksAndMessages(null);
+                    poller.cancel();
+                }
+            });
 
             // Surface tx hash + copy + explorer if present.
             final TextView label = (TextView) dialog.findViewById(

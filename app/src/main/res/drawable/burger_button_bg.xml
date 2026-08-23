@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Burger button: subtle theme-aware glass tile with a 1dp groove
+     border and 9dp radius (colours flip with the theme via
+     colorBurgerFill / colorBurgerStroke). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/colorBurgerFillPressed" />
+            <stroke android:width="1dp" android:color="@color/colorBurgerStroke" />
+            <corners android:radius="9dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/colorBurgerFill" />
+            <stroke android:width="1dp" android:color="@color/colorBurgerStroke" />
+            <corners android:radius="9dp" />
+        </shape>
+    </item>
+</selector>

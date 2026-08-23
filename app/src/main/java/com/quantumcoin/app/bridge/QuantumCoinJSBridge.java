@@ -147,6 +147,21 @@ public class QuantumCoinJSBridge {
         return requestId;
     }
 
+    /**
+     * Read-only gas estimate for a coin / token send. {@code payload}
+     * carries {@code txKind} ("sendCoin" | "sendToken"), {@code fromAddress},
+     * {@code toAddress}, {@code value} (wei, coin) or {@code contractAddress}
+     * + {@code amount} (base units, token), {@code rpcEndpoint}, {@code chainId}.
+     * Result: {@code { gasLimit: "<raw estimate>" }}. No key material.
+     */
+    public String estimateGasAsync(JSONObject payload, BridgeCallback callback) {
+        String requestId = UUID.randomUUID().toString();
+        webViewManager.registerCallback(requestId, callback);
+        webViewManager.storePendingPayload(requestId, payload.toString());
+        evaluateOnMainThread("bridge.estimateGas('" + requestId + "')");
+        return requestId;
+    }
+
     public String sendTransactionAsync(String privKeyBase64, String pubKeyBase64,
                                        String toAddress, String valueWei,
                                        String gasLimit, String rpcEndpoint,

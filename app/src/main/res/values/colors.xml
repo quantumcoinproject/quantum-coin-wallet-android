@@ -158,4 +158,10 @@
   <color name="colorMutedSecondaryText">#5C5C5E</color>
 
 
+    <!-- Hyperlink / "i agree" literal blue used by the review dialog. -->
+    <color name="colorLink">#1F6FEB</color>
+    <!-- Burger menu tile (light theme). -->
+    <color name="colorBurgerFill">#14000000</color>
+    <color name="colorBurgerFillPressed">#26000000</color>
+    <color name="colorBurgerStroke">#40000000</color>
 </resources>

@@ -22,10 +22,11 @@
             android:orientation="vertical">
             <ImageView
                 android:id="@+id/imageView_home_logo"
+                android:layout_marginTop="3dp"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
                 android:layout_gravity="center_horizontal|center_vertical"
-                android:src="@drawable/logo" />
+                android:src="@drawable/header_logo" />
             <TextView
                 android:id="@+id/textView_home_tile"
                 android:layout_width="match_parent"
@@ -51,7 +52,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_below="@id/top_linear_layout_home_id"
-            android:layout_above="@id/bottom_linear_layout_home_id"
+            android:layout_alignParentBottom="true"
             android:background="@color/colorGainsboro"
             android:gravity="center_vertical|center_horizontal"
             android:paddingTop="150dp"
@@ -63,7 +64,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_below="@id/center_relative_layout_home_id"
-            android:layout_above="@id/bottom_linear_layout_home_id"
+            android:layout_alignParentBottom="true"
             android:background="@android:color/transparent"
             android:orientation="horizontal">
             <FrameLayout
@@ -73,45 +74,6 @@
                 android:layout_marginTop="5dp"
                 android:layout_marginBottom="5dp"
                 android:background="@android:color/transparent" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/bottom_linear_layout_home_id"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:orientation="vertical">
-
-            <!--
-                1dp theme-aware divider that frames the top edge of the
-                bottom navigation bar. Without it the bottom nav reads as
-                a continuation of the body in light mode (the nav fills
-                colorCommon7 = #FFFFFF and the body content above it is
-                also light, so the user cannot see where the body ends
-                and the nav begins). In dark mode the nav is black
-                (colorCommon7 = #000000) and the contrast is sufficient
-                on its own, but the same divider stays visible (white
-                via colorCommon3 = #FFFFFF on dark) and reinforces the
-                boundary without harming the dark-mode look.
-            -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/colorCommon3" />
-
-            <com.google.android.material.bottomnavigation.BottomNavigationView
-                android:id="@+id/bottom_navigation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/colorCommon7"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:labelVisibilityMode="labeled"
-                app:itemIconTint="@drawable/bottom_nav_colors"
-                app:itemTextColor="@drawable/bottom_nav_colors"
-                app:menu="@menu/home_bottom_navigation"/>
-
         </LinearLayout>
 
         <RelativeLayout
@@ -394,6 +356,21 @@
 
         </RelativeLayout>
 
+        <!-- Burger menu (replaces the bottom navigation): Wallets / Settings. -->
+        <ImageButton
+            android:id="@+id/imageButton_home_burger"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            android:padding="7dp"
+            android:scaleType="fitCenter"
+            android:background="@drawable/burger_button_bg"
+            android:src="@drawable/ic_burger"
+            android:contentDescription="@string/nav_wallets_title" />
+
         <TextView
             android:id="@+id/textView_home_blockchain_network"
             android:layout_width="wrap_content"
@@ -411,5 +388,128 @@
             android:visibility="gone" />
 
     </RelativeLayout>
+
+    <!-- Navigation drawer (burger menu): brand header on the app gradient,
+         then icon rows with rounded press states and hairline dividers. -->
+    <LinearLayout
+        android:id="@+id/linearLayout_home_drawer"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="@color/colorCommon7"
+        android:orientation="vertical"
+        android:elevation="12dp">
+
+        <LinearLayout
+            android:id="@+id/linearLayout_drawer_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/gradient_layer"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="24dp">
+
+            <ImageView
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@drawable/header_logo" />
+
+            <TextView
+                android:id="@+id/textView_drawer_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorCommon6" />
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/colorBurgerStroke" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="12dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp">
+
+            <LinearLayout
+                android:id="@+id/linearLayout_drawer_wallets"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:background="@drawable/drawer_item_bg">
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@drawable/ic_wallet_outline" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="16dp"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorCommon6"
+                    android:text="@string/nav_wallets_title" />
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/chevron_right"
+                    app:tint="@color/colorMutedSecondaryText" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="14dp"
+                android:layout_marginEnd="14dp"
+                android:background="@color/colorBurgerFill" />
+
+            <LinearLayout
+                android:id="@+id/linearLayout_drawer_settings"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:background="@drawable/drawer_item_bg">
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@drawable/m_settings"
+                    app:tint="@color/colorCommon6" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="16dp"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorCommon6"
+                    android:text="@string/nav_settings_title" />
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/chevron_right"
+                    app:tint="@color/colorMutedSecondaryText" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>

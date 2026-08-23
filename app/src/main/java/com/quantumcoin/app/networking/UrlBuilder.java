@@ -76,7 +76,18 @@ public final class UrlBuilder {
                 /* validator */ UrlBuilder::isValidAddress);
     }
 
-     /**
+     /** Block-explorer URL for a token contract ({@code /token/{address}}). */
+    @Nullable
+    public static Uri blockExplorerTokenUrl(@Nullable String tokenAddress) {
+        return substituted(
+                GlobalMethods.BLOCK_EXPLORER_URL,
+                GlobalMethods.BLOCK_EXPLORER_TOKEN_URL,
+                "{address}",
+                tokenAddress,
+                /* validator */ UrlBuilder::isValidAddress);
+    }
+
+    /**
      * Build the full block-explorer URL for a transaction hash. Returns
      * {@code null} on validation failure.
      */
