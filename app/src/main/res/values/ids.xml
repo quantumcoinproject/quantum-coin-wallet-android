@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- View tag key holding the running gas-pump pulse animator. -->
+    <item name="tag_gas_pulse_animator" type="id" />
+</resources>

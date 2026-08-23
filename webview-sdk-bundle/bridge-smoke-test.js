@@ -63,7 +63,7 @@ function envelope(requestId) {
         'walletFromSeed', 'walletFromPhrase', 'walletFromKeys', 'sendTransaction',
         'sendTokenTransaction', 'isValidAddress', 'getChecksumAddress', 'computeAddress',
         'encryptWalletJson', 'decryptWalletJson', 'getAllSeedWords', 'doesSeedWordExist',
-        'scryptDerive']) {
+        'scryptDerive', 'estimateGas']) {
         check('bridge.' + fn, typeof global.bridge[fn] === 'function');
     }
 

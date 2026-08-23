@@ -62,6 +62,7 @@ public class GlobalMethods {
     public static volatile String BLOCK_EXPLORER_URL = null;
     public static String BLOCK_EXPLORER_TX_HASH_URL =  "/txn/{txhash}";
     public static String BLOCK_EXPLORER_ACCOUNT_TRANSACTION_URL = "/account/{address}/txn/page";
+    public static String BLOCK_EXPLORER_TOKEN_URL = "/token/{address}";
 
     //Network
     public static volatile String BLOCKCHAIN_NAME = null;

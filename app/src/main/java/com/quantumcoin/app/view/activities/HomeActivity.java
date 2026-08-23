@@ -66,7 +66,7 @@ import com.quantumcoin.app.keystorage.SecureStorage;
 import com.quantumcoin.app.viewmodel.JsonViewModel;
 import com.quantumcoin.app.viewmodel.KeyViewModel;
 
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+import androidx.drawerlayout.widget.DrawerLayout;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -137,7 +137,8 @@ public class HomeActivity extends FragmentActivity implements
     private TextView balanceValueTextView;
     private ProgressBar progressBar;
     private ImageButton refreshImageButton;
-    private BottomNavigationView bottomNavigationView;
+    private DrawerLayout drawerLayout;
+    private View drawerPanel;
 
     private LinearLayout linerLayoutOffline;
     private ImageView imageViewRetry;
@@ -260,7 +261,44 @@ public class HomeActivity extends FragmentActivity implements
             ImageButton transactionsImageButton = (ImageButton) findViewById(R.id.imageButton_home_transactions);
 
             //Bottom navigation
-            bottomNavigationView = (BottomNavigationView) findViewById(R.id.bottom_navigation);
+            drawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout_home);
+            drawerPanel = findViewById(R.id.linearLayout_home_drawer);
+            final ImageButton burgerButton = (ImageButton) findViewById(R.id.imageButton_home_burger);
+            ViewCompat.setOnApplyWindowInsetsListener(burgerButton,
+                    new OnApplyWindowInsetsListener() {
+                        @Override
+                        public WindowInsetsCompat onApplyWindowInsets(
+                                View v, WindowInsetsCompat insets) {
+                            Insets bars = insets.getInsets(
+                                    WindowInsetsCompat.Type.statusBars()
+                                            | WindowInsetsCompat.Type.displayCutout());
+                            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+                            lp.topMargin = bars.top + Math.round(8 * v.getResources().getDisplayMetrics().density);
+                            v.setLayoutParams(lp);
+                            return insets;
+                        }
+                    });
+            burgerButton.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { drawerLayout.openDrawer(drawerPanel); }
+            });
+            findViewById(R.id.linearLayout_drawer_wallets).setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    drawerLayout.closeDrawer(drawerPanel);
+                    if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)
+                            && walletAddress.length() == GlobalMethods.ADDRESS_LENGTH) {
+                        screenViewType(1);
+                        beginTransactionNow(WalletsFragment.newInstance(), bundle);
+                    }
+                }
+            });
+            findViewById(R.id.linearLayout_drawer_settings).setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    drawerLayout.closeDrawer(drawerPanel);
+                    screenViewType(1);
+                    beginTransactionNow(SettingsFragment.newInstance(), bundle);
+                }
+            });
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
 
             linerLayoutOffline = (LinearLayout) findViewById(R.id.linerLayout_home_offline);
             imageViewRetry = (ImageView) findViewById(R.id.image_retry);
@@ -269,6 +307,8 @@ public class HomeActivity extends FragmentActivity implements
             Button buttonRetry = (Button) findViewById(R.id.button_retry);
 
             titleTextView.setText(jsonViewModel.getTitleByLangValues());
+            TextView drawerTitle = (TextView) findViewById(R.id.textView_drawer_title);
+            if (drawerTitle != null) drawerTitle.setText(jsonViewModel.getTitleByLangValues());
             //balanceTitleTextView.setText(jsonViewModel.getBalanceByLangValues());
             balanceCoinSymbolTextView.setText(GlobalMethods.COIN_SYMBOL);
 
@@ -409,28 +449,6 @@ public class HomeActivity extends FragmentActivity implements
                 }
             });
 
-            bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
-                @Override
-                public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-                    int id = item.getItemId();
-                    if (id == R.id.nav_wallets) {
-                        if (walletAddress.startsWith(GlobalMethods.ADDRESS_START_PREFIX)) {
-                            if (walletAddress.length() == GlobalMethods.ADDRESS_LENGTH){
-                                screenViewType(1);
-                                beginTransactionNow(WalletsFragment.newInstance(), bundle);
-                            }
-                        }
-                        return true;
-                    } else if (id == R.id.nav_settings) {
-                        screenViewType(1);
-                        beginTransactionNow(SettingsFragment.newInstance(), bundle);
-                        return true;
-                    }
-                    return false;
-                }
-            });
-
-            deselectAllNavItems();
 
             SecureStorage secureStorage = KeyViewModel.getSecureStorage();
             boolean secureInitialized = secureStorage != null && secureStorage.isInitialized(getApplicationContext());
@@ -1298,16 +1316,15 @@ public class HomeActivity extends FragmentActivity implements
                 case 0:
                     topLinearLayoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
                     topLinearLayout.setLayoutParams(topLinearLayoutParams);
-                    bottomNavigationView.setVisibility(View.VISIBLE);
+                    setBurgerEnabled(true);
                     centerRelativeLayout.setVisibility(View.VISIBLE);
                     blockChainNetworkTextView.setVisibility(View.VISIBLE);
-                    deselectAllNavItems();
                     break;
                 case 1:
                     screenHeight = (Utility.calculateScreenWidthDp(getApplicationContext()) * 30 / 100);
                     topLinearLayoutParams.height = screenHeight;
                     topLinearLayout.setLayoutParams(topLinearLayoutParams);
-                    bottomNavigationView.setVisibility(View.VISIBLE);
+                    setBurgerEnabled(true);
                     centerRelativeLayout.setVisibility(View.GONE);
                     blockChainNetworkTextView.setVisibility(View.GONE);
                     break;
@@ -1315,7 +1332,7 @@ public class HomeActivity extends FragmentActivity implements
                     screenHeight = (Utility.calculateScreenWidthDp(getApplicationContext()) * 30 / 100);
                     topLinearLayoutParams.height = screenHeight;
                     topLinearLayout.setLayoutParams(topLinearLayoutParams);
-                    bottomNavigationView.setVisibility(View.GONE);
+                    setBurgerEnabled(false);
                     centerRelativeLayout.setVisibility(View.GONE);
                     blockChainNetworkTextView.setVisibility(View.GONE);
             }
@@ -1324,12 +1341,16 @@ public class HomeActivity extends FragmentActivity implements
         }
     }
 
-    private void deselectAllNavItems() {
-        bottomNavigationView.getMenu().setGroupCheckable(0, true, false);
-        for (int i = 0; i < bottomNavigationView.getMenu().size(); i++) {
-            bottomNavigationView.getMenu().getItem(i).setChecked(false);
+    /** Burger + drawer are only available once a wallet exists
+     *  (status 0 / 1); the first-run wizard (status -1) has no menu. */
+    private void setBurgerEnabled(boolean enabled) {
+        View burger = findViewById(R.id.imageButton_home_burger);
+        if (burger != null) burger.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        if (drawerLayout != null) {
+            drawerLayout.setDrawerLockMode(enabled
+                    ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+            if (!enabled && drawerPanel != null) drawerLayout.closeDrawer(drawerPanel);
         }
-        bottomNavigationView.getMenu().setGroupCheckable(0, true, true);
     }
 
     private void getCurrentWallet(String indexKey) {

@@ -35,6 +35,8 @@
                 <ImageView
                     android:layout_margin="10dp"
                     android:layout_marginEnd="12dp"
+                    android:id="@+id/imageView_send_completed_check"
+                    android:visibility="gone"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
                     android:background="@drawable/img_right" />
@@ -61,6 +63,40 @@
                     android:textColor="@color/colorCommon6"
                     android:background="@android:color/transparent"
                     android:text="@string/send_transaction_send_message_description"/>
+
+            </LinearLayout>
+            <!-- Live on-chain status (desktop waitForTxSuccess): spinner ->
+                 success / failed icon + rotating status text. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ProgressBar
+                    android:id="@+id/progress_send_completed_status"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:indeterminate="true" />
+
+                <ImageView
+                    android:id="@+id/imageView_send_completed_status"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/textView_send_completed_status"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:textSize="13dp"
+                    android:textColor="@color/colorCommon6" />
 
             </LinearLayout>
 

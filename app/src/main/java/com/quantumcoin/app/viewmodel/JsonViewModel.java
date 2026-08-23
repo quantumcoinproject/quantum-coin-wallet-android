@@ -70,6 +70,18 @@ public class JsonViewModel extends ViewModel{
     public String getNextByLangValues() {
         try { return _jsonInteract.getNextByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
+    /** Generic langValues lookup (keys without a dedicated accessor). */
+    public String lang(String key, String fallback) {
+        if (_jsonInteract == null) return fallback;
+        return _jsonInteract.getLangValue(key, fallback);
+    }
+
+    /** Generic errors-section lookup; see {@link #lang}. */
+    public String err(String key, String fallback) {
+        if (_jsonInteract == null) return fallback;
+        return _jsonInteract.getErrorValue(key, fallback);
+    }
+
     public String getOkByLangValues() {
         try { return _jsonInteract.getOkByLangValues(); } catch (JSONException e) { Timber.w(e, "lang key lookup failed"); } return null;
     }
